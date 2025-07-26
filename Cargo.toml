@@ -1,0 +1,9 @@
+[package]
+name = "RustyRunways"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+petgraph = "0.6"
+serde = { version = "1.0", features = ["derive"] }
+rand = "0.8"
