@@ -9,14 +9,11 @@ pub type GameTime = u64;
 pub enum Event {
     /// A plane arrives at the given coordinate.
     FlightArrival {
-        plane:         usize,      // index into Game.airplanes
+        plane: usize, // index into Game.airplanes
         airport_coord: Coordinate,
     },
     /// An order at `airport` reaches its delivery deadline.
-    OrderDeadline {
-        airport:       usize,
-        order_index:   usize,
-    },
+    OrderDeadline { airport: usize, order_index: usize },
     // TODO: add MaintenanceComplete, RefuelComplete, etc.
 }
 
@@ -24,7 +21,7 @@ pub enum Event {
 /// Implements `Ord` such that the earliest time is popped first from a max-heap.
 #[derive(Clone, Debug)]
 pub struct ScheduledEvent {
-    pub time:  GameTime,
+    pub time: GameTime,
     pub event: Event,
 }
 
@@ -39,7 +36,7 @@ impl Eq for ScheduledEvent {}
 // Only compare the `time` field for ordering (reverse so min-heap behavior):
 impl PartialOrd for ScheduledEvent {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        other.time.partial_cmp(&self.time)
+        Some(self.cmp(other))
     }
 }
 impl Ord for ScheduledEvent {
