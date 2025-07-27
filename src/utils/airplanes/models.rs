@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumIter;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+use crate::utils::coordinate::Coordinate;
+
+#[derive(Debug, Clone, Serialize, Deserialize, EnumIter)]
 pub enum AirplaneModel {
     SparrowLight,      // Small prop plane
     FalconJet,         // Light biz jet
@@ -117,5 +120,5 @@ pub enum AirplaneStatus {
     Maintenance,
     Loading,
     Unloading,
-    InTransit
+    InTransit {destination: Coordinate}
 }

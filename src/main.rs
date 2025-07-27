@@ -1,12 +1,14 @@
 mod utils;
+mod player;
+mod game;
+mod events;
 
-use utils::map::Map;
+use crate::game::Game;
+
 
 fn main() {
-    let mut map = Map::generate_from_seed(1, Some(4));
-    println!("map: {:?}", map);
-
-    map.restock_airports();
-    println!("map: {:?}", map);
+    let game = Game::new(1, Some(4), 1_000_000.0);
+    println!("game map: {:?}", game.map);
+    println!("game time: {:?}", game.time);
 
 }

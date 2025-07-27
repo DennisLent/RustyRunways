@@ -86,4 +86,5 @@ impl Airport {
             self.orders.push(Order::new(order_seed, self.id, num_airports));
         }
     }
+
 }
