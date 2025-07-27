@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use crate::utils::{coordinate::Coordinate, orders::Order};
 use super::models::{AirplaneModel, AirplaneSpecs, AirplaneStatus};
+use crate::utils::{coordinate::Coordinate, orders::Order};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// An airplane operating between airports, tracked by precise coordinates
@@ -20,7 +20,7 @@ impl Airplane {
     /// Create a fresh airplane, parked and fueled up at `home_airport_coordinates`.
     pub fn new(id: usize, model: AirplaneModel, home_airport_coordinates: Coordinate) -> Self {
         let specs = model.specs();
-        Airplane { 
+        Airplane {
             id,
             model,
             specs,
@@ -77,7 +77,9 @@ impl Airplane {
         if fuel_needed <= self.current_fuel {
             self.current_fuel -= fuel_needed;
             self.location = dest_coords;
-            self.status = AirplaneStatus::InTransit { destination: dest_coords };
+            self.status = AirplaneStatus::InTransit {
+                destination: dest_coords,
+            };
             true
         } else {
             false

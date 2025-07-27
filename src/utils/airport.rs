@@ -83,8 +83,8 @@ impl Airport {
 
         for id in 0..number_orders {
             let order_seed = seed.wrapping_add(self.id as u64).wrapping_add(id as u64);
-            self.orders.push(Order::new(order_seed, self.id, num_airports));
+            self.orders
+                .push(Order::new(order_seed, self.id, num_airports));
         }
     }
-
 }

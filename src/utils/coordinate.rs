@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Coordinate {
     pub x: f32,
-    pub y: f32
+    pub y: f32,
 }
 
 impl Coordinate {

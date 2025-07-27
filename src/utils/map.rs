@@ -1,5 +1,3 @@
-use std::f32::INFINITY;
-
 use crate::utils::{airport::Airport, coordinate::Coordinate};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
@@ -42,11 +40,10 @@ impl Map {
 
         map
     }
-    
+
     /// Restock the orders in the airport
-    pub fn restock_airports(&mut self){
-        
-        for (airport, _) in self.airports.iter_mut(){
+    pub fn restock_airports(&mut self) {
+        for (airport, _) in self.airports.iter_mut() {
             airport.generate_orders(self.seed, self.num_airports);
         }
     }
@@ -54,17 +51,17 @@ impl Map {
     /// Find the minimum distance between two airports.
     /// Helps us determine the starting airplane for a given map.
     pub fn min_distance(&self) -> (f32, usize) {
-        let mut min_distance = INFINITY;
+        let mut min_distance = f32::INFINITY;
         let mut start_index: usize = 0;
 
         for (airport1, coord1) in self.airports.iter() {
             for (airport2, coord2) in self.airports.iter() {
-                if !(airport1.id == airport2.id) {
+                if airport1.id != airport2.id {
                     let dx = (coord1.x - coord2.x).abs();
                     let dy = (coord1.y - coord2.y).abs();
 
-                    let distance = (dx*dx + dy*dy).sqrt();
-                    if distance < min_distance{
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    if distance < min_distance {
                         min_distance = distance;
                         start_index = airport1.id;
                     }
@@ -72,6 +69,6 @@ impl Map {
             }
         }
 
-        return (min_distance, start_index);
+        (min_distance, start_index)
     }
 }
