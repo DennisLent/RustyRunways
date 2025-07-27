@@ -1,8 +1,8 @@
-use std::collections::BinaryHeap;
-use crate::events::{Event, ScheduledEvent, GameTime};
+use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::utils::airplanes::airplane::Airplane;
 use crate::utils::map::Map;
+use std::collections::BinaryHeap;
 
 /// Holds all mutable world state and drives the simulation via scheduled events.
 #[derive(Debug)]
@@ -22,15 +22,20 @@ pub struct Game {
 impl Game {
     /// Initialize a new game with `num_airports`, seeded randomness, and player's starting cash.
     pub fn new(seed: u64, num_airports: Option<usize>, starting_cash: f32) -> Self {
-
         let mut map = Map::generate_from_seed(seed, num_airports);
         map.restock_airports();
 
         let airplanes = Vec::new();
-        let player    = Player::new(starting_cash, &map);
-        let events    = BinaryHeap::new();
+        let player = Player::new(starting_cash, &map);
+        let events = BinaryHeap::new();
 
-        Game { time: 0, map, airplanes, player, events }
+        Game {
+            time: 0,
+            map,
+            airplanes,
+            player,
+            events,
+        }
     }
 
     /// Schedule `event` to occur at absolute simulation time `time`.
@@ -43,7 +48,10 @@ impl Game {
         if let Some(scheduled) = self.events.pop() {
             self.time = scheduled.time;
             match scheduled.event {
-                Event::FlightArrival { plane, airport_coord } => {
+                Event::FlightArrival {
+                    plane,
+                    airport_coord,
+                } => {
                     let plane = &mut self.airplanes[plane];
                     plane.location = airport_coord;
                     let delivered = plane.unload_all();
@@ -51,7 +59,10 @@ impl Game {
                     self.player.cash += income;
                     self.player.record_delivery();
                 }
-                Event::OrderDeadline { airport, order_index } => {
+                Event::OrderDeadline {
+                    airport,
+                    order_index,
+                } => {
                     let (ref mut ap, _) = self.map.airports[airport];
                     if order_index < ap.orders.len() {
                         ap.orders.remove(order_index);
