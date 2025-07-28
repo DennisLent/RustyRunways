@@ -1,4 +1,6 @@
-use crate::utils::orders::Order;
+use crate::utils::{
+    airplanes::airplane::Airplane, coordinate::Coordinate, errors::GameError, orders::Order,
+};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 
@@ -65,9 +67,15 @@ impl Airport {
         }
     }
 
-    /// Generate orders randomly
-    /// We assume that larger airports will generate more orders
-    pub fn generate_orders(&mut self, seed: u64, num_airports: usize) {
+    /// Generate orders randomly.
+    /// We assume that larger airports will generate more orders.
+    pub fn generate_orders(
+        &mut self,
+        seed: u64,
+        airport_coordinates: &Vec<Coordinate>,
+        num_airports: usize,
+        next_order_id: &mut usize,
+    ) {
         let mut rng = StdRng::seed_from_u64(seed.wrapping_add(self.id as u64));
 
         let number_orders: usize = match self.runway_length {
@@ -81,10 +89,77 @@ impl Airport {
         // Clear all orders within the airport
         self.orders.clear();
 
-        for id in 0..number_orders {
-            let order_seed = seed.wrapping_add(self.id as u64).wrapping_add(id as u64);
-            self.orders
-                .push(Order::new(order_seed, self.id, num_airports));
+        for _ in 0..number_orders {
+            let order_id = *next_order_id;
+            *next_order_id += 1;
+
+            let order_seed = seed
+                .wrapping_add(self.id as u64)
+                .wrapping_add(order_id as u64);
+            self.orders.push(Order::new(
+                order_seed,
+                order_id,
+                self.id,
+                airport_coordinates,
+                num_airports,
+            ));
         }
+    }
+
+    /// Returns the landing fee for a given airplane.
+    pub fn landing_fee(self, airplane: Airplane) -> f32 {
+        self.landing_fee * (airplane.specs.mtow / 1000.0)
+    }
+
+    /// Returns the fueling fee for a given airplane.
+    pub fn fueling_fee(self, airplane: Airplane) -> f32 {
+        self.fuel_price * (airplane.specs.fuel_capacity - airplane.current_fuel)
+    }
+
+    /// Load a single order into the airplane
+    pub fn load_order(
+        &mut self,
+        order_id: usize,
+        airplane: &mut Airplane,
+    ) -> Result<(), GameError> {
+        // find the position of the order in this airport
+        if let Some(pos) = self.orders.iter().position(|o| o.id == order_id) {
+            let order = self.orders[pos].clone();
+
+            // check payload capacity before removing
+            if airplane.current_payload + order.weight > airplane.specs.payload_capacity {
+                return Err(GameError::MaxPayloadReached {
+                    current_capacity: airplane.current_payload,
+                    maximum_capacity: airplane.specs.payload_capacity,
+                    added_weight: order.weight,
+                });
+            }
+
+            // remove from airport and load into airplane
+            let order = self.orders.remove(pos);
+            airplane.load_order(order)?;
+            Ok(())
+        } else {
+            Err(GameError::OrderIdInvalid { id: order_id })
+        }
+    }
+
+    /// Load multiple orders into the plane
+    pub fn load_orders(
+        &mut self,
+        order_ids: Vec<usize>,
+        airplane: &mut Airplane,
+    ) -> Result<(), GameError> {
+        for order_id in order_ids.into_iter() {
+            match self.load_order(order_id, airplane) {
+                Ok(()) => {
+                    // Nothing happens, we just keep loading
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+        Ok(())
     }
 }

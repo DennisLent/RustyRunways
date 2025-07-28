@@ -1,6 +1,8 @@
 use crate::utils::{
     airplanes::{airplane::Airplane, models::AirplaneModel},
+    airport::Airport,
     coordinate::Coordinate,
+    errors::GameError,
     map::Map,
 };
 use serde::{Deserialize, Serialize};
@@ -53,17 +55,40 @@ impl Player {
     }
 
     /// Purchase an additional plane of the given model at `home_coord`.
-    pub fn buy_plane(&mut self, model: AirplaneModel, home_coord: Coordinate) -> bool {
+    pub fn buy_plane(
+        &mut self,
+        model_name: &String,
+        airport: &mut Airport,
+        home_coord: &Coordinate,
+    ) -> Result<(), GameError> {
+        // Try to find matching model
+        let model = AirplaneModel::iter()
+            .find(|m| format!("{:?}", m).eq_ignore_ascii_case(model_name))
+            .ok_or(GameError::UnknownModel {
+                input: model_name.to_string(),
+                suggestion: None,
+            })?;
+
         let specs = model.specs();
         if self.cash < specs.purchase_price {
-            return false;
+            return Err(GameError::InsufficientFunds {
+                have: self.cash,
+                need: specs.purchase_price,
+            });
+        }
+        if specs.min_runway_length > airport.runway_length {
+            return Err(GameError::RunwayTooShort {
+                required: specs.min_runway_length,
+                available: airport.runway_length,
+            });
         }
         self.cash -= specs.purchase_price;
         let plane_id = self.fleet_size;
-        let plane = Airplane::new(plane_id, model, home_coord);
+        let plane_coord = Coordinate::new(home_coord.x, home_coord.y);
+        let plane = Airplane::new(plane_id, model, plane_coord);
         self.fleet.push(plane);
         self.fleet_size += 1;
-        true
+        Ok(())
     }
 
     /// Records that the player has delivered an order

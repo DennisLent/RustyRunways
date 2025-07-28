@@ -7,12 +7,13 @@ pub struct Map {
     pub num_airports: usize,
     pub airports: Vec<(Airport, Coordinate)>,
     pub seed: u64,
+    next_order_id: usize,
 }
 
 impl Map {
-    /// Airports from a random seed
-    /// Allows you to input a specific amount of airports or not
-    /// Airports are already stocked with orders
+    /// Airports from a random seed.
+    /// Allows you to input a specific amount of airports or not.
+    /// Airports are already stocked with orders.
     pub fn generate_from_seed(seed: u64, num_airports: Option<usize>) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);
 
@@ -34,6 +35,7 @@ impl Map {
             num_airports,
             airports: airport_list,
             seed,
+            next_order_id: 0,
         };
 
         map.restock_airports();
@@ -43,8 +45,19 @@ impl Map {
 
     /// Restock the orders in the airport
     pub fn restock_airports(&mut self) {
+        let airport_coordinates: Vec<Coordinate> = self
+            .airports
+            .iter()
+            .map(|(_airport, coord)| *coord)
+            .collect();
+
         for (airport, _) in self.airports.iter_mut() {
-            airport.generate_orders(self.seed, self.num_airports);
+            airport.generate_orders(
+                self.seed,
+                &airport_coordinates,
+                self.num_airports,
+                &mut self.next_order_id,
+            );
         }
     }
 

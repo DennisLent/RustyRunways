@@ -4,14 +4,24 @@ use crate::utils::coordinate::Coordinate;
 pub type GameTime = u64;
 
 /// All events that can occur in the world.
-/// Note: we no longer embed `time` here; it lives in `ScheduledEvent`.
 #[derive(Clone, Debug)]
 pub enum Event {
-    /// A plane arrives at the given coordinate.
-    FlightArrival {
-        plane: usize, // index into Game.airplanes
-        airport_coord: Coordinate,
+    /// A plane departs from airport: charge parking duration
+    FlightDeparture { plane: usize, airport: usize },
+    /// Plane is loading: lasts for 1 game tick
+    LoadingComplete { plane: usize, airport: usize },
+    /// Flight is currently on its way
+    FlightEnRoute {
+        plane: usize,
+        origin: usize,
+        destination: usize,
     },
+    /// Flight has arrived at destination airport
+    FlightArrival { plane: usize, airport: usize },
+    /// Plane is unloading: lasts for 1 game tick and pays the player
+    UnloadingComplete { plane: usize, airport: usize },
+    /// Refuels the airplane: lasts for 1 game tick and switches the airplane to parked
+    RefuelComplete { plane: usize, airport: usize },
     /// An order at `airport` reaches its delivery deadline.
     OrderDeadline { airport: usize, order_index: usize },
     // TODO: add MaintenanceComplete, RefuelComplete, etc.

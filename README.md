@@ -104,10 +104,15 @@ src/
 
 ## Next Steps
 
-* **Maintenance & reliability events**: Add scheduled maintenance and breakdown events.
-* **Testing Suite**: Defo needed.
-* **UI/Visualization**: Hook up a simple GUI or terminal map view.
-* **Economic model**: Track operating costs, depreciation, dynamic fuel prices.
-* **Python bindings**: Lets face it, ML/AI is better with Python.
+* Add scheduled maintenance and breakdown events.
+* Allow loading and unloading specific orders.
+* Let airports charge parking and landing fees.
+* Dispatch & reroute flights.
+* Update game loop to allow waiting.
+* DSL to interact with the environment.
+* Testing.
+* Hook up a simple GUI or terminal map view.
+* Track operating costs, depreciation, dynamic fuel prices.
+* Python bindings for ML.
 
 Contributions welcome! Feel free to open issues or PRs for new features or improvements.

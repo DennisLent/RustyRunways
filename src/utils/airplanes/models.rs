@@ -31,84 +31,108 @@ pub struct AirplaneSpecs {
     pub payload_capacity: f32,
     /// Purchase price
     pub purchase_price: f32,
+    /// Minimum runway length required (meters)
+    pub min_runway_length: f32,
 }
 
 impl AirplaneModel {
-    /// Return the full spec bundle for each model, including its purchase price.
+    /// Return the full spec bundle for each model, including computed runway requirement.
     pub fn specs(&self) -> AirplaneSpecs {
-        match self {
-            AirplaneModel::SparrowLight => AirplaneSpecs {
-                mtow: 5_000.0,
-                cruise_speed: 250.0,
-                fuel_capacity: 200.0,
-                fuel_consumption: 30.0,
-                operating_cost: 300.0,
-                payload_capacity: 500.0,
-                purchase_price: 200_000.0, // 200k
-            },
-            AirplaneModel::FalconJet => AirplaneSpecs {
-                mtow: 8_000.0,
-                cruise_speed: 800.0,
-                fuel_capacity: 2_000.0,
-                fuel_consumption: 250.0,
-                operating_cost: 1_500.0,
-                payload_capacity: 1_500.0,
-                purchase_price: 1_500_000.0, // 1.5M
-            },
-            AirplaneModel::CometRegional => AirplaneSpecs {
-                mtow: 20_000.0,
-                cruise_speed: 700.0,
-                fuel_capacity: 5_000.0,
-                fuel_consumption: 600.0,
-                operating_cost: 3_000.0,
-                payload_capacity: 5_000.0,
-                purchase_price: 10_000_000.0, // 10M
-            },
-            AirplaneModel::Atlas => AirplaneSpecs {
-                mtow: 40_000.0,
-                cruise_speed: 750.0,
-                fuel_capacity: 12_000.0,
-                fuel_consumption: 1_500.0,
-                operating_cost: 6_000.0,
-                payload_capacity: 15_000.0,
-                purchase_price: 30_000_000.0, // 30M
-            },
-            AirplaneModel::TitanHeavy => AirplaneSpecs {
-                mtow: 100_000.0,
-                cruise_speed: 650.0,
-                fuel_capacity: 20_000.0,
-                fuel_consumption: 3_000.0,
-                operating_cost: 10_000.0,
-                payload_capacity: 50_000.0,
-                purchase_price: 60_000_000.0, // 60M
-            },
-            AirplaneModel::Goliath => AirplaneSpecs {
-                mtow: 200_000.0,
-                cruise_speed: 550.0,
-                fuel_capacity: 40_000.0,
-                fuel_consumption: 6_000.0,
-                operating_cost: 20_000.0,
-                payload_capacity: 100_000.0,
-                purchase_price: 120_000_000.0, // 120M
-            },
-            AirplaneModel::Zephyr => AirplaneSpecs {
-                mtow: 50_000.0,
-                cruise_speed: 900.0,
-                fuel_capacity: 25_000.0,
-                fuel_consumption: 1_200.0,
-                operating_cost: 8_000.0,
-                payload_capacity: 25_000.0,
-                purchase_price: 50_000_000.0, // 50M
-            },
-            AirplaneModel::Lightning => AirplaneSpecs {
-                mtow: 15_000.0,
-                cruise_speed: 1_800.0,
-                fuel_capacity: 5_000.0,
-                fuel_consumption: 1_000.0,
-                operating_cost: 12_000.0,
-                payload_capacity: 2_000.0,
-                purchase_price: 80_000_000.0, // 80M
-            },
+        // base numeric specs
+        let base = match self {
+            AirplaneModel::SparrowLight => (5_000.0, 250.0, 200.0, 30.0, 300.0, 500.0, 200_000.0),
+            AirplaneModel::FalconJet => (
+                8_000.0,
+                800.0,
+                2_000.0,
+                250.0,
+                1_500.0,
+                1_500.0,
+                1_500_000.0,
+            ),
+            AirplaneModel::CometRegional => (
+                20_000.0,
+                700.0,
+                5_000.0,
+                600.0,
+                3_000.0,
+                5_000.0,
+                10_000_000.0,
+            ),
+            AirplaneModel::Atlas => (
+                40_000.0,
+                750.0,
+                12_000.0,
+                1_500.0,
+                6_000.0,
+                15_000.0,
+                30_000_000.0,
+            ),
+            AirplaneModel::TitanHeavy => (
+                100_000.0,
+                650.0,
+                20_000.0,
+                3_000.0,
+                10_000.0,
+                50_000.0,
+                60_000_000.0,
+            ),
+            AirplaneModel::Goliath => (
+                200_000.0,
+                550.0,
+                40_000.0,
+                6_000.0,
+                20_000.0,
+                100_000.0,
+                120_000_000.0,
+            ),
+            AirplaneModel::Zephyr => (
+                50_000.0,
+                900.0,
+                25_000.0,
+                1_200.0,
+                8_000.0,
+                25_000.0,
+                50_000_000.0,
+            ),
+            AirplaneModel::Lightning => (
+                15_000.0,
+                1_800.0,
+                5_000.0,
+                1_000.0,
+                12_000.0,
+                2_000.0,
+                80_000_000.0,
+            ),
+        };
+        let (mtow, cruise_kmh, fuel_cap, burn_rate, op_cost, payload_cap, purchase_price) = base;
+
+        // Cruise speed as m/s
+        let cruise_ms: f32 = cruise_kmh * 1000.0 / 3600.0;
+
+        // Say takeoff speed ~ 0.65 * cruise
+        let takeoff_speed: f32 = 0.65 * cruise_ms;
+
+        // Assume acceleration on run (~2.5 m/s2)
+        let accel = 2.5;
+        let takeoff_dist = takeoff_speed.powi(2) / (2.0 * accel);
+
+        // Assume deceleration ~4 m/s2
+        let decel = 4.0;
+        let landing_dist = takeoff_speed.powi(2) / (2.0 * decel);
+
+        // Runway length requirement is the larger of the two
+        let min_runway_length = takeoff_dist.max(landing_dist);
+
+        AirplaneSpecs {
+            mtow,
+            cruise_speed: cruise_kmh,
+            fuel_capacity: fuel_cap,
+            fuel_consumption: burn_rate,
+            operating_cost: op_cost,
+            payload_capacity: payload_cap,
+            purchase_price,
+            min_runway_length,
         }
     }
 }
