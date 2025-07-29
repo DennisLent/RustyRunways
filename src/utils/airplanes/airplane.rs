@@ -111,7 +111,7 @@ impl Airplane {
                 let distance = self.distance_to(airport_coords);
                 let hours = distance / self.specs.cruise_speed;
                 let fuel_needed = hours * self.specs.fuel_consumption;
-                if fuel_needed > self.current_fuel {
+                if fuel_needed < self.current_fuel {
                     self.current_fuel -= fuel_needed;
                     self.location = Coordinate::new(airport_coords.x, airport_coords.y);
                     self.status = AirplaneStatus::InTransit {

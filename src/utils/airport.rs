@@ -107,12 +107,12 @@ impl Airport {
     }
 
     /// Returns the landing fee for a given airplane.
-    pub fn landing_fee(self, airplane: Airplane) -> f32 {
+    pub fn landing_fee(&self, airplane: &Airplane) -> f32 {
         self.landing_fee * (airplane.specs.mtow / 1000.0)
     }
 
     /// Returns the fueling fee for a given airplane.
-    pub fn fueling_fee(self, airplane: Airplane) -> f32 {
+    pub fn fueling_fee(&self, airplane: &Airplane) -> f32 {
         self.fuel_price * (airplane.specs.fuel_capacity - airplane.current_fuel)
     }
 
@@ -161,5 +161,20 @@ impl Airport {
             }
         }
         Ok(())
+    }
+}
+
+// need to run test here because its  private function
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generate_name_check() {
+        assert_eq!(&Airport::generate_name(0), "AAA");
+        assert_eq!(&Airport::generate_name(1), "AAB");
+        assert_eq!(&Airport::generate_name(25), "AAZ");
+        assert_eq!(&Airport::generate_name(26), "ABA");
+        assert_eq!(&Airport::generate_name(26*26 + 26 + 1), "BBB");
     }
 }

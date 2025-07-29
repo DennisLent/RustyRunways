@@ -3,7 +3,7 @@ use strum_macros::EnumIter;
 
 use crate::utils::coordinate::Coordinate;
 
-#[derive(Debug, Clone, Serialize, Deserialize, EnumIter)]
+#[derive(Debug, Clone, Serialize, Deserialize, EnumIter, PartialEq)]
 pub enum AirplaneModel {
     SparrowLight,  // Small prop plane
     FalconJet,     // Light biz jet

@@ -9,21 +9,13 @@ on:
 jobs:
   coverage:
     runs-on: ubuntu-latest
-    # use the tarpaulin container so you don't have to install deps yourself
     container:
-      image: xd009642/tarpaulin:trunk
+      image: xd009642/tarpaulin:develop-nightly
       options: --security-opt seccomp=unconfined
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Install nightly toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          profile: minimal
 
       - name: Run Tarpaulin
         run: |
@@ -32,7 +24,7 @@ jobs:
             --all-features \
             --workspace \
             --timeout 120 \
-            --out Xml
+            --out xml
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v3
