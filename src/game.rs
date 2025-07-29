@@ -140,6 +140,9 @@ impl Game {
                     let delivered = plane_ref.unload_all();
                     let income: f32 = delivered.iter().map(|o| o.value).sum();
                     self.player.cash += income;
+                    for _ in &delivered {
+                        self.player.record_delivery();
+                    }
 
                     // schedule refuel in 1h
                     plane_ref.status = AirplaneStatus::Refueling;

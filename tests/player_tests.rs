@@ -1,5 +1,8 @@
 use RustyRunways::player::Player;
 use RustyRunways::utils::map::Map;
+use RustyRunways::utils::airport::Airport;
+use RustyRunways::utils::coordinate::Coordinate;
+use RustyRunways::utils::errors::GameError;
 
 #[test]
 fn player_initialization_gives_single_plane() {
@@ -19,4 +22,49 @@ fn player_initialization_gives_single_plane() {
     let model_range = plane.max_range();
     let (distance, _) = map.min_distance();
     assert!(model_range > distance);
+}
+
+#[test]
+fn buy_plane_success() {
+    let map = Map::generate_from_seed(1, Some(2));
+    let mut player = Player::new(1_000_000.0, &map);
+    let mut airport = Airport::generate_random(1, 10);
+    airport.runway_length = 3000.0;
+    let coord = Coordinate::new(0.0, 0.0);
+    assert!(player
+        .buy_plane(&"SparrowLight".to_string(), &mut airport, &coord)
+        .is_ok());
+    assert_eq!(player.fleet_size, 2);
+}
+
+#[test]
+fn buy_plane_unknown_model() {
+    let map = Map::generate_from_seed(2, Some(2));
+    let mut player = Player::new(1_000_000.0, &map);
+    let mut airport = Airport::generate_random(2, 0);
+    let coord = Coordinate::new(0.0, 0.0);
+    let result = player.buy_plane(&"NotAPlane".to_string(), &mut airport, &coord);
+    assert!(matches!(result, Err(GameError::UnknownModel { .. })));
+}
+
+#[test]
+fn buy_plane_insufficient_funds() {
+    let map = Map::generate_from_seed(3, Some(2));
+    let mut player = Player::new(10.0, &map);
+    let mut airport = Airport::generate_random(3, 0);
+    airport.runway_length = 5000.0;
+    let coord = Coordinate::new(0.0, 0.0);
+    let result = player.buy_plane(&"SparrowLight".to_string(), &mut airport, &coord);
+    assert!(matches!(result, Err(GameError::InsufficientFunds { .. })));
+}
+
+#[test]
+fn buy_plane_runway_too_short() {
+    let map = Map::generate_from_seed(4, Some(2));
+    let mut player = Player::new(1_000_000.0, &map);
+    let mut airport = Airport::generate_random(4, 0);
+    airport.runway_length = 100.0;
+    let coord = Coordinate::new(0.0, 0.0);
+    let result = player.buy_plane(&"SparrowLight".to_string(), &mut airport, &coord);
+    assert!(matches!(result, Err(GameError::RunwayTooShort { .. })));
 }

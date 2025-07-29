@@ -8,8 +8,10 @@ fn schedule_and_process_flight_arrival() {
     // add a plane from player's fleet into game.airplanes
     let plane = game.player.fleet[0].clone();
     game.airplanes.push(plane);
+    game.arrival_times.push(0);
 
     let order = Order {
+        id: 0,
         name: CargoType::Electronics,
         weight: 100.0,
         value: 500.0,
@@ -24,12 +26,14 @@ fn schedule_and_process_flight_arrival() {
         5,
         Event::FlightArrival {
             plane: 0,
-            airport_coord: dest_coord,
+            airport: 1,
         },
     );
 
     assert!(game.tick_event());
     assert_eq!(game.time, 5);
+    assert!(game.tick_event());
+    assert_eq!(game.time, 6);
     assert_eq!(game.airplanes[0].location.x, dest_coord.x);
     assert!(game.airplanes[0].manifest.is_empty());
     assert_eq!(game.player.orders_delivered, 1);
