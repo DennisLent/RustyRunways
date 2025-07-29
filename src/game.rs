@@ -26,7 +26,7 @@ pub struct Game {
 impl Game {
     /// Initialize a new game with `num_airports`, seeded randomness, and player's starting cash.
     pub fn new(seed: u64, num_airports: Option<usize>, starting_cash: f32) -> Self {
-        let mut map = Map::generate_from_seed(seed, num_airports);
+        let map = Map::generate_from_seed(seed, num_airports);
 
         let airplanes = Vec::new();
         let arrival_times = Vec::new();
@@ -341,12 +341,8 @@ impl Game {
         let (airport, airport_coordinates) = &self.map.airports[airport_idx];
 
         match plane.fly_to(airport, airport_coordinates) {
-            Ok(()) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(e);
-            }
+            Ok(()) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 

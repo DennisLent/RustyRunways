@@ -1,5 +1,3 @@
-use crate::utils::coordinate::Coordinate;
-
 /// Global time unit: hours since simulation start.
 pub type GameTime = u64;
 

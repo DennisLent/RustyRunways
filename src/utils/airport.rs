@@ -72,7 +72,7 @@ impl Airport {
     pub fn generate_orders(
         &mut self,
         seed: u64,
-        airport_coordinates: &Vec<Coordinate>,
+        airport_coordinates: &[Coordinate],
         num_airports: usize,
         next_order_id: &mut usize,
     ) {

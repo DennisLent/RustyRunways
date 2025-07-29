@@ -60,7 +60,7 @@ impl Airplane {
         // Cannot go this far
         if distance > self.max_range() {
             return Err(GameError::OutOfRange {
-                distance: distance,
+                distance,
                 range: self.max_range(),
             });
         }
@@ -72,7 +72,7 @@ impl Airplane {
             });
         }
 
-        return Ok(());
+        Ok(())
     }
 
     /// Load an order if it fits; returns Err(order) if too heavy
@@ -106,29 +106,27 @@ impl Airplane {
         airport_coords: &Coordinate,
     ) -> Result<(), GameError> {
         match self.can_fly_to(airport, airport_coords) {
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
             Ok(()) => {
                 let distance = self.distance_to(airport_coords);
                 let hours = distance / self.specs.cruise_speed;
                 let fuel_needed = hours * self.specs.fuel_consumption;
-                if fuel_needed <= self.current_fuel {
+                if fuel_needed > self.current_fuel {
                     self.current_fuel -= fuel_needed;
                     self.location = Coordinate::new(airport_coords.x, airport_coords.y);
                     self.status = AirplaneStatus::InTransit {
                         destination: Coordinate::new(airport_coords.x, airport_coords.y),
                     };
 
-                    return Ok(());
+                    Ok(())
                 } else {
-                    return Err(GameError::InsufficientFuel {
+                    Err(GameError::InsufficientFuel {
                         have: self.current_fuel,
                         need: fuel_needed,
-                    });
+                    })
                 }
             }
-        };
+        }
     }
 
     /// Refuel to full capacity, switching status to `Refueling`

@@ -28,7 +28,7 @@ impl Order {
         seed: u64,
         order_id: usize,
         origin_airport_id: usize,
-        airport_coordinates: &Vec<Coordinate>,
+        airport_coordinates: &[Coordinate],
         num_airports: usize,
     ) -> Self {
         let mut rng = StdRng::seed_from_u64(seed);

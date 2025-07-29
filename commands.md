@@ -12,9 +12,9 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 `SHOW AIRPORTS <airport_id> WITH ORDERS`: only orders at that airport
 
-`SHOW AIRPLANES`: show players entire fleet
+`SHOW PLANE`: show players entire fleet
 
-`SHOW AIRPLANES <plane_id>`: show one plane (status, specs, manifest)
+`SHOW PLANE <plane_id>`: show one plane (status, specs, manifest)
 
 ## Purchases
 
@@ -42,9 +42,9 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 ## Queries
 
-`SHOW CASH`: Shows the cash reserves of the player
+`QUERY CASH`: Shows the cash reserves of the player
 
-`SHOW TIME`: Shows the current GameTime
+`QUERY TIME`: Shows the current GameTime
 
 ## Exit
 
