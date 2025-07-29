@@ -26,6 +26,9 @@ pub enum GameError {
     PlaneIdInvalid {
         id: usize,
     },
+    AirportIdInvalid {
+        id: usize,
+    },
     PlaneNotAtAirport {
         plane_id: usize,
     },
@@ -89,7 +92,7 @@ impl fmt::Display for GameError {
                 write!(
                     f,
                     "Cannot load order of weight {:.2}. Airplane capacity: {:.2}. Current Capacity: {:.2}",
-                    added_weight, current_capacity, maximum_capacity
+                    added_weight, maximum_capacity, current_capacity
                 )
             }
             GameError::OrderIdInvalid { id } => {
@@ -100,6 +103,9 @@ impl fmt::Display for GameError {
             }
             GameError::PlaneNotAtAirport { plane_id } => {
                 write!(f, "Plane {} is not located at any known airport", plane_id)
+            }
+            GameError::AirportIdInvalid { id } => {
+                write!(f, "Airport with id {} does not exist", id)
             }
             GameError::InsufficientFunds { have, need } => {
                 write!(

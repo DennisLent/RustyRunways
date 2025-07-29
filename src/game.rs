@@ -28,9 +28,9 @@ impl Game {
     pub fn new(seed: u64, num_airports: Option<usize>, starting_cash: f32) -> Self {
         let map = Map::generate_from_seed(seed, num_airports);
 
-        let airplanes = Vec::new();
         let arrival_times = Vec::new();
         let player = Player::new(starting_cash, &map);
+        let airplanes = player.fleet.clone();
         let events = BinaryHeap::new();
 
         Game {
@@ -208,7 +208,7 @@ impl Game {
                     println!("  Orders:");
                     for order in &airport.orders {
                         println!(
-                            "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}d",
+                            "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {} h",
                             order.id,
                             order.name,
                             self.map.airports[order.destination_id].0.name,
@@ -224,7 +224,11 @@ impl Game {
 
     /// Display a summary of a single airport in the map, including its orders.
     /// If with_orders is true, show the orders alongside.
-    pub fn list_airport(&self, airport_id: usize, with_orders: bool) {
+    pub fn list_airport(&self, airport_id: usize, with_orders: bool) -> Result<(), GameError> {
+        if airport_id > (self.map.num_airports - 1) {
+            return Err(GameError::AirportIdInvalid { id: airport_id });
+        }
+
         let (airport, coord) = &self.map.airports[airport_id];
         println!(
             "ID: {} | {} at ({:.2}, {:.2}) | Runway: {:.0}m | Fuel: {:.2}/L | Parking: {:.2}/hr | Landing Fee: {:.2}/ton",
@@ -244,7 +248,7 @@ impl Game {
                 println!("  Orders:");
                 for order in &airport.orders {
                     println!(
-                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}d",
+                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {} h",
                         order.id,
                         order.name,
                         self.map.airports[order.destination_id].0.name,
@@ -255,6 +259,8 @@ impl Game {
                 }
             }
         }
+
+        Ok(())
     }
 
     /// Display a summary of all airplanes in the game.
@@ -277,6 +283,31 @@ impl Game {
         }
     }
 
+    /// Display a summary of a single airplane in the game.
+    pub fn list_airplane(&self, plane_id: usize) -> Result<(), GameError> {
+        if plane_id > (self.airplanes.len() - 1) {
+            return Err(GameError::PlaneIdInvalid { id: plane_id });
+        }
+
+        let plane = &self.airplanes[plane_id];
+
+        let loc = &plane.location;
+        println!(
+            "ID: {} | {:?} at ({:.2}, {:.2}) | Fuel: {:.2}/{:.2} | Payload: {:.2}/{:.2} | Status: {:?}",
+            plane.id,
+            plane.model,
+            loc.x,
+            loc.y,
+            plane.current_fuel,
+            plane.specs.fuel_capacity,
+            plane.current_payload,
+            plane.specs.payload_capacity,
+            plane.status,
+        );
+
+        Ok(())
+    }
+
     /// Buy an airplane is possible
     pub fn buy_plane(&mut self, model: &String, airport_id: usize) -> Result<(), GameError> {
         // Get copy of home coordinate
@@ -289,7 +320,10 @@ impl Game {
         let airport_ref = &mut self.map.airports[airport_id].0;
 
         match self.player.buy_plane(model, airport_ref, &home_coord) {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                self.airplanes = self.player.fleet.clone();
+                Ok(())
+            }
             Err(e) => Err(e),
         }
     }
@@ -358,5 +392,13 @@ impl Game {
         }
 
         self.time = target_time;
+    }
+
+    pub fn show_cash(&self) {
+        println!("${}", self.player.cash);
+    }
+
+    pub fn show_time(&self) {
+        println!("{} h", self.time);
     }
 }

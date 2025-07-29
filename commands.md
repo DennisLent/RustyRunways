@@ -24,7 +24,7 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 `LOAD ORDER <order_id> ON <plane_id>`: Load 1 order onto the plane (takes 1 hour)
 
-`LOAD ORDER [<order_id>] ON <plane_id>`: Loads n orders onto the plane (takes 1 hour)
+`LOAD ORDERS [<order_id>] ON <plane_id>`: Loads n orders onto the plane (takes 1 hour)
 
 `UNLOAD ORDER <order_id> FROM <plane_id>`: Load 1 order from the plane (takes 1 hour)
 
@@ -42,9 +42,9 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 ## Queries
 
-`QUERY CASH`: Shows the cash reserves of the player
+`SHOW CASH`: Shows the cash reserves of the player
 
-`QUERY TIME`: Shows the current GameTime
+`SHOW TIME`: Shows the current GameTime
 
 ## Exit
 
