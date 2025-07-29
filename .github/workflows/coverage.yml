@@ -28,9 +28,10 @@ jobs:
 
       - name: Upload to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cobertura.xml
+          flags: rust
           fail_ci_if_error: true
           verbose: true
