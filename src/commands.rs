@@ -24,16 +24,13 @@ pub enum Command {
 }
 
 pub fn parse_command(input: &str) -> Result<Command, String> {
-
-    let mut pairs = DSLParser::parse(Rule::script, input)
-        .map_err(|e| format!("Parse error: {}", e))?;
-
+    let mut pairs =
+        DSLParser::parse(Rule::script, input).map_err(|e| format!("Parse error: {}", e))?;
 
     let command_pair = pairs
-        .next()                      // first stmt
+        .next() // first stmt
         .and_then(|stmt| stmt.into_inner().next()) // its command
         .ok_or_else(|| "No command found".to_string())?;
-
 
     match command_pair.as_rule() {
         Rule::show_cmd => {
@@ -81,7 +78,13 @@ pub fn parse_command(input: &str) -> Result<Command, String> {
             Ok(Command::LoadOrder { orders, plane })
         }
         Rule::advance_cmd => {
-            let hours: u64 = command_pair.into_inner().next().unwrap().as_str().parse().unwrap();
+            let hours: u64 = command_pair
+                .into_inner()
+                .next()
+                .unwrap()
+                .as_str()
+                .parse()
+                .unwrap();
             Ok(Command::Advance { hours })
         }
         Rule::exit_cmd => Ok(Command::Exit),
@@ -93,8 +96,7 @@ pub fn parse_command(input: &str) -> Result<Command, String> {
                 _ => unreachable!(),
             }
         }
-        
+
         _ => Err("Unknown command".into()),
     }
 }
-

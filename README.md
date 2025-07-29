@@ -29,6 +29,12 @@ RustyRunways is a small logistics simulation game written in Rust. You manage an
    cargo build --release
    ```
 
+3. **Run tests**
+
+   ```bash
+   cargo test
+   ```
+
 
 ## Project Structure
 
@@ -110,7 +116,7 @@ src/
 * Dispatch & reroute flights.
 * Update game loop to allow waiting.
 * DSL to interact with the environment.
-* Testing.
+* Expand automated testing.
 * Hook up a simple GUI or terminal map view.
 * Track operating costs, depreciation, dynamic fuel prices.
 * Python bindings for ML.

@@ -1,5 +1,6 @@
 use RustyRunways::utils::airplanes::{airplane::Airplane, models::AirplaneModel};
 use RustyRunways::utils::{
+    airport::Airport,
     coordinate::Coordinate,
     orders::{CargoType, Order},
 };
@@ -8,6 +9,7 @@ use RustyRunways::utils::{
 fn airplane_load_fly_unload_cycle() {
     let mut plane = Airplane::new(0, AirplaneModel::SparrowLight, Coordinate::new(0.0, 0.0));
     let order = Order {
+        id: 0,
         name: CargoType::Electronics,
         weight: 100.0,
         value: 1000.0,
@@ -20,7 +22,9 @@ fn airplane_load_fly_unload_cycle() {
     assert_eq!(plane.manifest.len(), 1);
 
     let dest = Coordinate::new(10.0, 0.0);
-    assert!(plane.fly_to(dest));
+    let mut airport = Airport::generate_random(1, 1);
+    airport.runway_length = 3000.0;
+    assert!(plane.fly_to(&airport, &dest).is_ok());
     assert_eq!(plane.location.x, dest.x);
     assert_eq!(plane.location.y, dest.y);
 
@@ -36,6 +40,8 @@ fn airplane_fly_to_fails_without_fuel() {
     // drain fuel
     plane.current_fuel = 0.0;
     let far = Coordinate::new(1000.0, 0.0);
-    assert!(!plane.fly_to(far));
+    let mut airport = Airport::generate_random(2, 1);
+    airport.runway_length = 3000.0;
+    assert!(plane.fly_to(&airport, &far).is_err());
     assert_eq!(plane.location.x, 0.0);
 }
