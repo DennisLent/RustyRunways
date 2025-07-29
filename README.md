@@ -1,5 +1,7 @@
 # RustyRunways
 
+[![codecov](https://codecov.io/github/DennisLent/RustyRunways/graph/badge.svg?token=NVMX1JW002)](https://codecov.io/github/DennisLent/RustyRunways)
+
 RustyRunways is a small logistics simulation game written in Rust. You manage an airline company, buying and operating airplanes to transport cargo orders between randomly generated airports. The simulation is driven by an event-based system, allowing flights and deadlines to occur at precise times.
 
 ---
@@ -110,15 +112,15 @@ src/
 
 ## Next Steps
 
-* Add scheduled maintenance and breakdown events.
-* Allow loading and unloading specific orders.
-* Let airports charge parking and landing fees.
-* Dispatch & reroute flights.
-* Update game loop to allow waiting.
-* DSL to interact with the environment.
-* Expand automated testing.
-* Hook up a simple GUI or terminal map view.
-* Track operating costs, depreciation, dynamic fuel prices.
-* Python bindings for ML.
+- [ ] Add scheduled maintenance and breakdown events.
+- [ ] Ensure charging of aircrafts and aircrafts works.
+- [ ] Dispatch & reroute flights.
+- [ ] Expand automated testing.
+- [ ] Hook up a simple GUI or terminal map view.
+- [ ] Track operating costs, depreciation, dynamic fuel prices.
+- [ ] Python bindings for ML.
+- [ ] Enable hangars to store airplanes and/or cargo.
+- [ ] Weather conditions?
+- [ ] Creating a game with input file instead of random.
 
 Contributions welcome! Feel free to open issues or PRs for new features or improvements.

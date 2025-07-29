@@ -1,0 +1,42 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    # use the tarpaulin container so you don't have to install deps yourself
+    container:
+      image: xd009642/tarpaulin:trunk
+      options: --security-opt seccomp=unconfined
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+
+      - name: Run Tarpaulin
+        run: |
+          # run all tests, produce XML for Codecov
+          cargo tarpaulin \
+            --all-features \
+            --workspace \
+            --timeout 120 \
+            --out Xml
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./tarpaulin-report.xml
+          fail_ci_if_error: true
+          verbose: true
