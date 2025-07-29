@@ -32,8 +32,7 @@ fn main() {
             Ok(Command::LoadOrder { order, plane }) => {
                 if let Err(e) = game.load_order(order, plane) {
                     println!("Load failed: {}", e);
-                }
-                else {
+                } else {
                     println!("Loading order {:?} onto plane {:?}", order, plane);
                 }
             }
@@ -41,11 +40,9 @@ fn main() {
                 for o in orders {
                     if let Err(e) = game.load_order(o, plane) {
                         println!("Load failed: {}", e);
-                    }
-                    else {
+                    } else {
                         println!("Loading order {:?} onto plane {:?}", o, plane);
                     }
-                    
                 }
             }
             Ok(Command::DepartPlane { plane, dest }) => {

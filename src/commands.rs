@@ -18,13 +18,12 @@ pub enum Command {
 }
 
 fn parse_id_list(s: &str) -> Result<Vec<usize>, String> {
-    
     let inner = if s.starts_with('[') && s.ends_with(']') {
-        &s[1..s.len()-1]
+        &s[1..s.len() - 1]
     } else {
         s
     };
-    
+
     inner
         .split(',')
         .filter(|part| !part.trim().is_empty())
@@ -37,7 +36,7 @@ fn parse_id_list(s: &str) -> Result<Vec<usize>, String> {
 }
 
 pub fn parse_command(line: &str) -> Result<Command, String> {
-    let toks: Vec<&str> = line.trim().split_whitespace().collect();
+    let toks: Vec<&str> = line.split_whitespace().collect();
 
     match toks.as_slice() {
         // Inspecting the world state
@@ -97,13 +96,14 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
             plane: plane_id.parse().map_err(|_| "bad plane id")?,
         }),
 
-        ["LOAD",  "ORDERS", orders, "ON", plane_id] => {
+        ["LOAD", "ORDERS", orders, "ON", plane_id] => {
             let order_vec = parse_id_list(orders)?;
-            let plane = plane_id
-            .parse::<usize>()
-            .map_err(|_| "bad plane id")?;
-            
-            Ok(Command::LoadOrders { orders: order_vec, plane })
+            let plane = plane_id.parse::<usize>().map_err(|_| "bad plane id")?;
+
+            Ok(Command::LoadOrders {
+                orders: order_vec,
+                plane,
+            })
         }
 
         other => Err(format!("Unrecognized command: {:?}", other)),
