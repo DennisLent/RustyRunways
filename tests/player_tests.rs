@@ -1,8 +1,8 @@
 use RustyRunways::player::Player;
-use RustyRunways::utils::map::Map;
 use RustyRunways::utils::airport::Airport;
 use RustyRunways::utils::coordinate::Coordinate;
 use RustyRunways::utils::errors::GameError;
+use RustyRunways::utils::map::Map;
 
 #[test]
 fn player_initialization_gives_single_plane() {
@@ -31,9 +31,11 @@ fn buy_plane_success() {
     let mut airport = Airport::generate_random(1, 10);
     airport.runway_length = 3000.0;
     let coord = Coordinate::new(0.0, 0.0);
-    assert!(player
-        .buy_plane(&"SparrowLight".to_string(), &mut airport, &coord)
-        .is_ok());
+    assert!(
+        player
+            .buy_plane(&"SparrowLight".to_string(), &mut airport, &coord)
+            .is_ok()
+    );
     assert_eq!(player.fleet_size, 2);
 }
 
