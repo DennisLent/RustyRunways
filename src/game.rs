@@ -5,9 +5,10 @@ use crate::utils::airplanes::models::AirplaneStatus;
 use crate::utils::coordinate::Coordinate;
 use crate::utils::errors::GameError;
 use crate::utils::map::Map;
+use crate::utils::orders::order::MAX_DEADLINE;
 use std::collections::BinaryHeap;
 
-const RESTOCK_CYCLE: u64 = 24*14;
+const RESTOCK_CYCLE: u64 = MAX_DEADLINE as u64 * 24;
 
 /// Holds all mutable world state and drives the simulation via scheduled events.
 #[derive(Debug)]
@@ -31,9 +32,9 @@ impl Game {
     pub fn new(seed: u64, num_airports: Option<usize>, starting_cash: f32) -> Self {
         let map = Map::generate_from_seed(seed, num_airports);
 
-        let arrival_times = Vec::new();
         let player = Player::new(starting_cash, &map);
         let airplanes = player.fleet.clone();
+        let arrival_times = vec![0; airplanes.len()];
         let events = BinaryHeap::new();
 
         let mut game = Game {
@@ -72,8 +73,48 @@ impl Game {
             self.time = scheduled.time;
 
             match scheduled.event {
+                // Restock every 14 days
+                Event::Restock => {
+                    self.map.restock_airports();
+                    self.schedule(self.time + RESTOCK_CYCLE, Event::Restock);
+                }
+
+                // Finished loading, therefore we need to update the status
                 Event::LoadingEvent { plane } => {
-                    
+                    self.airplanes[plane].status = AirplaneStatus::Parked;
+                }
+
+                // Update the progress of the flight
+                Event::FlightProgress { plane } => {
+                    let airplane = &mut self.airplanes[plane];
+
+                    if let AirplaneStatus::InTransit {
+                        hours_remaining,
+                        destination,
+                    } = airplane.status
+                    {
+                        // any more flight time remaining?
+                        if hours_remaining > 1 {
+                            airplane.status = AirplaneStatus::InTransit {
+                                hours_remaining: hours_remaining - 1,
+                                destination,
+                            };
+                            self.schedule(self.time + 1, Event::FlightProgress { plane });
+                        }
+                        // Plane has arrived
+                        else {
+                            // Charge the player for landing
+                            let (airport, _) = &self.map.airports[destination];
+                            let landing_fee = airport.landing_fee(&airplane);
+                            self.player.cash -= landing_fee;
+
+                            // Add arrival time of airplane
+                            self.arrival_times[plane] = self.time;
+
+                            // Change status of plane
+                            airplane.status = AirplaneStatus::Parked;
+                        }
+                    }
                 }
                 _ => {
                     println!("Not implemented!")
@@ -89,6 +130,17 @@ impl Game {
     /// Run the simulation until `max_time` or until there are no more events.
     pub fn run_until(&mut self, max_time: GameTime) {
         while self.time < max_time && self.tick_event() {}
+
+        //if no events, just jump to time step
+        if self.time < max_time{
+            self.time = max_time;
+        }
+    }
+
+    pub fn advance(&mut self, hours: GameTime) {
+        let target_time = self.time + hours;
+
+        self.run_until(target_time);
     }
 
     /// Display a summary of all airports in the map, including their orders.
@@ -114,13 +166,14 @@ impl Game {
                     println!("  Orders:");
                     for order in &airport.orders {
                         println!(
-                            "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr",
+                            "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr | destination: {}",
                             order.id,
                             order.name,
                             self.map.airports[order.destination_id].0.name,
                             order.weight,
                             order.value,
                             order.deadline,
+                            order.destination_id
                         );
                     }
                 }
@@ -154,13 +207,14 @@ impl Game {
                 println!("  Orders:");
                 for order in &airport.orders {
                     println!(
-                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr",
+                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr | destination: {}",
                         order.id,
                         order.name,
                         self.map.airports[order.destination_id].0.name,
                         order.weight,
                         order.value,
                         order.deadline,
+                        order.destination_id
                     );
                 }
             }
@@ -170,11 +224,12 @@ impl Game {
     }
 
     fn find_associated_airport(&self, location: &Coordinate) -> Result<String, GameError> {
-
         let airport = match self.map.airports.iter().find(|(_, c)| c == location) {
             Some((airport, _)) => airport,
             _ => {
-                return Err(GameError::AirportLocationInvalid { location: location.clone() });
+                return Err(GameError::AirportLocationInvalid {
+                    location: location.clone(),
+                });
             }
         };
 
@@ -182,7 +237,7 @@ impl Game {
     }
 
     /// Display a summary of all airplanes in the game.
-    pub fn list_airplanes(&self) -> Result<(), GameError>{
+    pub fn list_airplanes(&self) -> Result<(), GameError> {
         println!("Airplanes ({} total):", self.airplanes.len());
         for plane in &self.airplanes {
             let loc = &plane.location;
@@ -193,17 +248,36 @@ impl Game {
                 }
             };
 
-            println!(
-                "ID: {} | {:?} at airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
-                plane.id,
-                plane.model,
-                airport_name,
-                plane.current_fuel,
-                plane.specs.fuel_capacity,
-                plane.current_payload,
-                plane.specs.payload_capacity,
-                plane.status,
-            );
+            // If plane is in transit, don't show coords and show remaining time
+            if let AirplaneStatus::InTransit {
+                hours_remaining,
+                destination: _,
+            } = plane.status
+            {
+                println!(
+                    "ID: {} | {:?} en-route to airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}hr",
+                    plane.id,
+                    plane.model,
+                    airport_name,
+                    plane.current_fuel,
+                    plane.specs.fuel_capacity,
+                    plane.current_payload,
+                    plane.specs.payload_capacity,
+                    hours_remaining
+                );
+            } else {
+                println!(
+                    "ID: {} | {:?} at airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
+                    plane.id,
+                    plane.model,
+                    airport_name,
+                    plane.current_fuel,
+                    plane.specs.fuel_capacity,
+                    plane.current_payload,
+                    plane.specs.payload_capacity,
+                    plane.status,
+                );
+            }
         }
 
         Ok(())
@@ -216,21 +290,46 @@ impl Game {
         }
 
         let plane = &self.airplanes[plane_id];
-
         let loc = &plane.location;
-        println!(
-            "ID: {} | {:?} at ({:.2}, {:.2}) | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
-            plane.id,
-            plane.model,
-            loc.x,
-            loc.y,
-            plane.current_fuel,
-            plane.specs.fuel_capacity,
-            plane.current_payload,
-            plane.specs.payload_capacity,
-            plane.status,
-        );
-        if !plane.manifest.is_empty() {
+        let airport_name = match self.find_associated_airport(loc) {
+            Ok(name) => name,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        // If plane is in transit, don't show coords and show remaining time
+        if let AirplaneStatus::InTransit {
+            hours_remaining,
+            destination: _,
+        } = plane.status
+        {
+            println!(
+                "ID: {} | {:?} en-route to airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}hr",
+                plane.id,
+                plane.model,
+                airport_name,
+                plane.current_fuel,
+                plane.specs.fuel_capacity,
+                plane.current_payload,
+                plane.specs.payload_capacity,
+                hours_remaining
+            );
+
+            Ok(())
+        } else {
+            println!(
+                "ID: {} | {:?} at airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
+                plane.id,
+                plane.model,
+                airport_name,
+                plane.current_fuel,
+                plane.specs.fuel_capacity,
+                plane.current_payload,
+                plane.specs.payload_capacity,
+                plane.status,
+            );
+            if !plane.manifest.is_empty() {
                 println!("  Manifest:");
                 for order in plane.manifest.clone() {
                     println!(
@@ -245,7 +344,47 @@ impl Game {
                 }
             }
 
-        Ok(())
+            Ok(())
+        }
+    }
+
+    pub fn show_distances(&self, plane_id: usize) -> Result<(), GameError> {
+        if plane_id > (self.airplanes.len() - 1) {
+            return Err(GameError::PlaneIdInvalid { id: plane_id });
+        }
+
+        let plane = &self.airplanes[plane_id];
+
+        // If plane is in transit, dont't calc
+        if let AirplaneStatus::InTransit {..} = plane.status {
+            println!("Plane currently in transit");
+            Ok(())
+        }
+        else{
+
+            for (airport, coordinate) in &self.map.airports {
+
+                let distance = plane.distance_to(coordinate);
+
+                let can_land = match plane.can_fly_to(airport, coordinate) {
+                    Ok(_) => true,
+                    _ => false
+                };
+
+                println!(
+                    "ID: {} | {} at ({:.2}, {:.2}) | Runway: {:.0}m | Distance to: {:.2}km | Can land: {:?}",
+                    airport.id,
+                    airport.name,
+                    coordinate.x,
+                    coordinate.y,
+                    airport.runway_length,
+                    distance,
+                    can_land
+                );
+            }
+            Ok(())
+
+        }
     }
 
     /// Buy an airplane is possible
@@ -261,7 +400,9 @@ impl Game {
 
         match self.player.buy_plane(model, airport_ref, &home_coord) {
             Ok(_) => {
+                // Buy plane, update fleet and update arrival times
                 self.airplanes = self.player.fleet.clone();
+                self.arrival_times.push(self.time);
                 Ok(())
             }
             Err(e) => Err(e),
@@ -288,7 +429,141 @@ impl Game {
         let airport = &mut self.map.airports[airport_idx].0;
 
         airport.load_order(order_id, plane)?;
-        // self.schedule(self.time + 1, Event::LoadingComplete { plane: plane_id, airport: airport_idx });
+        self.schedule(self.time + 1, Event::LoadingEvent { plane: plane_id });
+
+        Ok(())
+    }
+
+    /// Unload all orders from the plane
+    pub fn unload_all(&mut self, plane_id: usize) -> Result<(), GameError> {
+        let plane = self
+            .airplanes
+            .iter_mut()
+            .find(|p| p.id == plane_id)
+            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
+
+        let airport_idx = self
+            .map
+            .airports
+            .iter()
+            .position(|(_, coord)| *coord == plane.location)
+            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+
+        let airport = &mut self.map.airports[airport_idx].0;
+        let mut deliveries = plane.unload_all();
+
+        // Check deliveries
+        for delivery in deliveries.drain(..) {
+            // reached the destination and before deadline
+            if delivery.destination_id == airport.id {
+                if delivery.deadline != 0 {
+                    println!("Successfully delivered order {}", delivery.id);
+                    self.player.cash += delivery.value;
+                    self.player.record_delivery();
+                } else {
+                    println!("Order {}: Deadline expired", delivery.id)
+                }
+            }
+            // not the destination so it goes into the stock at the airport
+            else {
+                println!(
+                    "Order {} being stored at airport {}",
+                    delivery.id, airport.id
+                );
+                airport.orders.push(delivery);
+            }
+        }
+
+        self.schedule(self.time + 1, Event::LoadingEvent { plane: plane_id });
+
+        Ok(())
+    }
+
+    /// Unload a specific order
+    pub fn unload_orders(
+        &mut self,
+        order_id: Vec<usize>,
+        plane_id: usize,
+    ) -> Result<(), GameError> {
+        let plane = self
+            .airplanes
+            .iter_mut()
+            .find(|p| p.id == plane_id)
+            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
+
+        let airport_idx = self
+            .map
+            .airports
+            .iter()
+            .position(|(_, coord)| *coord == plane.location)
+            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+
+        let airport = &mut self.map.airports[airport_idx].0;
+
+        for order in order_id {
+            let delivery = plane.unload_order(order)?;
+
+            if delivery.destination_id == airport.id {
+                if delivery.deadline != 0 {
+                    println!("Successfully delivered order {}", delivery.id);
+                    self.player.cash += delivery.value;
+                    self.player.record_delivery();
+                } else {
+                    println!("Order {}: Deadline expired", delivery.id)
+                }
+            }
+            // not the destination so it goes into the stock at the airport
+            else {
+                println!(
+                    "Order {} being stored at airport {}",
+                    delivery.id, airport.id
+                );
+                airport.orders.push(delivery);
+            }
+        }
+        self.schedule(self.time + 1, Event::LoadingEvent { plane: plane_id });
+
+        Ok(())
+    }
+
+    /// Unload a specific order
+    pub fn unload_order(&mut self, order_id: usize, plane_id: usize) -> Result<(), GameError> {
+        let plane = self
+            .airplanes
+            .iter_mut()
+            .find(|p| p.id == plane_id)
+            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
+
+        let airport_idx = self
+            .map
+            .airports
+            .iter()
+            .position(|(_, coord)| *coord == plane.location)
+            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+
+        let airport = &mut self.map.airports[airport_idx].0;
+
+        let delivery = plane.unload_order(order_id)?;
+
+        if delivery.destination_id == airport.id {
+            if delivery.deadline != 0 {
+                println!("Successfully delivered order {}", delivery.id);
+                self.player.cash += delivery.value;
+                self.player.record_delivery();
+            } else {
+                println!("Order {}: Deadline expired", delivery.id)
+            }
+        }
+        // not the destination so it goes into the stock at the airport
+        else {
+            println!(
+                "Order {} being stored at airport {}",
+                delivery.id, airport.id
+            );
+            airport.orders.push(delivery);
+        }
+
+        self.schedule(self.time + 1, Event::LoadingEvent { plane: plane_id });
 
         Ok(())
     }
@@ -316,24 +591,22 @@ impl Game {
         let (airport, airport_coordinates) = &self.map.airports[airport_idx];
 
         match plane.fly_to(airport, airport_coordinates) {
-            Ok(()) => Ok(()),
+            // Plane has taken off
+            Ok(()) => {
+                // Charge for takeoff fee
+                let parked_since = self.arrival_times[plane_id];
+                let parked_duration = self.time - parked_since;
+                let parking_fee = airport.parking_fee * parked_duration as f32;
+                self.player.cash -= parking_fee;
+
+                // Airplane takes off
+                self.schedule(self.time + 1, Event::FlightProgress { plane: plane_id });
+
+                Ok(())
+
+            },
             Err(e) => Err(e),
         }
     }
-
-    pub fn advance(&mut self, hours: GameTime) {
-        let target_time = self.time + hours;
-
-        // Find earliest event
-        if let Some(next) = self.events.peek() {
-            if next.time <= target_time {
-                let _ = self.tick_event();
-                return;
-            }
-        }
-
-        self.time = target_time;
-    }
-
 
 }

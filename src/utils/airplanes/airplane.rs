@@ -55,6 +55,12 @@ impl Airplane {
         airport: &Airport,
         airport_coords: &Coordinate,
     ) -> Result<(), GameError> {
+
+        // Cannot fly to the airport we are currently at
+        if airport_coords == &self.location {
+            return Err(GameError::SameAirport);
+        }
+
         let distance = self.distance_to(airport_coords);
 
         // Cannot go this far
@@ -99,6 +105,20 @@ impl Airplane {
         delivered
     }
 
+    /// Unload specific cargo
+    pub fn unload_order(&mut self, order_id: usize) -> Result<Order, GameError> {
+        let delivered = match self.manifest.iter().find(|order| order.id == order_id) {
+            Some(order) => order.clone(),
+            _ => {
+                return Err(GameError::OrderIdInvalid { id: order_id });
+            }
+        };
+
+        self.current_payload -= delivered.weight;
+        self.status = AirplaneStatus::Unloading;
+        Ok(delivered)
+    }
+
     /// Fly directly to `destination_airport`, updating location and fuel. Returns true if successful.
     pub fn fly_to(
         &mut self,
@@ -116,20 +136,21 @@ impl Airplane {
                         self.current_fuel -= fuel_needed;
                         self.location = Coordinate::new(airport_coords.x, airport_coords.y);
                         self.status = AirplaneStatus::InTransit {
-                            destination: Coordinate::new(airport_coords.x, airport_coords.y),
+                            hours_remaining: hours as usize,
+                            destination: airport.id,
                         };
 
                         Ok(())
+                    } else {
+                        Err(GameError::InsufficientFuel {
+                            have: self.current_fuel,
+                            need: fuel_needed,
+                        })
                     }
-                    else {
-                    Err(GameError::InsufficientFuel {
-                        have: self.current_fuel,
-                        need: fuel_needed,
+                } else {
+                    Err(GameError::PlaneNotReady {
+                        plane_state: self.status.clone(),
                     })
-                    }
-                }
-                else {
-                    Err(GameError::PlaneNotReady { plane_state: self.status.clone() })
                 }
             }
         }
@@ -140,4 +161,5 @@ impl Airplane {
         self.current_fuel = self.specs.fuel_capacity;
         self.status = AirplaneStatus::Refueling;
     }
+
 }

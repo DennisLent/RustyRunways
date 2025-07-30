@@ -63,8 +63,8 @@ impl Order {
         let base_value = weight * price_per_kg;
 
         let distance_factor = 1.0 + ALPHA * (distance / 10000.0);
-        let time_factor =
-            1.0 + BETA * (((MAX_DEADLINE*24) as f32 - deadline as f32) / (MAX_DEADLINE*24) as f32);
+        let time_factor = 1.0
+            + BETA * (((MAX_DEADLINE * 24) as f32 - deadline as f32) / (MAX_DEADLINE * 24) as f32);
 
         let value = (base_value * distance_factor * time_factor).round();
 

@@ -16,6 +16,8 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 `SHOW PLANE <plane_id>`: show one plane (status, specs, manifest)
 
+`SHOW DISTANCES <plane_id>`: shows the distances, fuel requirements and if it can land at  given airport
+
 ## Purchases
 
 `BUY PLANE <Model> <airport_id>`: Buys and places an airplane at the given airport
@@ -28,6 +30,8 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 `UNLOAD ORDER <order_id> FROM <plane_id>`: Load 1 order from the plane (takes 1 hour)
 
+`UNLOAD ORDERs [<order_id>] FROM <plane_id>`: Load 1 order from the plane (takes 1 hour)
+
 `UNLOAD ALL FROM <plane_id>`: Unload all orders from the plane (takes 1 hour)
 
 ## Dispatch & movement
@@ -39,6 +43,8 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 ## Time control
 
 `ADVANCE <n>`: Advances the game by n hours (ticks) or until a new event occurs
+
+The game can also be manually progressed by 1 hour by pressing the Enter / Return Key (i.e. no input)
 
 ## Queries
 

@@ -185,6 +185,6 @@ mod tests {
         assert_eq!(&Airport::generate_name(1), "AAB");
         assert_eq!(&Airport::generate_name(25), "AAZ");
         assert_eq!(&Airport::generate_name(26), "ABA");
-        assert_eq!(&Airport::generate_name(26*26 + 26 + 1), "BBB");
+        assert_eq!(&Airport::generate_name(26 * 26 + 26 + 1), "BBB");
     }
 }

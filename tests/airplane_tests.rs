@@ -1,4 +1,3 @@
-use strum::IntoEnumIterator;
 use RustyRunways::utils::airplanes::models::AirplaneStatus;
 use RustyRunways::utils::airplanes::{airplane::Airplane, models::AirplaneModel};
 use RustyRunways::utils::errors::GameError;
@@ -7,10 +6,10 @@ use RustyRunways::utils::{
     coordinate::Coordinate,
     orders::{CargoType, Order},
 };
-
+use strum::IntoEnumIterator;
 
 fn approx_eq(a: f32, b: f32) -> bool {
-        (a - b).abs() <= 1e-2
+    (a - b).abs() <= 1e-2
 }
 
 fn sample_airport(runway: f32, x: f32, y: f32) -> (Airport, Coordinate) {
@@ -67,8 +66,11 @@ fn runway_length() {
     // so min length approx 407 m
     let sparrow = AirplaneModel::SparrowLight.specs();
     let req = sparrow.min_runway_length;
-    assert!(approx_eq(req, 407.5), 
-        "Expected approx 407.5m, got {:.6}m", req);
+    assert!(
+        approx_eq(req, 407.5),
+        "Expected approx 407.5m, got {:.6}m",
+        req
+    );
 
     // For faster jets, need longer runway
     let lightning = AirplaneModel::Lightning.specs();
@@ -100,12 +102,14 @@ fn distance_endurance_and_range_check() {
     assert!(approx_eq(dist, 5.0));
     let hours = plane.endurance_hours();
     assert!(hours > 0.0);
-    assert!(approx_eq(plane.max_range(), hours * plane.specs.cruise_speed));
+    assert!(approx_eq(
+        plane.max_range(),
+        hours * plane.specs.cruise_speed
+    ));
 }
 
 #[test]
 fn can_fly_to_detects_oob_and_runway() {
-
     // plane with almost no fuel
     let home = Coordinate::new(0.0, 0.0);
     let mut plane = Airplane::new(0, AirplaneModel::SparrowLight, home);
@@ -134,7 +138,10 @@ fn load_and_unload() {
 
     // order too large
     let big = make_order(1, plane.specs.payload_capacity + 1.0, 1000.0, 0);
-    assert!(matches!(plane.load_order(big.clone()), Err(GameError::MaxPayloadReached { .. })));
+    assert!(matches!(
+        plane.load_order(big.clone()),
+        Err(GameError::MaxPayloadReached { .. })
+    ));
 
     // order fits
     let small = make_order(2, plane.specs.payload_capacity - 1.0, 1000.0, 0);
@@ -178,5 +185,3 @@ fn refuel_check() {
     assert!(approx_eq(plane.current_fuel, plane.specs.fuel_capacity));
     assert!(matches!(plane.status, AirplaneStatus::Refueling));
 }
-
-

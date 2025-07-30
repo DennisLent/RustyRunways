@@ -4,10 +4,12 @@ pub enum Command {
     ShowAirport { id: usize, with_orders: bool },
     ShowAirplanes,
     ShowAirplane { id: usize },
+    ShowDistances { plane_id: usize },
     BuyPlane { model: String, airport: usize },
     LoadOrder { order: usize, plane: usize },
     LoadOrders { orders: Vec<usize>, plane: usize },
     UnloadOrder { order: usize, plane: usize },
+    UnloadOrders { orders: Vec<usize>, plane: usize },
     UnloadAll { plane: usize },
     DepartPlane { plane: usize, dest: usize },
     HoldPlane { plane: usize },
@@ -38,6 +40,24 @@ fn parse_id_list(s: &str) -> Result<Vec<usize>, String> {
 pub fn parse_command(line: &str) -> Result<Command, String> {
     let toks: Vec<&str> = line.split_whitespace().collect();
 
+    if toks.len() >= 5 && toks[0] == "LOAD" && toks[1] == "ORDERS" {
+        
+        // find the "ON"
+        if let Some(on_idx) = toks.iter().position(|&t| t == "ON") {
+            
+            // tokens [2..on_idx] are our ID list, re-join them:
+            let orders_str = toks[2..on_idx].join(" ");
+            let orders = parse_id_list(&orders_str)
+                .map_err(|e| format!("Could not parse order list: {}", e))?;
+            
+            // next token must be the ids
+            let plane = toks.get(on_idx+1)
+                .ok_or("Expected plane id after ON")?
+                .parse().map_err(|_| "bad plane id")?;
+            return Ok(Command::LoadOrders { orders, plane });
+        }
+    }
+
     match toks.as_slice() {
         // Inspecting the world state
         ["SHOW", "AIRPORTS"] => Ok(Command::ShowAirports { with_orders: false }),
@@ -60,6 +80,8 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
             id: pid.parse().map_err(|_| "bad plane id")?,
         }),
 
+        ["SHOW", "DISTANCES", plane_id] => Ok(Command::ShowDistances { plane_id: plane_id.parse().map_err(|_| "bad plane id")? }),
+
         // Purchases
         ["BUY", "PLANE", model, aid] => Ok(Command::BuyPlane {
             model: model.to_string(),
@@ -77,6 +99,8 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
         ["ADVANCE", n] => Ok(Command::Advance {
             hours: n.parse().map_err(|_| "bad time n")?,
         }),
+
+        [] => Ok(Command::Advance { hours: 1 }),
 
         // Dispatch & movement
         ["DEPART", "PLANE", plane_id, destination_airport_id] => Ok(Command::DepartPlane {
@@ -105,6 +129,25 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
                 plane,
             })
         }
+
+        ["UNLOAD", "ORDER", order_id, "FROM", plane_id] => Ok(Command::UnloadOrder {
+            order: order_id.parse().map_err(|_| "bad order id")?,
+            plane: plane_id.parse().map_err(|_| "bad plane id")?,
+        }),
+
+        ["UNLOAD", "ORDERS", orders, "ON", plane_id] => {
+            let order_vec = parse_id_list(orders)?;
+            let plane = plane_id.parse::<usize>().map_err(|_| "bad plane id")?;
+
+            Ok(Command::UnloadOrders {
+                orders: order_vec,
+                plane,
+            })
+        }
+
+        ["UNLOAD", "ALL", "FROM", plane_id] => Ok(Command::UnloadAll {
+            plane: plane_id.parse::<usize>().map_err(|_| "bad plane id")?,
+        }),
 
         other => Err(format!("Unrecognized command: {:?}", other)),
     }

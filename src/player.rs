@@ -23,34 +23,55 @@ pub struct Player {
 impl Player {
     /// Create a new player and start them out with the most basic airplane possible.
     /// We check the shortest distance and filter by price to check which one to give.
-    pub fn new(starting_cash: f32, map: &Map) -> Self {
-        let mut player = Player {
-            cash: starting_cash,
-            fleet_size: 0,
-            fleet: Vec::new(),
-            orders_delivered: 0,
-        };
+    /// We try to ensure that the starter plane can fly between at least 2 given airports.
+pub fn new(starting_cash: f32, map: &Map) -> Self {
+        let ( _min_dist, start_idx ) = map.min_distance();
+        let start_coord = map.airports[start_idx].1;
+        let start_runway = map.airports[start_idx].0.runway_length;
 
-        let (minimum_distance, start_index) = map.min_distance();
+        // find all models that can both take off from start AND transit AND land at some other airport
+        let candidates = AirplaneModel::iter().filter(|model| {
+            let specs = model.specs();
+            let max_range = specs.fuel_capacity / specs.fuel_consumption * specs.cruise_speed;
 
-        let best_model = AirplaneModel::iter()
-            .filter(|model| {
-                let specs = model.specs();
-                let max_range = (specs.fuel_capacity / specs.fuel_consumption) * specs.cruise_speed;
-                max_range > minimum_distance
+            // start runway long enough?
+            if start_runway < specs.min_runway_length {
+                return false;
+            }
+
+            // can reach & land at other airport?
+            map.airports.iter().any(|(other_airport, other_coord)| {
+                if other_airport.id == start_idx { return false; }
+
+                let dx = other_coord.x - start_coord.x;
+                let dy = other_coord.y - start_coord.y;
+                let dist = (dx*dx + dy*dy).sqrt();
+
+                dist <= max_range
+                    && other_airport.runway_length >= specs.min_runway_length
             })
+        })
+        .collect::<Vec<_>>();
+
+        // pick the cheapest (fallback to a mid‑tier if none qualify)
+        let best_model = candidates
+            .into_iter()
             .min_by(|a, b| {
-                let purchasing_price_1 = a.specs().purchase_price;
-                let purchasing_price_2 = b.specs().purchase_price;
-                purchasing_price_1.partial_cmp(&purchasing_price_2).unwrap()
+                a.specs()
+                    .purchase_price
+                    .partial_cmp(&b.specs().purchase_price)
+                    .unwrap()
             })
             .unwrap_or(AirplaneModel::CometRegional);
 
-        let (_, starting_coordinates) = map.airports[start_index];
-        let new_plane = Airplane::new(0, best_model, starting_coordinates);
-        player.fleet.push(new_plane);
-        player.fleet_size += 1;
-
+        // assign player new plane
+        let (_, start_coord) = map.airports[start_idx];
+        let player = Player {
+            cash: starting_cash,
+            fleet_size: 1,
+            fleet: vec![ Airplane::new(0, best_model, start_coord) ],
+            orders_delivered: 0,
+        };
         player
     }
 

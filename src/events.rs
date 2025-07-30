@@ -4,25 +4,18 @@ pub type GameTime = u64;
 /// All events that can occur in the world.
 #[derive(Clone, Debug)]
 pub enum Event {
-    
     LoadingEvent {
-        plane: usize
+        plane: usize,
     },
 
-    FlightEnRoute {
+    FlightTakeOff {
         plane: usize,
         origin: usize,
         destination: usize,
     },
 
-    FlightArrival {
+    FlightProgress {
         plane: usize,
-        airport: usize
-    },
-
-    UnloadingComplete {
-        plane: usize,
-        airport: usize,
     },
 
     RefuelComplete {
@@ -32,7 +25,7 @@ pub enum Event {
 
     OrderDeadline {
         airport: usize,
-        order: usize
+        order: usize,
     },
 
     Restock,

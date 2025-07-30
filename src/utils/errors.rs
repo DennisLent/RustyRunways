@@ -3,7 +3,10 @@ use std::fmt;
 use strsim::levenshtein;
 use strum::IntoEnumIterator;
 
-use crate::utils::{airplanes::models::{AirplaneModel, AirplaneStatus}, coordinate::Coordinate};
+use crate::utils::{
+    airplanes::models::{AirplaneModel, AirplaneStatus},
+    coordinate::Coordinate,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GameError {
@@ -50,6 +53,8 @@ pub enum GameError {
         input: String,
         suggestion: Option<String>,
     },
+    NoCargo,
+    SameAirport,
 }
 
 impl GameError {
@@ -114,7 +119,11 @@ impl fmt::Display for GameError {
                 write!(f, "Airport with id {} does not exist", id)
             }
             GameError::AirportLocationInvalid { location } => {
-                write!(f, "No airport found at coordinate ({:.2}, {:.2})", location.x, location.y)
+                write!(
+                    f,
+                    "No airport found at coordinate ({:.2}, {:.2})",
+                    location.x, location.y
+                )
             }
             GameError::InsufficientFunds { have, need } => {
                 write!(
@@ -142,6 +151,12 @@ impl fmt::Display for GameError {
             }
             GameError::PlaneNotReady { plane_state } => {
                 write!(f, "Airplane not ready. Current status: {:?}", plane_state)
+            }
+            GameError::NoCargo => {
+                write!(f, "No cargo to unload")
+            }
+            GameError::SameAirport => {
+                write!(f, "Cannot fly to the airport the plane is currently at")
             }
         }
     }
