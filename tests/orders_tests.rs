@@ -1,5 +1,5 @@
 use strum::IntoEnumIterator;
-use RustyRunways::utils::{coordinate::Coordinate, orders::{cargo::CargoType, Order}};
+use RustyRunways::utils::{coordinate::Coordinate, orders::{cargo::CargoType, order::{ALPHA, BETA, MAX_DEADLINE}, Order}};
 
 fn approx_le(a: f32, b: f32, tol: f32) -> bool {
     a <= b + tol
@@ -80,7 +80,7 @@ fn deadline_weight_check() {
         let o = Order::new(seed, seed as usize, 0, &coords, coords.len());
         
         // deadline in [1, 30]
-        assert!((1..=30).contains(&o.deadline));
+        assert!((1..=MAX_DEADLINE*24).contains(&o.deadline));
         
         // weight in [100, 20000]
         assert!(o.weight >= 100.0 && o.weight <= 20_000.0);
@@ -103,10 +103,10 @@ fn value_of_order_check() {
 
     // distance factor = 1 + 0.5*(distance/10000)
     let dist = (10.0f32).hypot(10.0);
-    let dist_factor = 1.0 + 0.5 * (dist / 10000.0);
+    let dist_factor = 1.0 + ALPHA * (dist / 10000.0);
 
-    // time factor = 1 + 0.7*((30-deadline)/30)
-    let time_factor = 1.0 + 0.7 * ((30.0 - (o.deadline as f32)) / 30.0);
+    // time factor = 1 + 0.7*((d0-deadline)/d0)
+    let time_factor = 1.0 + BETA * (((MAX_DEADLINE * 24) as f32 - (o.deadline as f32)) / (MAX_DEADLINE * 24) as f32);
 
     // overall value needs to be in [base_min, base_max] * dist_factor * time_factor
     let lower = (base_min * dist_factor * time_factor).floor();

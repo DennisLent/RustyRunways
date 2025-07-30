@@ -15,7 +15,11 @@ fn main() {
                     println!("{}", e);
                 }
             }
-            Ok(Command::ShowAirplanes) => game.list_airplanes(),
+            Ok(Command::ShowAirplanes) => {
+                if let Err(e) = game.list_airplanes() {
+                    println!("{}", e)
+                }
+            },
             Ok(Command::ShowAirplane { id }) => {
                 if let Err(e) = game.list_airplane(id) {
                     println!("{}", e);

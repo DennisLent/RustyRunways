@@ -137,7 +137,7 @@ impl AirplaneModel {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum AirplaneStatus {
     Parked,
     Refueling,

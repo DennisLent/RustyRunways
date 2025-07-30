@@ -106,6 +106,16 @@ impl Airport {
         }
     }
 
+    /// Check if any orders have expired, if so we remove them.
+    /// Update the deadline hour for each order.
+    pub fn update_deadline(&mut self) {
+        self.orders.retain(|order| order.deadline != 0);
+
+        for order in self.orders.iter_mut() {
+            order.deadline -= 1;
+        }
+    }
+
     /// Returns the landing fee for a given airplane.
     pub fn landing_fee(&self, airplane: &Airplane) -> f32 {
         self.landing_fee * (airplane.specs.mtow / 1000.0)

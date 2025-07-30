@@ -108,22 +108,28 @@ impl Airplane {
         match self.can_fly_to(airport, airport_coords) {
             Err(e) => Err(e),
             Ok(()) => {
-                let distance = self.distance_to(airport_coords);
-                let hours = distance / self.specs.cruise_speed;
-                let fuel_needed = hours * self.specs.fuel_consumption;
-                if fuel_needed < self.current_fuel {
-                    self.current_fuel -= fuel_needed;
-                    self.location = Coordinate::new(airport_coords.x, airport_coords.y);
-                    self.status = AirplaneStatus::InTransit {
-                        destination: Coordinate::new(airport_coords.x, airport_coords.y),
-                    };
+                if self.status == AirplaneStatus::Parked {
+                    let distance = self.distance_to(airport_coords);
+                    let hours = distance / self.specs.cruise_speed;
+                    let fuel_needed = hours * self.specs.fuel_consumption;
+                    if fuel_needed < self.current_fuel {
+                        self.current_fuel -= fuel_needed;
+                        self.location = Coordinate::new(airport_coords.x, airport_coords.y);
+                        self.status = AirplaneStatus::InTransit {
+                            destination: Coordinate::new(airport_coords.x, airport_coords.y),
+                        };
 
-                    Ok(())
-                } else {
+                        Ok(())
+                    }
+                    else {
                     Err(GameError::InsufficientFuel {
                         have: self.current_fuel,
                         need: fuel_needed,
                     })
+                    }
+                }
+                else {
+                    Err(GameError::PlaneNotReady { plane_state: self.status.clone() })
                 }
             }
         }

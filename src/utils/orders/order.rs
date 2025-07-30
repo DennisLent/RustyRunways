@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 // Constants for scaling distance and deadline
-const ALPHA: f32 = 0.5;
-const BETA: f32 = 0.7;
+pub const ALPHA: f32 = 0.5;
+pub const BETA: f32 = 0.7;
 
-// Constant for the maximum deadline (we take 30 days)
-const MAX_DEADLINE: usize = 30;
+// Constant for the maximum deadline (we take 14 days)
+pub const MAX_DEADLINE: usize = 14;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
@@ -41,7 +41,8 @@ impl Order {
             .unwrap();
 
         // idk but 30 days seems to be a good max
-        let deadline = rng.gen_range(1..=MAX_DEADLINE);
+        let deadline_day = rng.gen_range(1..=MAX_DEADLINE);
+        let deadline = deadline_day * 24;
 
         let mut destination_id = rng.gen_range(0..num_airports);
         if destination_id == origin_airport_id {
@@ -63,7 +64,7 @@ impl Order {
 
         let distance_factor = 1.0 + ALPHA * (distance / 10000.0);
         let time_factor =
-            1.0 + BETA * ((MAX_DEADLINE as f32 - deadline as f32) / MAX_DEADLINE as f32);
+            1.0 + BETA * (((MAX_DEADLINE*24) as f32 - deadline as f32) / (MAX_DEADLINE*24) as f32);
 
         let value = (base_value * distance_factor * time_factor).round();
 

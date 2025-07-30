@@ -4,25 +4,38 @@ pub type GameTime = u64;
 /// All events that can occur in the world.
 #[derive(Clone, Debug)]
 pub enum Event {
-    /// A plane departs from airport: charge parking duration
-    FlightDeparture { plane: usize, airport: usize },
-    /// Plane is loading: lasts for 1 game tick
-    LoadingComplete { plane: usize, airport: usize },
-    /// Flight is currently on its way
+    
+    LoadingEvent {
+        plane: usize
+    },
+
     FlightEnRoute {
         plane: usize,
         origin: usize,
         destination: usize,
     },
-    /// Flight has arrived at destination airport
-    FlightArrival { plane: usize, airport: usize },
-    /// Plane is unloading: lasts for 1 game tick and pays the player
-    UnloadingComplete { plane: usize, airport: usize },
-    /// Refuels the airplane: lasts for 1 game tick and switches the airplane to parked
-    RefuelComplete { plane: usize, airport: usize },
-    /// An order at `airport` reaches its delivery deadline.
-    OrderDeadline { airport: usize, order_index: usize },
-    // TODO: add MaintenanceComplete, RefuelComplete, etc.
+
+    FlightArrival {
+        plane: usize,
+        airport: usize
+    },
+
+    UnloadingComplete {
+        plane: usize,
+        airport: usize,
+    },
+
+    RefuelComplete {
+        plane: usize,
+        airport: usize,
+    },
+
+    OrderDeadline {
+        airport: usize,
+        order: usize
+    },
+
+    Restock,
 }
 
 /// Wraps an `Event` with its scheduled occurrence time.
