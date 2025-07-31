@@ -99,7 +99,7 @@ fn main() {
             Ok(Command::Advance { hours }) => game.advance(hours),
 
             Ok(Command::Exit) => break,
-            
+
             Err(e) => println!("Syntax error: {}", e),
             _ => println!("Not yet implemented"),
         }

@@ -41,19 +41,19 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
     let toks: Vec<&str> = line.split_whitespace().collect();
 
     if toks.len() >= 5 && toks[0] == "LOAD" && toks[1] == "ORDERS" {
-        
         // find the "ON"
         if let Some(on_idx) = toks.iter().position(|&t| t == "ON") {
-            
             // tokens [2..on_idx] are our ID list, re-join them:
             let orders_str = toks[2..on_idx].join(" ");
             let orders = parse_id_list(&orders_str)
                 .map_err(|e| format!("Could not parse order list: {}", e))?;
-            
+
             // next token must be the ids
-            let plane = toks.get(on_idx+1)
+            let plane = toks
+                .get(on_idx + 1)
                 .ok_or("Expected plane id after ON")?
-                .parse().map_err(|_| "bad plane id")?;
+                .parse()
+                .map_err(|_| "bad plane id")?;
             return Ok(Command::LoadOrders { orders, plane });
         }
     }
@@ -80,7 +80,9 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
             id: pid.parse().map_err(|_| "bad plane id")?,
         }),
 
-        ["SHOW", "DISTANCES", plane_id] => Ok(Command::ShowDistances { plane_id: plane_id.parse().map_err(|_| "bad plane id")? }),
+        ["SHOW", "DISTANCES", plane_id] => Ok(Command::ShowDistances {
+            plane_id: plane_id.parse().map_err(|_| "bad plane id")?,
+        }),
 
         // Purchases
         ["BUY", "PLANE", model, aid] => Ok(Command::BuyPlane {

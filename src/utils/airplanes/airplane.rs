@@ -1,5 +1,8 @@
 use super::models::{AirplaneModel, AirplaneSpecs, AirplaneStatus};
-use crate::utils::{airport::Airport, coordinate::Coordinate, errors::GameError, orders::Order};
+use crate::{
+    events::GameTime,
+    utils::{airport::Airport, coordinate::Coordinate, errors::GameError, orders::Order},
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +58,6 @@ impl Airplane {
         airport: &Airport,
         airport_coords: &Coordinate,
     ) -> Result<(), GameError> {
-
         // Cannot fly to the airport we are currently at
         if airport_coords == &self.location {
             return Err(GameError::SameAirport);
@@ -107,59 +109,50 @@ impl Airplane {
 
     /// Unload specific cargo
     pub fn unload_order(&mut self, order_id: usize) -> Result<Order, GameError> {
-        let delivered = match self.manifest.iter().find(|order| order.id == order_id) {
-            Some(order) => order.clone(),
-            _ => {
-                return Err(GameError::OrderIdInvalid { id: order_id });
-            }
-        };
+        if let Some(idx) = self.manifest.iter().position(|order| order.id == order_id) {
 
-        self.current_payload -= delivered.weight;
-        self.status = AirplaneStatus::Unloading;
-        Ok(delivered)
+            let delivered = self.manifest.remove(idx);
+            
+            // Ensure we don't have some FLOP rounding errors
+            self.current_payload = (self.current_payload - delivered.weight).max(0.0);
+            self.status = AirplaneStatus::Unloading;
+            
+            Ok(delivered)
+        } 
+        else {
+            Err(GameError::OrderIdInvalid { id: order_id })
+        }
+
+        
     }
 
-    /// Fly directly to `destination_airport`, updating location and fuel. Returns true if successful.
-    pub fn fly_to(
+    //// Check runway & fuel, consume fuel, and return flight time in hours.
+    pub fn consume_flight_fuel(
         &mut self,
         airport: &Airport,
         airport_coords: &Coordinate,
-    ) -> Result<(), GameError> {
-        match self.can_fly_to(airport, airport_coords) {
-            Err(e) => Err(e),
-            Ok(()) => {
-                if self.status == AirplaneStatus::Parked {
-                    let distance = self.distance_to(airport_coords);
-                    let hours = distance / self.specs.cruise_speed;
-                    let fuel_needed = hours * self.specs.fuel_consumption;
-                    if fuel_needed < self.current_fuel {
-                        self.current_fuel -= fuel_needed;
-                        self.location = Coordinate::new(airport_coords.x, airport_coords.y);
-                        self.status = AirplaneStatus::InTransit {
-                            hours_remaining: hours as usize,
-                            destination: airport.id,
-                        };
+    ) -> Result<GameTime, GameError> {
 
-                        Ok(())
-                    } else {
-                        Err(GameError::InsufficientFuel {
-                            have: self.current_fuel,
-                            need: fuel_needed,
-                        })
-                    }
-                } else {
-                    Err(GameError::PlaneNotReady {
-                        plane_state: self.status.clone(),
-                    })
-                }
-            }
+        // runway & range check
+        self.can_fly_to(airport, airport_coords)?;
+        
+        // distance & fuel
+        let dist = self.distance_to(airport_coords);
+        let hours_f = dist / self.specs.cruise_speed;
+        let fuel_needed = hours_f * self.specs.fuel_consumption;
+        if fuel_needed > self.current_fuel {
+            return Err(GameError::InsufficientFuel { have: self.current_fuel,
+                                                      need: fuel_needed });
         }
+        // burn the fuel
+        self.current_fuel -= fuel_needed;
+        Ok(hours_f.ceil() as GameTime)
     }
+
 
     /// Refuel to full capacity, switching status to `Refueling`
     pub fn refuel(&mut self) {
         self.current_fuel = self.specs.fuel_capacity;
         self.status = AirplaneStatus::Refueling;
     }
-
 }

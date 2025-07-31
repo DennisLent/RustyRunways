@@ -166,11 +166,10 @@ fn flying_consumes_status() {
 
     // check we are flying
     let before_fuel = plane.current_fuel;
-    plane.fly_to(&ap, &coords).unwrap();
-    assert!(matches!(plane.status, AirplaneStatus::InTransit { .. }));
+    plane.consume_flight_fuel(&ap, &coords).unwrap();
 
-    // location changed
-    assert_eq!(plane.location, coords);
+    // location unchanged durinng the duration of flight
+    assert_eq!(plane.location, home);
 
     // fuel decreased
     assert!(plane.current_fuel < before_fuel);

@@ -104,12 +104,13 @@ impl Game {
                         // Plane has arrived
                         else {
                             // Charge the player for landing
-                            let (airport, _) = &self.map.airports[destination];
+                            let (airport, c) = &self.map.airports[destination];
                             let landing_fee = airport.landing_fee(&airplane);
                             self.player.cash -= landing_fee;
 
                             // Add arrival time of airplane
                             self.arrival_times[plane] = self.time;
+                            airplane.location = *c;
 
                             // Change status of plane
                             airplane.status = AirplaneStatus::Parked;
@@ -132,7 +133,7 @@ impl Game {
         while self.time < max_time && self.tick_event() {}
 
         //if no events, just jump to time step
-        if self.time < max_time{
+        if self.time < max_time {
             self.time = max_time;
         }
     }
@@ -333,13 +334,14 @@ impl Game {
                 println!("  Manifest:");
                 for order in plane.manifest.clone() {
                     println!(
-                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr",
+                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr | destination: {}",
                         order.id,
                         order.name,
                         self.map.airports[order.destination_id].0.name,
                         order.weight,
                         order.value,
                         order.deadline,
+                        order.destination_id
                     );
                 }
             }
@@ -356,19 +358,16 @@ impl Game {
         let plane = &self.airplanes[plane_id];
 
         // If plane is in transit, dont't calc
-        if let AirplaneStatus::InTransit {..} = plane.status {
+        if let AirplaneStatus::InTransit { .. } = plane.status {
             println!("Plane currently in transit");
             Ok(())
-        }
-        else{
-
+        } else {
             for (airport, coordinate) in &self.map.airports {
-
                 let distance = plane.distance_to(coordinate);
 
                 let can_land = match plane.can_fly_to(airport, coordinate) {
                     Ok(_) => true,
-                    _ => false
+                    _ => false,
                 };
 
                 println!(
@@ -383,7 +382,6 @@ impl Game {
                 );
             }
             Ok(())
-
         }
     }
 
@@ -568,45 +566,43 @@ impl Game {
         Ok(())
     }
 
-    pub fn depart_plane(
-        &mut self,
-        plane_id: usize,
-        destination_id: usize,
-    ) -> Result<(), GameError> {
-        // Find the airplane
-        let plane = self
-            .airplanes
-            .iter_mut()
+pub fn depart_plane(
+    &mut self,
+    plane_id: usize,
+    destination_id: usize,
+) -> Result<(), GameError> {
+    let (plane, origin_idx) = {
+        let plane = self.airplanes.iter_mut()
             .find(|p| p.id == plane_id)
             .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
+        
+        let origin_idx = self.map.airports.iter_mut().find(|(_, c)| *c == plane.location).ok_or(GameError::PlaneNotAtAirport { plane_id: plane_id })?.0.id;
 
-        // Find the associated airport
-        let airport_idx = self
-            .map
-            .airports
-            .iter()
-            .position(|(a, _)| a.id == destination_id)
-            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+        (plane, origin_idx)
+    };
+    let (dest_airport, dest_coords) = &self.map.airports
+        .iter()
+        .find(|(a, _)| a.id == destination_id)
+        .ok_or(GameError::AirportIdInvalid { id: destination_id })?;
 
-        let (airport, airport_coordinates) = &self.map.airports[airport_idx];
+    // charge parking
+    let parked_since   = self.arrival_times[plane_id];
+    let parked_hours   = (self.time - parked_since) as f32;
+    let parking_fee    = self.map.airports[origin_idx].0.parking_fee * parked_hours;
+    self.player.cash -= parking_fee;
 
-        match plane.fly_to(airport, airport_coordinates) {
-            // Plane has taken off
-            Ok(()) => {
-                // Charge for takeoff fee
-                let parked_since = self.arrival_times[plane_id];
-                let parked_duration = self.time - parked_since;
-                let parking_fee = airport.parking_fee * parked_duration as f32;
-                self.player.cash -= parking_fee;
+    // consume fuel & get flight_hours
+    let flight_hours = plane.consume_flight_fuel(dest_airport, dest_coords)?;
 
-                // Airplane takes off
-                self.schedule(self.time + 1, Event::FlightProgress { plane: plane_id });
+    // set the status (no location change here!)
+    plane.status = AirplaneStatus::InTransit {
+        hours_remaining: flight_hours,
+        destination:     destination_id,
+    };
 
-                Ok(())
+    // kick off the first hourly tick
+    self.schedule(self.time + 1, Event::FlightProgress { plane: plane_id });
 
-            },
-            Err(e) => Err(e),
-        }
-    }
-
+    Ok(())
+}
 }

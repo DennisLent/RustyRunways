@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
+use crate::events::GameTime;
+
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, PartialEq)]
 pub enum AirplaneModel {
     SparrowLight,  // Small prop plane
@@ -143,7 +145,7 @@ pub enum AirplaneStatus {
     Loading,
     Unloading,
     InTransit {
-        hours_remaining: usize,
+        hours_remaining: GameTime,
         destination: usize,
     },
 }

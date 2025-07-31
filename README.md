@@ -113,7 +113,7 @@ src/
 ## Next Steps
 
 - [ ] Add scheduled maintenance and breakdown events.
-- [ ] Ensure charging of aircrafts and aircrafts works.
+- [ x ] Ensure charging of aircrafts and cargo works.
 - [ ] Dispatch & reroute flights.
 - [ ] Expand automated testing.
 - [ ] Hook up a simple GUI or terminal map view.

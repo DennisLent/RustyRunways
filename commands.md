@@ -12,9 +12,9 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 `SHOW AIRPORTS <airport_id> WITH ORDERS`: only orders at that airport
 
-`SHOW PLANE`: show players entire fleet
+`SHOW PLANES`: show players entire fleet
 
-`SHOW PLANE <plane_id>`: show one plane (status, specs, manifest)
+`SHOW PLANES <plane_id>`: show one plane (status, specs, manifest)
 
 `SHOW DISTANCES <plane_id>`: shows the distances, fuel requirements and if it can land at  given airport
 
@@ -30,7 +30,7 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 `UNLOAD ORDER <order_id> FROM <plane_id>`: Load 1 order from the plane (takes 1 hour)
 
-`UNLOAD ORDERs [<order_id>] FROM <plane_id>`: Load 1 order from the plane (takes 1 hour)
+`UNLOAD ORDERS [<order_id>] FROM <plane_id>`: Load 1 order from the plane (takes 1 hour)
 
 `UNLOAD ALL FROM <plane_id>`: Unload all orders from the plane (takes 1 hour)
 
