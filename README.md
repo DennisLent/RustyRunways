@@ -111,11 +111,14 @@ The game can also be manually progressed by 1 hour by pressing the Enter / Retur
 - [x] Track operating costs.
 - [ ] dynamic fuel prices.
 - [ ] Python bindings for ML.
+   - [ ] extract cli version
+   - [ ] extract gui version
+   - [ ] extract python version
 - [ ] Weather conditions?
 - [ ] Creating a game with input file instead of random.
 - [x] Handle refueling
-- [ ] Arrow key history for commands
-- [ ] Tab-completion
-- [ ] Helper function
+- [x] Arrow key history for commands
+- [x] Tab-completion
+- [x] Helper function
 
 Contributions welcome! Feel free to open issues or PRs for new features or improvements.
