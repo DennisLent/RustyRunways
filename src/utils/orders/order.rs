@@ -1,5 +1,5 @@
 use super::cargo::CargoType;
-use crate::utils::coordinate::Coordinate;
+use crate::{events::GameTime, utils::coordinate::Coordinate};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
@@ -9,7 +9,7 @@ pub const ALPHA: f32 = 0.5;
 pub const BETA: f32 = 0.7;
 
 // Constant for the maximum deadline (we take 14 days)
-pub const MAX_DEADLINE: usize = 14;
+pub const MAX_DEADLINE: u64 = 14;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
@@ -17,7 +17,7 @@ pub struct Order {
     pub name: CargoType,
     pub weight: f32,
     pub value: f32,
-    pub deadline: usize,
+    pub deadline: GameTime,
     pub origin_id: usize,
     pub destination_id: usize,
 }

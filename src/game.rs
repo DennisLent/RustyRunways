@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::utils::airplanes::airplane::Airplane;
@@ -7,11 +9,13 @@ use crate::utils::errors::GameError;
 use crate::utils::map::Map;
 use crate::utils::orders::order::MAX_DEADLINE;
 use std::collections::BinaryHeap;
+use std::fs::File;
+use std::io::{self, BufReader, BufWriter};
 
-const RESTOCK_CYCLE: u64 = MAX_DEADLINE as u64 * 24;
+const RESTOCK_CYCLE: u64 = MAX_DEADLINE * 24;
 
 /// Holds all mutable world state and drives the simulation via scheduled events.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Game {
     /// Current simulation time (hours)
     pub time: GameTime,
@@ -51,6 +55,33 @@ impl Game {
         game
     }
 
+    fn days_and_hours(&self, total_hours: GameTime) -> String {
+        let days = total_hours / 24;
+        let hours = total_hours % 24;
+
+        match (days, hours) {
+            (0, h) => format!("{}h", h),
+            (d, 0) => format!("{}d", d),
+            (d, h) => format!("{}d {}h", d, h),
+        }
+    }
+
+    /// Write the entire game state to JSON to save
+    pub fn save<P: AsRef<std::path::Path>>(&self, path: P) -> io::Result<()> {
+        let file = File::create(path)?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer_pretty(writer, &self)
+            .map_err(|e| io::Error::other(e))
+    }
+
+    /// Load a game from JSON
+    pub fn load<P: AsRef<std::path::Path>>(path: P) -> io::Result<Self> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        serde_json::from_reader(reader)
+            .map_err(|e| io::Error::other(e))
+    }
+
     /// Schedule `event` to occur at absolute simulation time `time`.
     pub fn schedule(&mut self, time: GameTime, event: Event) {
         self.events.push(ScheduledEvent { time, event });
@@ -63,7 +94,7 @@ impl Game {
 
     /// Show current time
     pub fn show_time(&self) {
-        println!("{} h", self.time);
+        println!("{}", self.days_and_hours(self.time));
     }
 
     /// Process the next scheduled event; advance `self.time`. Returns false if no events remain.
@@ -217,7 +248,7 @@ impl Game {
                         self.map.airports[order.destination_id].0.name,
                         order.weight,
                         order.value,
-                        order.deadline,
+                        self.days_and_hours(order.deadline),
                         order.destination_id
                     );
                 }
@@ -267,7 +298,7 @@ impl Game {
                     plane.specs.fuel_capacity,
                     plane.current_payload,
                     plane.specs.payload_capacity,
-                    hours_remaining
+                    self.days_and_hours(hours_remaining)
                 );
             } else {
                 println!(
@@ -317,7 +348,7 @@ impl Game {
                 plane.specs.fuel_capacity,
                 plane.current_payload,
                 plane.specs.payload_capacity,
-                hours_remaining
+                self.days_and_hours(hours_remaining)
             );
 
             Ok(())

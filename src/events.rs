@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 /// Global time unit: hours since simulation start.
 pub type GameTime = u64;
 
 /// All events that can occur in the world.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Event {
     LoadingEvent {
         plane: usize,
@@ -32,7 +34,7 @@ pub enum Event {
 
 /// Wraps an `Event` with its scheduled occurrence time.
 /// Implements `Ord` such that the earliest time is popped first from a max-heap.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ScheduledEvent {
     pub time: GameTime,
     pub event: Event,

@@ -37,78 +37,67 @@ RustyRunways is a small logistics simulation game written in Rust. You manage an
    cargo test
    ```
 
-
-## Project Structure
-
-```text
-src/
-├── main.rs            # (optional) binary entrypoint
-├── game.rs            # Game loop, state, and event processing
-├── event.rs           # Event definitions and scheduling
-├── player.rs          # Player struct and fleet management
-├── utils/
-│   ├── coordinate.rs  # 2D Coordinate
-│   ├── map.rs         # Map and airport generation
-│   ├── airport.rs     # Airport struct and order generation
-│   ├── orders/        # CargoType and Order definitions
-│   ├── airplanes/     # Airplane related defintions 
-└── README.md          # This file
-```
-
 ---
 
-## Key Modules
+## Commands
 
-### `utils/map.rs`
+The game can be interacted with using a Domain-specific language (DSL). This make it easier, as queries or commands can be broken down into a more manageable tokens. 
 
-* **`Map::generate_from_seed(seed, n)`**: Creates `n` airports with coordinates.
-* **`Map::restock_airports()`**: Populates each airport with orders.
-* **`Map::min_distance()`**: Finds the shortest hop between any two airports.
+## Inspecting the world state
 
-### `utils/airport.rs`
+`SHOW AIRPORTS`
 
-* **`Airport::generate_random(seed, id)`**: Determines runway, fees, and code.
-* **`Airport::generate_orders(seed, num_airports)`**: Generates orders based on airport size.
+`SHOW AIRPORTS WITH ORDERS`
 
-### `utils/orders/`\*\*
+`SHOW AIRPORTS <airport_id>`: show full details & orders
 
-* **`CargoType`**: Enum of cargo (electronics, live alpacas, quantum widgets, etc.).
-* **`Order::new(seed, origin, num_airports)`**: Creates deterministic orders with weight/value/deadline.
+`SHOW AIRPORTS <airport_id> WITH ORDERS`: only orders at that airport
 
-### `utils/coordinate.rs`
+`SHOW PLANES`: show players entire fleet
 
-* **`Coordinate`**: 2D `x`, `y` with helper methods.
+`SHOW PLANES <plane_id>`: show one plane (status, specs, manifest)
 
-### `utils/airplanes/models.rs`
+`SHOW DISTANCES <plane_id>`: shows the distances, fuel requirements and if it can land at  given airport
 
-* **`AirplaneModel`** and **`AirplaneSpecs`**: Defines models (SparrowLight, FalconJet, TitanHeavy, etc.) with specs and purchase price.
+## Purchases
 
-### `utils/airplanes/airplane.rs`
+`BUY PLANE <Model> <airport_id>`: Buys and places an airplane at the given airport
 
-* **`Airplane`**: Tracks location, fuel, payload, manifest, with methods to load, fly, refuel, and unload.
+## Cargo handling
 
-### `player.rs`
+`LOAD ORDER <order_id> ON <plane_id>`: Load 1 order onto the plane (takes 1 hour)
 
-* **`Player`**: Tracks cash, fleet (Vec<Airplane>), and delivered orders. Methods to initialize with a plane that can handle the minimum hop, and to buy new planes.
+`LOAD ORDERS [<order_id>] ON <plane_id>`: Loads n orders onto the plane (takes 1 hour)
 
-### `event.rs`
+`UNLOAD ORDER <order_id> FROM <plane_id>`: Load 1 order from the plane (takes 1 hour)
 
-* **`Event`**: FlightArrival and OrderDeadline.
-* **`ScheduledEvent`**: Wraps `Event` with `time` and implements ordering by time.
+`UNLOAD ORDERS [<order_id>] FROM <plane_id>`: Load 1 order from the plane (takes 1 hour)
 
-### `game.rs`
+`UNLOAD ALL FROM <plane_id>`: Unload all orders from the plane (takes 1 hour)
 
-* **`Game`**: Holds `time`, `map`, `airplanes`, `player`, `events`. Methods to schedule events, process them (`tick_event`), and run the simulation (`run_until`).
+`REFUEL PLANE <plane_id>`: Refuel the plane (takes 1 hour)
 
----
+## Dispatch & movement
 
-## Simulation Flow
+`DEPART PLANE <plane_id> <destination_airport_id>`: Sends a specific airplane on its way to the destination airport
 
-1. **Initialization**: `Game::new(seed, num_airports, starting_cash)` builds the map, restocks orders, gives the player an initial airplane.
-2. **Scheduling**: When a plane departs, schedule a `FlightArrival` at `time + flight_duration`. When creating an order, schedule its `OrderDeadline`.
-3. **Event Processing**: `run_until(max_time)` repeatedly calls `tick_event()` to advance to the next event, updating plane locations, unloading cargo, crediting player cash, and removing expired orders.
+`HOLD PLANE <plane_id>`: Plane stays parked at current location
 
----
+## Time control
+
+`ADVANCE <n>`: Advances the game by n hours (ticks) or until a new event occurs
+
+The game can also be manually progressed by 1 hour by pressing the Enter / Return Key (i.e. no input)
+
+## Queries
+
+`SHOW CASH`: Shows the cash reserves of the player
+
+`SHOW TIME`: Shows the current GameTime
+
+## Exit
+
+`EXIT`
 
 ## Next Steps
 
@@ -119,7 +108,6 @@ src/
 - [ ] Hook up a simple GUI or terminal map view.
 - [ ] Track operating costs, depreciation, dynamic fuel prices.
 - [ ] Python bindings for ML.
-- [ ] Enable hangars to store airplanes and/or cargo.
 - [ ] Weather conditions?
 - [ ] Creating a game with input file instead of random.
 - [x] Handle refueling
