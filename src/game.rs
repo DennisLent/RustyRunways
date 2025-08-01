@@ -109,15 +109,7 @@ impl Game {
 
     /// Shows the lifetime stats
     pub fn show_stats(&self) {
-
-        let headers = [
-            "Day",
-            "Income",
-            "Expense",
-            "End Cash",
-            "Fleet",
-            "Delivered",
-        ];
+        let headers = ["Day", "Income", "Expense", "End Cash", "Fleet", "Delivered"];
 
         //get max width per column
         let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
@@ -149,24 +141,21 @@ impl Game {
         println!();
 
         // Separator
-        let total_width: usize = col_widths.iter().sum::<usize>()
-            + (3 * (headers.len() - 1));
+        let total_width: usize = col_widths.iter().sum::<usize>() + (3 * (headers.len() - 1));
         println!("{}", "-".repeat(total_width));
-
 
         for row in rows {
             for (i, cell) in row.iter().enumerate() {
                 if i > 0 {
                     print!(" | ");
                 }
-                
+
                 // right-align
                 print!("{:>width$}", cell, width = col_widths[i]);
             }
             println!();
         }
     }
-
 
     /// Process the next scheduled event; advance `self.time`. Returns false if no events remain.
     pub fn tick_event(&mut self) -> bool {

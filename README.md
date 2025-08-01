@@ -97,9 +97,9 @@ The game can also be manually progressed by 1 hour by pressing the Enter / Retur
 
 `SHOW STATS`: Show the stats of the game over every day
 
-## Exit
+## Game
 
-`EXIT`
+`EXIT`: As the name suggests
 
 ## Next Steps
 
@@ -107,11 +107,15 @@ The game can also be manually progressed by 1 hour by pressing the Enter / Retur
 - [x] Ensure charging of aircrafts and cargo works.
 - [ ] Dispatch & reroute flights.
 - [x] Expand automated testing.
-- [ ] Hook up a simple GUI or terminal map view.
-- [ ] Track operating costs, depreciation, dynamic fuel prices.
+- [ ] Hook up a simple GUI (Tauri or egui).
+- [x] Track operating costs.
+- [ ] dynamic fuel prices.
 - [ ] Python bindings for ML.
 - [ ] Weather conditions?
 - [ ] Creating a game with input file instead of random.
 - [x] Handle refueling
+- [ ] Arrow key history for commands
+- [ ] Tab-completion
+- [ ] Helper function
 
 Contributions welcome! Feel free to open issues or PRs for new features or improvements.

@@ -1,13 +1,25 @@
 use RustyRunways::commands::Command;
-use RustyRunways::utils::read::{print_banner, read_line};
+use RustyRunways::utils::read::{LineReaderHelper, print_banner};
 use RustyRunways::{commands::parse_command, game::Game};
+use rustyline::{ColorMode, CompletionType, Config, Editor};
+use std::error::Error;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     print_banner();
     let mut game = Game::new(1, Some(5), 1_000_000.0);
 
+    // line parser
+    let config = Config::builder()
+        .completion_type(CompletionType::Circular)
+        .color_mode(ColorMode::Enabled)
+        .build();
+    let mut line_reader = Editor::with_config(config)?;
+    line_reader.set_helper(Some(LineReaderHelper::new()));
+
     loop {
-        let line = read_line();
+        let line = line_reader.readline("> ")?;
+        let _ = line_reader.add_history_entry(line.as_str());
+
         match parse_command(&line) {
             Ok(Command::ShowAirports { with_orders }) => game.list_airports(with_orders),
 
@@ -114,4 +126,6 @@ fn main() {
             _ => println!("Not yet implemented"),
         }
     }
+
+    Ok(())
 }
