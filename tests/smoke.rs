@@ -1,4 +1,10 @@
-use RustyRunways::{game::Game, utils::{airplanes::models::{AirplaneModel, AirplaneStatus}, errors::GameError}};
+use RustyRunways::{
+    game::Game,
+    utils::{
+        airplanes::models::{AirplaneModel, AirplaneStatus},
+        errors::GameError,
+    },
+};
 #[test]
 fn test_game_new() {
     let game = Game::new(1, Some(5), 1_000_000.0);
@@ -19,19 +25,21 @@ fn buy_new_plane() {
     game.buy_plane(&"FalconJet".to_string(), 0).unwrap();
 
     let cash_after = game.player.cash;
-    assert_eq!(cash_after, cash_before - AirplaneModel::FalconJet.specs().purchase_price);
+    assert_eq!(
+        cash_after,
+        cash_before - AirplaneModel::FalconJet.specs().purchase_price
+    );
     assert_eq!(game.player.fleet_size, 2);
 
     let new_plane = game.airplanes.last().unwrap();
     let target_airport = game.map.airports[0].1;
     assert_eq!(new_plane.location, target_airport);
-
 }
 
 #[test]
 fn load_check() {
     let mut game = Game::new(1, Some(5), 10_000_000.0);
-    
+
     // airplane CometRegional (capacity of 5T) starts at airport id 2
     //     ID: 2 | AAC at (1964.23, 4279.75) | Runway: 3648m | Fuel: $0.69/L | Parking: $37.05/hr | Landing Fee: $8.94/ton
     //   Orders:
@@ -68,7 +76,10 @@ fn load_check() {
     //     [72] NitroFuel -> AAD | weight: 15087.4kg | value: $876159.00 | deadline: 120hr | destination: 3
 
     // Try loading order 70 (too heavy)
-    assert!(matches!(game.load_order(70, 0), Err(GameError::MaxPayloadReached { .. })));
+    assert!(matches!(
+        game.load_order(70, 0),
+        Err(GameError::MaxPayloadReached { .. })
+    ));
     assert_eq!(game.airplanes[0].status, AirplaneStatus::Parked);
 
     // Load 67 (works)
@@ -83,7 +94,6 @@ fn load_check() {
     assert_eq!(game.airplanes[0].manifest.len(), 1);
     assert_eq!(game.airplanes[0].manifest[0].id, 67);
     assert_eq!(game.airplanes[0].status, AirplaneStatus::Parked);
-
 }
 
 #[test]
@@ -97,11 +107,18 @@ fn delivery_cycle() {
     let before_take_off = game.player.cash;
     // shouldn't fail
     game.depart_plane(0, 3).unwrap();
-    assert!(matches!(game.airplanes[0].status, AirplaneStatus::InTransit { .. }));
+    assert!(matches!(
+        game.airplanes[0].status,
+        AirplaneStatus::InTransit { .. }
+    ));
     let take_off_fee = game.map.airports[2].0.parking_fee * (game.time as f32);
     assert_eq!(game.player.cash, before_take_off - take_off_fee);
 
-    let (hours_remaining, destination) = if let AirplaneStatus::InTransit { hours_remaining, destination } = game.airplanes[0].status {
+    let (hours_remaining, destination) = if let AirplaneStatus::InTransit {
+        hours_remaining,
+        destination,
+    } = game.airplanes[0].status
+    {
         (hours_remaining, destination)
     }
     // We would fail before we even get here because of the test earlier
@@ -111,6 +128,10 @@ fn delivery_cycle() {
 
     let before_landing = game.player.cash;
     game.advance(hours_remaining);
+
+    // Ensure we actually skip properly here
+    let current_time = 1+hours_remaining;
+    assert_eq!(game.time, current_time);
 
     // plane should have arrived right now
     assert_eq!(game.airplanes[0].status, AirplaneStatus::Parked);
@@ -132,6 +153,14 @@ fn delivery_cycle() {
     assert_eq!(game.player.cash, before_unload + order_value);
 
     //refueling
-    // TODO
+    let cash_before_refueling = game.player.cash;
+    let fuel_delta = game.airplanes[0].specs.fuel_capacity - game.airplanes[0].current_fuel;
+    let fueling_fee = fuel_delta * game.map.airports[3].0.fuel_price;
+    game.refuel_plane(0).unwrap();
+    assert_eq!(game.airplanes[0].status, AirplaneStatus::Refueling);
+
+    game.advance(1);
+    assert_eq!(game.player.cash, cash_before_refueling - fueling_fee);
+    assert_eq!(game.airplanes[0].current_fuel, game.airplanes[0].specs.fuel_capacity);
 
 }

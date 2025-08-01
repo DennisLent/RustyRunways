@@ -110,20 +110,16 @@ impl Airplane {
     /// Unload specific cargo
     pub fn unload_order(&mut self, order_id: usize) -> Result<Order, GameError> {
         if let Some(idx) = self.manifest.iter().position(|order| order.id == order_id) {
-
             let delivered = self.manifest.remove(idx);
-            
+
             // Ensure we don't have some FLOP rounding errors
             self.current_payload = (self.current_payload - delivered.weight).max(0.0);
             self.status = AirplaneStatus::Unloading;
-            
+
             Ok(delivered)
-        } 
-        else {
+        } else {
             Err(GameError::OrderIdInvalid { id: order_id })
         }
-
-        
     }
 
     //// Check runway & fuel, consume fuel, and return flight time in hours.
@@ -132,23 +128,23 @@ impl Airplane {
         airport: &Airport,
         airport_coords: &Coordinate,
     ) -> Result<GameTime, GameError> {
-
         // runway & range check
         self.can_fly_to(airport, airport_coords)?;
-        
+
         // distance & fuel
         let dist = self.distance_to(airport_coords);
         let hours_f = dist / self.specs.cruise_speed;
         let fuel_needed = hours_f * self.specs.fuel_consumption;
         if fuel_needed > self.current_fuel {
-            return Err(GameError::InsufficientFuel { have: self.current_fuel,
-                                                      need: fuel_needed });
+            return Err(GameError::InsufficientFuel {
+                have: self.current_fuel,
+                need: fuel_needed,
+            });
         }
         // burn the fuel
         self.current_fuel -= fuel_needed;
         Ok(hours_f.ceil() as GameTime)
     }
-
 
     /// Refuel to full capacity, switching status to `Refueling`
     pub fn refuel(&mut self) {

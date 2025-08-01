@@ -82,6 +82,12 @@ fn main() {
                 }
             }
 
+            Ok(Command::Refuel { plane }) => {
+                if let Err(e) = game.refuel_plane(plane) {
+                    println!("Failed to refuel: {}", e);
+                }
+            }
+
             Ok(Command::DepartPlane { plane, dest }) => {
                 if let Err(e) = game.depart_plane(plane, dest) {
                     println!("Cannot depart: {}", e);

@@ -20,7 +20,6 @@ pub enum Event {
 
     RefuelComplete {
         plane: usize,
-        airport: usize,
     },
 
     OrderDeadline {

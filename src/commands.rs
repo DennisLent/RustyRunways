@@ -11,6 +11,7 @@ pub enum Command {
     UnloadOrder { order: usize, plane: usize },
     UnloadOrders { orders: Vec<usize>, plane: usize },
     UnloadAll { plane: usize },
+    Refuel { plane: usize },
     DepartPlane { plane: usize, dest: usize },
     HoldPlane { plane: usize },
     Advance { hours: u64 },
@@ -148,6 +149,10 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
         }
 
         ["UNLOAD", "ALL", "FROM", plane_id] => Ok(Command::UnloadAll {
+            plane: plane_id.parse::<usize>().map_err(|_| "bad plane id")?,
+        }),
+
+        ["REFUEL", "PLANE", plane_id] => Ok(Command::Refuel {
             plane: plane_id.parse::<usize>().map_err(|_| "bad plane id")?,
         }),
 

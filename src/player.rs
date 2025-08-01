@@ -68,13 +68,14 @@ impl Player {
 
         // assign player new plane
         let (_, start_coord) = map.airports[start_idx];
-        let player = Player {
+        
+        Player {
             cash: starting_cash,
             fleet_size: 1,
             fleet: vec![Airplane::new(0, best_model, start_coord)],
             orders_delivered: 0,
-        };
-        player
+        }
+        
     }
 
     /// Purchase an additional plane of the given model at `home_coord`.

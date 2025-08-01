@@ -34,6 +34,8 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 `UNLOAD ALL FROM <plane_id>`: Unload all orders from the plane (takes 1 hour)
 
+`REFUEL PLANE <plane_id>`: Refuel the plane (takes 1 hour)
+
 ## Dispatch & movement
 
 `DEPART PLANE <plane_id> <destination_airport_id>`: Sends a specific airplane on its way to the destination airport

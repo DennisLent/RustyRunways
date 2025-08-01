@@ -113,14 +113,15 @@ src/
 ## Next Steps
 
 - [ ] Add scheduled maintenance and breakdown events.
-- [ x ] Ensure charging of aircrafts and cargo works.
+- [x] Ensure charging of aircrafts and cargo works.
 - [ ] Dispatch & reroute flights.
-- [ ] Expand automated testing.
+- [x] Expand automated testing.
 - [ ] Hook up a simple GUI or terminal map view.
 - [ ] Track operating costs, depreciation, dynamic fuel prices.
 - [ ] Python bindings for ML.
 - [ ] Enable hangars to store airplanes and/or cargo.
 - [ ] Weather conditions?
 - [ ] Creating a game with input file instead of random.
+- [x] Handle refueling
 
 Contributions welcome! Feel free to open issues or PRs for new features or improvements.
