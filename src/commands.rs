@@ -17,6 +17,7 @@ pub enum Command {
     Advance { hours: u64 },
     ShowCash,
     ShowTime,
+    ShowStats,
     Exit,
 }
 
@@ -97,6 +98,7 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
         // Queries
         ["SHOW", "CASH"] => Ok(Command::ShowCash),
         ["SHOW", "TIME"] => Ok(Command::ShowTime),
+        ["SHOW", "STATS"] => Ok(Command::ShowStats),
 
         // Time control
         ["ADVANCE", n] => Ok(Command::Advance {

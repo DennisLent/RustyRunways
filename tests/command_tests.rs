@@ -1,4 +1,4 @@
-use RustyRunways::commands::{parse_command, Command};
+use RustyRunways::commands::{Command, parse_command};
 
 #[test]
 fn parse_show_airports() {
@@ -9,7 +9,9 @@ fn parse_show_airports() {
 #[test]
 fn parse_load_orders_with_brackets() {
     let cmd = parse_command("LOAD ORDERS [1,2,3] ON 4").unwrap();
-    assert!(matches!(cmd, Command::LoadOrders { orders, plane } if orders == vec![1,2,3] && plane == 4));
+    assert!(
+        matches!(cmd, Command::LoadOrders { orders, plane } if orders == vec![1,2,3] && plane == 4)
+    );
 }
 
 #[test]
@@ -17,4 +19,3 @@ fn parse_invalid_command() {
     let err = parse_command("DO SOMETHING");
     assert!(err.is_err());
 }
-

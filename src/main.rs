@@ -102,6 +102,10 @@ fn main() {
                 game.show_time();
             }
 
+            Ok(Command::ShowStats) => {
+                game.show_stats();
+            }
+
             Ok(Command::Advance { hours }) => game.advance(hours),
 
             Ok(Command::Exit) => break,

@@ -30,6 +30,8 @@ pub enum Event {
     },
 
     Restock,
+
+    DailyStats,
 }
 
 /// Wraps an `Event` with its scheduled occurrence time.

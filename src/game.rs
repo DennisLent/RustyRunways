@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
+use crate::statistics::DailyStats;
 use crate::utils::airplanes::airplane::Airplane;
 use crate::utils::airplanes::models::AirplaneStatus;
 use crate::utils::coordinate::Coordinate;
@@ -13,6 +14,7 @@ use std::fs::File;
 use std::io::{self, BufReader, BufWriter};
 
 const RESTOCK_CYCLE: u64 = MAX_DEADLINE * 24;
+const REPORT_INTERVAL: u64 = 24;
 
 /// Holds all mutable world state and drives the simulation via scheduled events.
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,6 +31,12 @@ pub struct Game {
     pub player: Player,
     /// Future events, ordered by their `time` (earliest first)
     pub events: BinaryHeap<ScheduledEvent>,
+    /// Income over each day
+    pub daily_income: f32,
+    /// Expenses over each day
+    pub daily_expenses: f32,
+    /// History of all stats
+    pub stats: Vec<DailyStats>,
 }
 
 impl Game {
@@ -48,9 +56,13 @@ impl Game {
             player,
             events,
             arrival_times,
+            daily_income: 0.0,
+            daily_expenses: 0.0,
+            stats: Vec::new(),
         };
 
         game.schedule(RESTOCK_CYCLE, Event::Restock);
+        game.schedule(REPORT_INTERVAL, Event::DailyStats);
 
         game
     }
@@ -70,16 +82,14 @@ impl Game {
     pub fn save<P: AsRef<std::path::Path>>(&self, path: P) -> io::Result<()> {
         let file = File::create(path)?;
         let writer = BufWriter::new(file);
-        serde_json::to_writer_pretty(writer, &self)
-            .map_err(|e| io::Error::other(e))
+        serde_json::to_writer_pretty(writer, &self).map_err(|e| io::Error::other(e))
     }
 
     /// Load a game from JSON
     pub fn load<P: AsRef<std::path::Path>>(path: P) -> io::Result<Self> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
-        serde_json::from_reader(reader)
-            .map_err(|e| io::Error::other(e))
+        serde_json::from_reader(reader).map_err(|e| io::Error::other(e))
     }
 
     /// Schedule `event` to occur at absolute simulation time `time`.
@@ -96,6 +106,67 @@ impl Game {
     pub fn show_time(&self) {
         println!("{}", self.days_and_hours(self.time));
     }
+
+    /// Shows the lifetime stats
+    pub fn show_stats(&self) {
+
+        let headers = [
+            "Day",
+            "Income",
+            "Expense",
+            "End Cash",
+            "Fleet",
+            "Delivered",
+        ];
+
+        //get max width per column
+        let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
+        let mut rows: Vec<Vec<String>> = Vec::with_capacity(self.stats.len());
+
+        for s in &self.stats {
+            let row = vec![
+                s.day.to_string(),
+                format!("{:.2}", s.income),
+                format!("{:.2}", s.expenses),
+                format!("{:.2}", s.net_cash),
+                s.fleet_size.to_string(),
+                s.total_deliveries.to_string(),
+            ];
+
+            for (i, cell) in row.iter().enumerate() {
+                col_widths[i] = col_widths[i].max(cell.len());
+            }
+            rows.push(row);
+        }
+
+        for (i, header) in headers.iter().enumerate() {
+            if i > 0 {
+                print!(" | ");
+            }
+            // left-align
+            print!("{:<width$}", header, width = col_widths[i]);
+        }
+        println!();
+
+        // Separator
+        let total_width: usize = col_widths.iter().sum::<usize>()
+            + (3 * (headers.len() - 1));
+        println!("{}", "-".repeat(total_width));
+
+
+        for row in rows {
+            for (i, cell) in row.iter().enumerate() {
+                if i > 0 {
+                    print!(" | ");
+                }
+                
+                // right-align
+                print!("{:>width$}", cell, width = col_widths[i]);
+            }
+            println!();
+        }
+    }
+
 
     /// Process the next scheduled event; advance `self.time`. Returns false if no events remain.
     pub fn tick_event(&mut self) -> bool {
@@ -138,6 +209,7 @@ impl Game {
                             let (airport, c) = &self.map.airports[destination];
                             let landing_fee = airport.landing_fee(airplane);
                             self.player.cash -= landing_fee;
+                            self.daily_expenses += landing_fee;
 
                             // Add arrival time of airplane
                             self.arrival_times[plane] = self.time;
@@ -148,9 +220,29 @@ impl Game {
                         }
                     }
                 }
+
                 Event::RefuelComplete { plane } => {
                     self.airplanes[plane].status = AirplaneStatus::Parked;
                 }
+
+                Event::DailyStats => {
+                    let day = self.time / 24;
+                    self.stats.push(DailyStats {
+                        day,
+                        income: self.daily_income,
+                        expenses: self.daily_expenses,
+                        net_cash: self.player.cash,
+                        fleet_size: self.player.fleet_size,
+                        total_deliveries: self.player.orders_delivered,
+                    });
+
+                    //reset
+                    self.daily_expenses = 0.0;
+                    self.daily_expenses = 0.0;
+
+                    self.schedule(self.time + REPORT_INTERVAL, Event::DailyStats);
+                }
+
                 _ => {
                     println!("Not implemented!")
                 }
@@ -173,9 +265,19 @@ impl Game {
     }
 
     pub fn advance(&mut self, hours: GameTime) {
-        let target_time = self.time + hours;
+        let target = self.time + hours;
 
-        self.run_until(target_time);
+        // Keep processing events in time order until we're past `target`
+        while let Some(ev) = self.events.peek() {
+            if ev.time <= target {
+                self.tick_event();
+            } else {
+                break;
+            }
+        }
+
+        // Finally bump the clock
+        self.time = target;
     }
 
     /// Display a summary of all airports in the map, including their orders.
@@ -201,7 +303,7 @@ impl Game {
                     println!("  Orders:");
                     for order in &airport.orders {
                         println!(
-                            "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr | destination: {}",
+                            "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {} | destination: {}",
                             order.id,
                             order.name,
                             self.map.airports[order.destination_id].0.name,
@@ -242,7 +344,7 @@ impl Game {
                 println!("  Orders:");
                 for order in &airport.orders {
                     println!(
-                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr | destination: {}",
+                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {} | destination: {}",
                         order.id,
                         order.name,
                         self.map.airports[order.destination_id].0.name,
@@ -290,7 +392,7 @@ impl Game {
             } = plane.status
             {
                 println!(
-                    "ID: {} | {:?} en-route to airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}hr",
+                    "ID: {} | {:?} en-route to airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}",
                     plane.id,
                     plane.model,
                     airport_name,
@@ -340,7 +442,7 @@ impl Game {
         } = plane.status
         {
             println!(
-                "ID: {} | {:?} en-route to airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}hr",
+                "ID: {} | {:?} en-route to airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}",
                 plane.id,
                 plane.model,
                 airport_name,
@@ -368,7 +470,7 @@ impl Game {
                 println!("  Manifest:");
                 for order in plane.manifest.clone() {
                     println!(
-                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {}hr | destination: {}",
+                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {} | destination: {}",
                         order.id,
                         order.name,
                         self.map.airports[order.destination_id].0.name,
@@ -429,6 +531,11 @@ impl Game {
 
         match self.player.buy_plane(model, airport_ref, &home_coord) {
             Ok(_) => {
+                // update expenses (can safely unwrap becuse else this wouldn't be ok)
+                let new_plane = self.airplanes.last().unwrap();
+                let buying_price = new_plane.specs.purchase_price;
+                self.daily_expenses += buying_price;
+
                 // Buy plane, update fleet and update arrival times
                 self.airplanes = self.player.fleet.clone();
                 self.arrival_times.push(self.time);
@@ -488,6 +595,7 @@ impl Game {
                 if delivery.deadline != 0 {
                     println!("Successfully delivered order {}", delivery.id);
                     self.player.cash += delivery.value;
+                    self.daily_income += delivery.value;
                     self.player.record_delivery();
                 } else {
                     println!("Order {}: Deadline expired", delivery.id)
@@ -536,6 +644,7 @@ impl Game {
                 if delivery.deadline != 0 {
                     println!("Successfully delivered order {}", delivery.id);
                     self.player.cash += delivery.value;
+                    self.daily_income += delivery.value;
                     self.player.record_delivery();
                 } else {
                     println!("Order {}: Deadline expired", delivery.id)
@@ -578,6 +687,7 @@ impl Game {
             if delivery.deadline != 0 {
                 println!("Successfully delivered order {}", delivery.id);
                 self.player.cash += delivery.value;
+                self.daily_income += delivery.value;
                 self.player.record_delivery();
             } else {
                 println!("Order {}: Deadline expired", delivery.id)
@@ -632,6 +742,7 @@ impl Game {
         let parked_hours = (self.time - parked_since) as f32;
         let parking_fee = self.map.airports[origin_idx].0.parking_fee * parked_hours;
         self.player.cash -= parking_fee;
+        self.daily_expenses += parking_fee;
 
         // consume fuel & get flight_hours
         let flight_hours = plane.consume_flight_fuel(dest_airport, dest_coords)?;
@@ -650,7 +761,6 @@ impl Game {
 
     /// Refuel a plane and charge the player. Only works if the airplne is not in transit.
     pub fn refuel_plane(&mut self, plane_id: usize) -> Result<(), GameError> {
-
         let plane = self
             .airplanes
             .iter_mut()
@@ -670,6 +780,7 @@ impl Game {
 
         // charge the player
         self.player.cash -= fueling_fee;
+        self.daily_expenses += fueling_fee;
 
         // schedule fueling event
         self.schedule(self.time + 1, Event::RefuelComplete { plane: plane_id });

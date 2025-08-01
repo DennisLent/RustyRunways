@@ -14,4 +14,3 @@ fn coordinate_update_changes_position() {
     assert_eq!(c.x, 3.0);
     assert_eq!(c.y, -4.0);
 }
-

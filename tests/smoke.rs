@@ -130,7 +130,7 @@ fn delivery_cycle() {
     game.advance(hours_remaining);
 
     // Ensure we actually skip properly here
-    let current_time = 1+hours_remaining;
+    let current_time = 1 + hours_remaining;
     assert_eq!(game.time, current_time);
 
     // plane should have arrived right now
@@ -161,6 +161,8 @@ fn delivery_cycle() {
 
     game.advance(1);
     assert_eq!(game.player.cash, cash_before_refueling - fueling_fee);
-    assert_eq!(game.airplanes[0].current_fuel, game.airplanes[0].specs.fuel_capacity);
-
+    assert_eq!(
+        game.airplanes[0].current_fuel,
+        game.airplanes[0].specs.fuel_capacity
+    );
 }

@@ -95,6 +95,8 @@ The game can also be manually progressed by 1 hour by pressing the Enter / Retur
 
 `SHOW TIME`: Shows the current GameTime
 
+`SHOW STATS`: Show the stats of the game over every day
+
 ## Exit
 
 `EXIT`

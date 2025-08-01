@@ -95,4 +95,3 @@ fn buy_plane_deducts_cash() {
         .unwrap();
     assert!((player.cash - (1_000_000.0 - price)).abs() < f32::EPSILON);
 }
-
