@@ -70,3 +70,29 @@ fn buy_plane_runway_too_short() {
     let result = player.buy_plane(&"SparrowLight".to_string(), &mut airport, &coord);
     assert!(matches!(result, Err(GameError::RunwayTooShort { .. })));
 }
+
+#[test]
+fn record_delivery_increments_counter() {
+    let map = Map::generate_from_seed(5, Some(2));
+    let mut player = Player::new(1_000_000.0, &map);
+    assert_eq!(player.orders_delivered, 0);
+    player.record_delivery();
+    player.record_delivery();
+    assert_eq!(player.orders_delivered, 2);
+}
+
+#[test]
+fn buy_plane_deducts_cash() {
+    use RustyRunways::utils::airplanes::models::AirplaneModel;
+    let map = Map::generate_from_seed(6, Some(2));
+    let mut player = Player::new(1_000_000.0, &map);
+    let mut airport = Airport::generate_random(6, 10);
+    airport.runway_length = 4000.0;
+    let coord = Coordinate::new(0.0, 0.0);
+    let price = AirplaneModel::SparrowLight.specs().purchase_price;
+    player
+        .buy_plane(&"SparrowLight".to_string(), &mut airport, &coord)
+        .unwrap();
+    assert!((player.cash - (1_000_000.0 - price)).abs() < f32::EPSILON);
+}
+
