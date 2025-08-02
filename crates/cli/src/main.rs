@@ -1,6 +1,6 @@
-use RustyRunways::commands::Command;
-use RustyRunways::utils::read::{LineReaderHelper, print_banner};
-use RustyRunways::{commands::parse_command, cli::{Cli, init_game_from_cli}};
+use rusty_runways_cli::commands::Command;
+use rusty_runways_cli::read::{LineReaderHelper, print_banner};
+use rusty_runways_cli::{commands::parse_command, cli::{Cli, init_game_from_cli}};
 use clap::Parser;
 use rustyline::{ColorMode, CompletionType, Config, Editor};
 use std::error::Error;

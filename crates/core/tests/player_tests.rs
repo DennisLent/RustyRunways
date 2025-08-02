@@ -1,8 +1,8 @@
-use RustyRunways::player::Player;
-use RustyRunways::utils::airport::Airport;
-use RustyRunways::utils::coordinate::Coordinate;
-use RustyRunways::utils::errors::GameError;
-use RustyRunways::utils::map::Map;
+use rusty_runways_core::player::Player;
+use rusty_runways_core::utils::airport::Airport;
+use rusty_runways_core::utils::coordinate::Coordinate;
+use rusty_runways_core::utils::errors::GameError;
+use rusty_runways_core::utils::map::Map;
 
 #[test]
 fn player_initialization_gives_single_plane() {
@@ -83,7 +83,7 @@ fn record_delivery_increments_counter() {
 
 #[test]
 fn buy_plane_deducts_cash() {
-    use RustyRunways::utils::airplanes::models::AirplaneModel;
+    use rusty_runways_core::utils::airplanes::models::AirplaneModel;
     let map = Map::generate_from_seed(6, Some(2));
     let mut player = Player::new(1_000_000.0, &map);
     let mut airport = Airport::generate_random(6, 10);

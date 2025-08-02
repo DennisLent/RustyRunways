@@ -1,7 +1,7 @@
 use clap::Parser;
 use rand::Rng;
 
-use crate::game::Game;
+use rusty_runways_core::Game;
 
 /// Command line arguments for configuring the game.
 #[derive(Parser, Debug)]

@@ -1,4 +1,4 @@
-use RustyRunways::utils::{
+use rusty_runways_core::utils::{
     coordinate::Coordinate,
     orders::{
         Order,

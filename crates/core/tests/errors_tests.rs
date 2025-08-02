@@ -1,4 +1,4 @@
-use RustyRunways::utils::errors::GameError;
+use rusty_runways_core::utils::errors::GameError;
 
 #[test]
 fn unknown_model_suggests_closest_name() {

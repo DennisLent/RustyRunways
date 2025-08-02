@@ -1,4 +1,4 @@
-use RustyRunways::events::{Event, ScheduledEvent};
+use rusty_runways_core::events::{Event, ScheduledEvent};
 use std::collections::BinaryHeap;
 
 #[test]

@@ -1,4 +1,4 @@
-use RustyRunways::{
+use rusty_runways_core::{
     game::Game,
     utils::{
         airplanes::models::{AirplaneModel, AirplaneStatus},

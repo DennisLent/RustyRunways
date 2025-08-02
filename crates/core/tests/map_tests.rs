@@ -1,4 +1,4 @@
-use RustyRunways::utils::map::Map;
+use rusty_runways_core::utils::map::Map;
 
 #[test]
 fn map_generation_is_deterministic() {
