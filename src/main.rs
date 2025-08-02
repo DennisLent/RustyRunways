@@ -1,12 +1,20 @@
 use RustyRunways::commands::Command;
 use RustyRunways::utils::read::{LineReaderHelper, print_banner};
-use RustyRunways::{commands::parse_command, game::Game};
+use RustyRunways::{commands::parse_command, cli::{Cli, init_game_from_cli}};
+use clap::Parser;
 use rustyline::{ColorMode, CompletionType, Config, Editor};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     print_banner();
-    let mut game = Game::new(1, Some(5), 1_000_000.0);
+    let cli = Cli::parse();
+    let mut game = match init_game_from_cli(cli) {
+        Ok(game) => game,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
 
     // line parser
     let config = Config::builder()

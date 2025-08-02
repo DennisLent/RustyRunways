@@ -37,6 +37,22 @@ RustyRunways is a small logistics simulation game written in Rust. You manage an
    cargo test
    ```
 
+4. **Run**
+
+   By default the game starts with a random seed and number of airports while giving the player $1,000,000 in cash:
+
+   ```bash
+   cargo run
+   ```
+
+   You can specify the configuration explicitly:
+
+   ```bash
+   cargo run -- --seed 1 --n 5 --c 1000000
+   ```
+
+   The `--seed` and `--n` options must be provided together. The starting cash `--c` option is optional and defaults to `1000000`.
+
 ---
 
 ## Commands
