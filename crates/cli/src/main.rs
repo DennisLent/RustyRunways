@@ -1,7 +1,11 @@
+use clap::Parser;
 use rusty_runways_cli::commands::Command;
 use rusty_runways_cli::read::{LineReaderHelper, print_banner};
-use rusty_runways_cli::{commands::parse_command, cli::{Cli, init_game_from_cli}};
-use clap::Parser;
+use rusty_runways_cli::{
+    cli::{Cli, init_game_from_cli},
+    commands::parse_command,
+};
+use rusty_runways_core::Game;
 use rustyline::{ColorMode, CompletionType, Config, Editor};
 use std::error::Error;
 
@@ -129,6 +133,23 @@ fn main() -> Result<(), Box<dyn Error>> {
             Ok(Command::Advance { hours }) => game.advance(hours),
 
             Ok(Command::Exit) => break,
+
+            Ok(Command::SaveGame { name }) => {
+                if let Err(e) = game.save_game(&name) {
+                    println!("Failed to save: {}", e);
+                } else {
+                    println!("Successfully loaded game: {name}");
+                }
+            }
+
+            Ok(Command::LoadGame { name }) => match Game::load_game(&name) {
+                Ok(loaded_game) => {
+                    game = loaded_game;
+                }
+                Err(e) => {
+                    println!("Failed to load game: {}", e);
+                }
+            },
 
             Err(e) => println!("Syntax error: {}", e),
             _ => println!("Not yet implemented"),

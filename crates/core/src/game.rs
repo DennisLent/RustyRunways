@@ -10,8 +10,8 @@ use crate::utils::errors::GameError;
 use crate::utils::map::Map;
 use crate::utils::orders::order::MAX_DEADLINE;
 use std::collections::BinaryHeap;
-use std::fs::File;
-use std::io::{self, BufReader, BufWriter};
+use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 const RESTOCK_CYCLE: u64 = MAX_DEADLINE * 24;
 const REPORT_INTERVAL: u64 = 24;
@@ -79,17 +79,36 @@ impl Game {
     }
 
     /// Write the entire game state to JSON to save
-    pub fn save<P: AsRef<std::path::Path>>(&self, path: P) -> io::Result<()> {
-        let file = File::create(path)?;
-        let writer = BufWriter::new(file);
-        serde_json::to_writer_pretty(writer, &self).map_err(|e| io::Error::other(e))
+    pub fn save_game(&self, name: &str) -> io::Result<()> {
+        let save_dir = Path::new("save_games");
+        fs::create_dir_all(&save_dir)?;
+
+        let mut path = PathBuf::from(save_dir);
+        path.push(format!("{}.json", name));
+
+        let file = fs::File::create(&path)?;
+        let writer = io::BufWriter::new(file);
+        serde_json::to_writer_pretty(writer, self)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
 
     /// Load a game from JSON
-    pub fn load<P: AsRef<std::path::Path>>(path: P) -> io::Result<Self> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        serde_json::from_reader(reader).map_err(|e| io::Error::other(e))
+    pub fn load_game(name: &str) -> io::Result<Self> {
+        let mut path = PathBuf::from("save_games");
+        path.push(format!("{}.json", name));
+
+        if !path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Save file '{}' not found", path.display()),
+            ));
+        }
+
+        let file = fs::File::open(&path)?;
+        let reader = io::BufReader::new(file);
+        let game: Game =
+            serde_json::from_reader(reader).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        Ok(game)
     }
 
     /// Schedule `event` to occur at absolute simulation time `time`.

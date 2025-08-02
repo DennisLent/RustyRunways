@@ -78,17 +78,14 @@ impl Completer for LineReaderHelper {
         pos: usize,
         _ctx: &Context<'_>,
     ) -> RustyResult<(usize, Vec<Pair>)> {
-
         let start = line[..pos]
             .rfind(|c: char| c.is_whitespace())
             .map_or(0, |i| i + 1);
-
 
         let prefix = &line[start..pos].to_uppercase();
 
         let mut matches = Vec::new();
         for cmd in &self.commands {
-
             if cmd.to_uppercase().starts_with(prefix) {
                 matches.push(Pair {
                     display: cmd.clone(),

@@ -19,6 +19,8 @@ pub enum Command {
     ShowTime,
     ShowStats,
     Exit,
+    SaveGame { name: String },
+    LoadGame { name: String },
 }
 
 fn parse_id_list(s: &str) -> Result<Vec<usize>, String> {
@@ -94,6 +96,14 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
 
         // Exit
         ["EXIT"] => Ok(Command::Exit),
+
+        // Save and Load
+        ["SAVE", name] => Ok(Command::SaveGame {
+            name: name.to_string(),
+        }),
+        ["LOAD", name] => Ok(Command::LoadGame {
+            name: name.to_string(),
+        }),
 
         // Queries
         ["SHOW", "CASH"] => Ok(Command::ShowCash),

@@ -1,5 +1,5 @@
-use rusty_runways_cli::cli::{Cli, init_game_from_cli};
 use clap::Parser;
+use rusty_runways_cli::cli::{Cli, init_game_from_cli};
 
 #[test]
 fn cli_requires_seed_and_n() {
@@ -18,8 +18,7 @@ fn cli_defaults_cash() {
 
 #[test]
 fn cli_accepts_custom_cash() {
-    let cli =
-        Cli::try_parse_from(["test", "--seed", "2", "--n", "6", "--c", "2000000"]).unwrap();
+    let cli = Cli::try_parse_from(["test", "--seed", "2", "--n", "6", "--c", "2000000"]).unwrap();
     let game = init_game_from_cli(cli).unwrap();
     assert_eq!(game.map.seed, 2);
     assert_eq!(game.map.num_airports, 6);
