@@ -5,3 +5,4 @@ pub mod game;
 pub mod player;
 pub mod statistics;
 pub mod utils;
+pub mod cli;
