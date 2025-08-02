@@ -16,6 +16,17 @@ RustyRunways is a small logistics simulation game written in Rust. You manage an
 
 ---
 
+## Project Structure
+
+The repository is organised as a Cargo workspace with two main crates:
+
+* **`rusty_runways_core`** – a library crate that implements the game engine. It contains all simulation logic and can be used without any I/O.
+* **`rusty_runways_cli`** – a binary crate that provides the command‑line interface. It depends on the core crate and offers the interactive gameplay loop.
+
+Building or testing from the workspace root acts on both crates. Individual crates can also be built or tested separately using the `-p` flag.
+
+---
+
 ## Getting Started
 
 1. **Clone the repository**
@@ -27,8 +38,17 @@ RustyRunways is a small logistics simulation game written in Rust. You manage an
 
 2. **Build**
 
+   Build the entire workspace (core engine and CLI):
+
    ```bash
    cargo build --release
+   ```
+
+   Build a single crate:
+
+   ```bash
+   cargo build -p rusty_runways_core   # just the engine
+   cargo build -p rusty_runways_cli    # just the CLI
    ```
 
 3. **Run tests**
@@ -37,18 +57,25 @@ RustyRunways is a small logistics simulation game written in Rust. You manage an
    cargo test
    ```
 
-4. **Run**
+   Test an individual crate:
+
+   ```bash
+   cargo test -p rusty_runways_core
+   cargo test -p rusty_runways_cli
+   ```
+
+4. **Run the CLI**
 
    By default the game starts with a random seed and number of airports while giving the player $1,000,000 in cash:
 
    ```bash
-   cargo run
+   cargo run -p rusty_runways_cli
    ```
 
    You can specify the configuration explicitly:
 
    ```bash
-   cargo run -- --seed 1 --n 5 --c 1000000
+   cargo run -p rusty_runways_cli -- --seed 1 --n 5 --c 1000000
    ```
 
    The `--seed` and `--n` options must be provided together. The starting cash `--c` option is optional and defaults to `1000000`.

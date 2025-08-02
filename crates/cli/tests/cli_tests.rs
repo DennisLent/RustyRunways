@@ -1,4 +1,4 @@
-use RustyRunways::cli::{Cli, init_game_from_cli};
+use rusty_runways_cli::cli::{Cli, init_game_from_cli};
 use clap::Parser;
 
 #[test]

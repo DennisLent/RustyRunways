@@ -3,21 +3,6 @@
 version = 4
 
 [[package]]
-name = "RustyRunways"
-version = "0.1.0"
-dependencies = [
- "clap",
- "pyo3",
- "rand",
- "rustyline",
- "serde",
- "serde_json",
- "strsim 0.10.0",
- "strum",
- "strum_macros",
-]
-
-[[package]]
 name = "anstream"
 version = "0.6.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -438,6 +423,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusty_runways_cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "rand",
+ "rusty_runways_core",
+ "rustyline",
+]
+
+[[package]]
+name = "rusty_runways_core"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "rand",
+ "serde",
+ "serde_json",
+ "strsim 0.10.0",
+ "strum",
+ "strum_macros",
+]
+
+[[package]]
 name = "rustyline"
 version = "16.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -487,9 +495,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.141"
+version = "1.0.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
+checksum = "030fedb782600dcbd6f02d479bf0d817ac3bb40d644745b769d6a96bc3afc5a7"
 dependencies = [
  "itoa",
  "memchr",

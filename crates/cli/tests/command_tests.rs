@@ -1,4 +1,4 @@
-use RustyRunways::commands::{Command, parse_command};
+use rusty_runways_cli::commands::{Command, parse_command};
 
 #[test]
 fn parse_show_airports() {

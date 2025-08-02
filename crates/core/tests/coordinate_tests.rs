@@ -1,4 +1,4 @@
-use RustyRunways::utils::coordinate::Coordinate;
+use rusty_runways_core::utils::coordinate::Coordinate;
 
 #[test]
 fn coordinate_creation() {

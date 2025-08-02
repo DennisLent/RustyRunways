@@ -1,7 +1,7 @@
-use RustyRunways::utils::airplanes::models::AirplaneStatus;
-use RustyRunways::utils::airplanes::{airplane::Airplane, models::AirplaneModel};
-use RustyRunways::utils::errors::GameError;
-use RustyRunways::utils::{
+use rusty_runways_core::utils::airplanes::models::AirplaneStatus;
+use rusty_runways_core::utils::airplanes::{airplane::Airplane, models::AirplaneModel};
+use rusty_runways_core::utils::errors::GameError;
+use rusty_runways_core::utils::{
     airport::Airport,
     coordinate::Coordinate,
     orders::{CargoType, Order},
