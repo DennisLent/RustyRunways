@@ -182,29 +182,35 @@ impl Game {
                     if let AirplaneStatus::InTransit {
                         hours_remaining,
                         destination,
+                        origin,
+                        total_hours,
                     } = airplane.status
                     {
-                        // any more flight time remaining?
+                        let dest_coord = self.map.airports[destination].1;
+                        let hours_elapsed = total_hours - hours_remaining + 1;
+                        let fraction = (hours_elapsed as f32) / (total_hours as f32);
+
+                        airplane.location = Coordinate {
+                            x: origin.x + (dest_coord.x - origin.x) * fraction,
+                            y: origin.y + (dest_coord.y - origin.y) * fraction,
+                        };
+
                         if hours_remaining > 1 {
                             airplane.status = AirplaneStatus::InTransit {
                                 hours_remaining: hours_remaining - 1,
                                 destination,
+                                origin,
+                                total_hours,
                             };
                             self.schedule(self.time + 1, Event::FlightProgress { plane });
-                        }
-                        // Plane has arrived
-                        else {
-                            // Charge the player for landing
-                            let (airport, c) = &self.map.airports[destination];
+                        } else {
+                            let (airport, _) = &self.map.airports[destination];
                             let landing_fee = airport.landing_fee(airplane);
                             self.player.cash -= landing_fee;
                             self.daily_expenses += landing_fee;
 
-                            // Add arrival time of airplane
                             self.arrival_times[plane] = self.time;
-                            airplane.location = *c;
-
-                            // Change status of plane
+                            airplane.location = dest_coord;
                             airplane.status = AirplaneStatus::Parked;
                         }
                     }
@@ -366,25 +372,20 @@ impl Game {
     pub fn list_airplanes(&self) -> Result<(), GameError> {
         println!("Airplanes ({} total):", self.airplanes.len());
         for plane in &self.airplanes {
-            let loc = &plane.location;
-            let airport_name = match self.find_associated_airport(loc) {
-                Ok(name) => name,
-                Err(e) => {
-                    return Err(e);
-                }
-            };
-
-            // If plane is in transit, don't show coords and show remaining time
             if let AirplaneStatus::InTransit {
                 hours_remaining,
-                destination: _,
+                destination,
+                ..
             } = plane.status
             {
+                let dest_name = &self.map.airports[destination].0.name;
                 println!(
-                    "ID: {} | {:?} en-route to airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}",
+                    "ID: {} | {:?} en-route to airport {} | Location: ({:.2}, {:.2}) | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}",
                     plane.id,
                     plane.model,
-                    airport_name,
+                    dest_name,
+                    plane.location.x,
+                    plane.location.y,
                     plane.current_fuel,
                     plane.specs.fuel_capacity,
                     plane.current_payload,
@@ -392,11 +393,15 @@ impl Game {
                     self.days_and_hours(hours_remaining)
                 );
             } else {
+                let loc = &plane.location;
+                let airport_name = self.find_associated_airport(loc)?;
                 println!(
-                    "ID: {} | {:?} at airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
+                    "ID: {} | {:?} at airport {} ({:.2}, {:.2}) | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
                     plane.id,
                     plane.model,
                     airport_name,
+                    loc.x,
+                    loc.y,
                     plane.current_fuel,
                     plane.specs.fuel_capacity,
                     plane.current_payload,
@@ -416,25 +421,21 @@ impl Game {
         }
 
         let plane = &self.airplanes[plane_id];
-        let loc = &plane.location;
-        let airport_name = match self.find_associated_airport(loc) {
-            Ok(name) => name,
-            Err(e) => {
-                return Err(e);
-            }
-        };
 
-        // If plane is in transit, don't show coords and show remaining time
         if let AirplaneStatus::InTransit {
             hours_remaining,
-            destination: _,
+            destination,
+            ..
         } = plane.status
         {
+            let dest_name = &self.map.airports[destination].0.name;
             println!(
-                "ID: {} | {:?} en-route to airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}",
+                "ID: {} | {:?} en-route to airport {} | Location: ({:.2}, {:.2}) | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: InTransit - arrival in {}",
                 plane.id,
                 plane.model,
-                airport_name,
+                dest_name,
+                plane.location.x,
+                plane.location.y,
                 plane.current_fuel,
                 plane.specs.fuel_capacity,
                 plane.current_payload,
@@ -444,11 +445,15 @@ impl Game {
 
             Ok(())
         } else {
+            let loc = &plane.location;
+            let airport_name = self.find_associated_airport(loc)?;
             println!(
-                "ID: {} | {:?} at airport {} | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
+                "ID: {} | {:?} at airport {} ({:.2}, {:.2}) | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
                 plane.id,
                 plane.model,
                 airport_name,
+                loc.x,
+                loc.y,
                 plane.current_fuel,
                 plane.specs.fuel_capacity,
                 plane.current_payload,
@@ -735,11 +740,14 @@ impl Game {
 
         // consume fuel & get flight_hours
         let flight_hours = plane.consume_flight_fuel(dest_airport, dest_coords)?;
+        let origin_coord = plane.location;
 
         // set the status (no location change here!)
         plane.status = AirplaneStatus::InTransit {
             hours_remaining: flight_hours,
             destination: destination_id,
+            origin: origin_coord,
+            total_hours: flight_hours,
         };
 
         // kick off the first hourly tick

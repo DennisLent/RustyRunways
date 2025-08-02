@@ -117,6 +117,7 @@ fn delivery_cycle() {
     let (hours_remaining, destination) = if let AirplaneStatus::InTransit {
         hours_remaining,
         destination,
+        ..
     } = game.airplanes[0].status
     {
         (hours_remaining, destination)

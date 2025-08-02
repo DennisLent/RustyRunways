@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-use crate::events::GameTime;
+use crate::{events::GameTime, utils::coordinate::Coordinate};
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, PartialEq)]
 pub enum AirplaneModel {
@@ -147,5 +147,7 @@ pub enum AirplaneStatus {
     InTransit {
         hours_remaining: GameTime,
         destination: usize,
+        origin: Coordinate,
+        total_hours: GameTime,
     },
 }
