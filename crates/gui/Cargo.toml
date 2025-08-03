@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 rusty_runways_core = { path = "../core" }
 eframe = "0.32.0"
+rand = { version = "0.8", features = ["std_rng"] }

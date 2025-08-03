@@ -5,6 +5,7 @@ use crate::player::Player;
 use crate::statistics::DailyStats;
 use crate::utils::airplanes::airplane::Airplane;
 use crate::utils::airplanes::models::AirplaneStatus;
+use crate::utils::airport::Airport;
 use crate::utils::coordinate::Coordinate;
 use crate::utils::errors::GameError;
 use crate::utils::map::Map;
@@ -802,5 +803,25 @@ impl Game {
         self.schedule(self.time + 1, Event::RefuelComplete { plane: plane_id });
 
         Ok(())
+    }
+
+    // ************************
+    // ******* GUI APIs *******
+    // ************************
+
+    pub fn get_cash(&self) -> f32 {
+        self.player.cash
+    }
+
+    pub fn get_time(&self) -> String {
+        self.days_and_hours(self.time)
+    }
+
+    pub fn airports(&self) -> &[(Airport, Coordinate)] {
+        &self.map.airports
+    }
+
+    pub fn planes(&self) -> &Vec<Airplane> {
+        &self.airplanes
     }
 }
