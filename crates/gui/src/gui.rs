@@ -716,7 +716,7 @@ impl RustyRunwaysGui {
                                 ));
                                 ui.separator();
                                 ui.heading("Manifest");
-                                ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                                ScrollArea::vertical().max_height(200.0).id_salt("manifest").show(ui, |ui| {
                                     if plane_clone.manifest.is_empty() {
                                         ui.label("No cargo");
                                     } else {
@@ -732,6 +732,25 @@ impl RustyRunwaysGui {
                                         }
                                     }
                                 });
+
+                                ui.separator();
+                                ui.heading("Reachable Airports");
+                                ScrollArea::vertical().max_height(200.0).id_salt("airports").show(ui, |ui|{
+                                    for (airport, coord) in self.game.as_ref().unwrap().airports() {
+                                        let can_fly: bool = match plane_clone.can_fly_to(airport, coord) {
+                                            Ok(_) => true,
+                                            Err(_) => false
+                                        };
+
+                                        ui.label(format!(
+                                            "[{} | {}]: {}",
+                                            airport.id,
+                                            airport.name,
+                                            can_fly
+                                        ));
+                                    }
+                                });
+
                                 ui.separator();
                                 ui.horizontal(|ui| {
                                     if ui.button("Refuel").clicked() {
