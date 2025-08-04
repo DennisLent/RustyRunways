@@ -152,12 +152,12 @@ The game can also be manually progressed by 1 hour by pressing the Enter / Retur
 - [x] Ensure charging of aircrafts and cargo works.
 - [ ] Dispatch & reroute flights.
 - [x] Expand automated testing.
-- [ ] Hook up a simple GUI (Tauri or egui).
+- [x] Hook up a simple GUI (Tauri or egui).
 - [x] Track operating costs.
 - [ ] dynamic fuel prices.
 - [ ] Python bindings for ML.
-   - [ ] extract cli version
-   - [ ] extract gui version
+   - [x] extract cli version
+   - [x] extract gui version
    - [ ] extract python version
 - [ ] Weather conditions?
 - [ ] Creating a game with input file instead of random.
