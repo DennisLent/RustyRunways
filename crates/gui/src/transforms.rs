@@ -3,8 +3,11 @@ use rusty_runways_core::utils::{airport::Airport, coordinate::Coordinate};
 
 /// Transform the coordinates of the map to the screen.
 /// Computes offset for the screen and scales appropriately.
-pub fn map_transforms(airports: &[(Airport, Coordinate)], target: egui::Rect, padding: f32) -> (f32, f32, f32) {
-
+pub fn map_transforms(
+    airports: &[(Airport, Coordinate)],
+    target: egui::Rect,
+    padding: f32,
+) -> (f32, f32, f32) {
     // add padding
     let inner = target.shrink(padding);
 

@@ -1,4 +1,4 @@
-use eframe::egui::{self, CornerRadius, Sense, Vec2};
+use eframe::egui::{self, CornerRadius, Grid, Id, Rect, ScrollArea, Sense, Vec2, Window};
 use rand::Rng;
 use rusty_runways_core::{Game, utils::airplanes::models::AirplaneStatus};
 
@@ -252,12 +252,37 @@ impl RustyRunwaysGui {
                         let transform = map_transforms(airports, rect, 8.0);
 
                         // background
-                        painter.rect_filled(rect, CornerRadius::same(0), ui.visuals().extreme_bg_color);
+                        painter.rect_filled(
+                            rect,
+                            CornerRadius::same(0),
+                            ui.visuals().extreme_bg_color,
+                        );
 
                         // airports
-                        for (_airport, coord) in airports {
-                            let pos = world_to_screen(coord, transform);
-                            painter.circle_filled(pos, 4.0, egui::Color32::BLUE);
+                        for (idx, (airport, coord)) in airports.iter().enumerate() {
+                            let screen_pos = world_to_screen(coord, transform);
+
+                            // make a tiny rectangle around the circle:
+                            let hit_rect = Rect::from_center_size(screen_pos, Vec2::splat(12.0));
+                            let resp =
+                                ui.interact(hit_rect, Id::new(("airport", idx)), Sense::click());
+
+                            // highlight on hover
+                            if resp.hovered() {
+                                painter.circle_stroke(
+                                    screen_pos,
+                                    6.0,
+                                    (2.0, egui::Color32::LIGHT_BLUE),
+                                );
+                            }
+                            // or normal
+                            painter.circle_filled(screen_pos, 4.0, egui::Color32::BLUE);
+
+                            // click => show panel
+                            if resp.clicked() {
+                                self.selected_airport = Some(idx);
+                                self.airport_panel = true;
+                            }
                         }
 
                         // planes
@@ -282,10 +307,11 @@ impl RustyRunwaysGui {
                     });
                 });
 
-                // stats & quick actions
+                // stats, quick actions & planes
                 ui.vertical(|ui| {
                     ui.set_width(total_width - left_w);
                     ui.group(|ui| {
+                        // STATS
                         ui.heading("Game Stats");
                         ui.label(format!(
                             "Income: ${:.2}\nExpenses: ${:.2}\nDeliveries: {}",
@@ -294,6 +320,48 @@ impl RustyRunwaysGui {
                             self.game.as_ref().unwrap().player.orders_delivered
                         ));
                         ui.separator();
+
+                        ui.heading("Fleet Overview");
+                        //Give 400 px to all other components, may need adjustment
+                        ScrollArea::vertical()
+                            .max_height(total_height - 400.0)
+                            .show(ui, |ui| {
+                                Grid::new("fleet_grid")
+                                    .striped(true)
+                                    .min_col_width(40.0)
+                                    .show(ui, |ui| {
+                                        ui.heading("ID");
+                                        ui.heading("Model");
+                                        ui.heading("Status");
+                                        ui.end_row();
+
+                                        for plane in self.game.as_ref().unwrap().planes() {
+                                            ui.label(plane.id.to_string());
+                                            ui.label(format!("{:?}", plane.model));
+
+                                            let status = match &plane.status {
+                                                AirplaneStatus::Parked => "Parked".into(),
+                                                AirplaneStatus::Refueling => "Refueling".into(),
+                                                AirplaneStatus::Loading => "Loading".into(),
+                                                AirplaneStatus::Unloading => "Unloading".into(),
+                                                AirplaneStatus::Maintenance => "Maintenance".into(),
+                                                AirplaneStatus::InTransit {
+                                                    hours_remaining,
+                                                    ..
+                                                } => {
+                                                    format!("En-route ({}h left)", hours_remaining)
+                                                }
+                                            };
+
+                                            ui.label(status);
+
+                                            ui.end_row();
+                                        }
+                                    })
+                            });
+                        ui.separator();
+
+                        // QUICK ACTIONS
                         ui.heading("Quick Actions");
                         if ui.button("Advance 1h").clicked() {
                             self.game.as_mut().unwrap().advance(1);
@@ -302,6 +370,75 @@ impl RustyRunwaysGui {
                     });
                 });
             });
+
+            // Airport window with information
+            let total_width = ui.available_width();
+            let total_height = ui.available_height();
+            let left_w = total_width * 0.7;
+            let left_h = total_height * 0.7;
+
+            if let Some(idx) = self.selected_airport {
+                if self.airport_panel {
+                    let (airport, coord) = &self.game.as_ref().unwrap().map.airports[idx];
+                    Window::new(format!("Airport: {}", airport.name))
+                        .open(&mut self.airport_panel)
+                        .min_width(left_w)
+                        .max_width(total_width - 100.0)
+                        .min_height(left_h) 
+                        .max_height(total_height - 100.0)
+                        .resizable(true)  
+                        .show(ctx, |ui| {
+                            ui.label(format!("ID: {}", airport.id));
+                            ui.label(format!("Location: ({:.1}, {:.1})", coord.x, coord.y));
+                            ui.label(format!("Runway: {:.0}m", airport.runway_length));
+                            ui.label(format!("Fuel price: ${:.2}/L", airport.fuel_price));
+                            ui.label(format!("Parking fee: ${:.2}/hr", airport.parking_fee));
+                            ui.label(format!("Landing fee: ${:.2}/ton", airport.landing_fee));
+                            ui.separator();
+                            ui.heading("Outstanding Orders");
+                            ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+                                if airport.orders.is_empty() {
+                                    ui.label("No pending orders.");
+                                } else {
+                                    let full_width = ui.available_width();
+                                    for order in &airport.orders {
+                                        ui.group(|group_ui| {
+                                            
+                                            group_ui.set_width(full_width);
+
+                                            // Top line: “[ID] Name → Dest”
+                                            let dest_name =
+                                                &self.game.as_ref().unwrap().map.airports
+                                                    [order.destination_id]
+                                                    .0
+                                                    .name;
+                                            group_ui.horizontal(|ui| {
+                                                ui.strong(format!(
+                                                    "[{}] {:?}",
+                                                    order.id, order.name
+                                                ));
+                                                ui.separator();
+                                                ui.label("Dest:");
+                                                ui.label(dest_name);
+                                            });
+                                            group_ui.add_space(4.0);
+
+                                            // Each field on its own line
+                                            group_ui
+                                                .label(format!("Weight:   {:.1} kg", order.weight));
+                                            group_ui
+                                                .label(format!("Value:    ${:.2}", order.value));
+                                            group_ui.label(format!("Deadline: {}", order.deadline));
+
+                                            group_ui.add_space(4.0);
+                                        });
+                                        ui.add_space(4.0);
+                                    }
+                                }
+                            });
+                        });
+                }
+            }
 
             ui.add_space(8.0);
             ui.separator();
