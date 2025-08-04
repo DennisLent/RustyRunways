@@ -80,6 +80,18 @@ Building or testing from the workspace root acts on both crates. Individual crat
 
    The `--seed` and `--n` options must be provided together. The starting cash `--c` option is optional and defaults to `1000000`.
 
+5. **Run the GUI**
+
+   In order to play the game using the GUI, please run
+
+   ```bash
+   cargo run -p rusty_runways_gui
+   ```
+
+   This will launch you into the main menu and allow you to create a game or initialize a random game.
+
+   Please mind that the GUI is still in progress...
+
 ---
 
 ## Commands
@@ -143,7 +155,9 @@ The game can also be manually progressed by 1 hour by pressing the Enter / Retur
 ## Game
 
 `EXIT`: As the name suggests
+
 `SAVE <game_name>`: Saves the game under that name (please be careful this will override any save with the same name)
+
 `LOAD <game_name>`: Loads the game under that name
 
 ## Next Steps
