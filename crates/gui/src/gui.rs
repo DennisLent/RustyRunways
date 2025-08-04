@@ -1,4 +1,4 @@
-use eframe::egui::{self, CornerRadius, Grid, Id, Rect, ScrollArea, Sense, Vec2, Window};
+use eframe::egui::{self, CornerRadius, Id, Rect, ScrollArea, Sense, Vec2, Window};
 use rand::Rng;
 use rusty_runways_core::{Game, utils::airplanes::models::AirplaneStatus};
 
@@ -24,16 +24,31 @@ pub struct RustyRunwaysGui {
     // In Game
     game: Option<Game>,
 
+    // game log
+    log: Vec<String>,
+    scroll_log: bool,
+
+    // save/load dialogs
+    save_dialog: bool,
+    load_dialog: bool,
+    save_input: String,
+    load_input: String,
+
     // In Game selection
     hovered_airport: Option<usize>,
     selected_airport: Option<usize>,
     hovered_airplane: Option<usize>,
     selected_airplane: Option<usize>,
 
+    // selections for controls
+    airport_order_selection: Option<usize>,
+    airport_plane_selection: Option<usize>,
+    plane_order_selection: Option<usize>,
+    plane_destination: Option<usize>,
+
     // Additional windows
     airport_panel: bool,
     plane_panel: bool,
-    stats_panel: bool,
 }
 
 impl Default for RustyRunwaysGui {
@@ -47,19 +62,28 @@ impl Default for RustyRunwaysGui {
             recent_saves: Vec::new(),
             error: None,
             game: None,
+            log: Vec::new(),
+            scroll_log: false,
+            save_dialog: false,
+            load_dialog: false,
+            save_input: String::new(),
+            load_input: String::new(),
             hovered_airport: None,
             selected_airport: None,
             hovered_airplane: None,
             selected_airplane: None,
+            airport_order_selection: None,
+            airport_plane_selection: None,
+            plane_order_selection: None,
+            plane_destination: None,
             airport_panel: false,
             plane_panel: false,
-            stats_panel: false,
         }
     }
 }
 
 impl eframe::App for RustyRunwaysGui {
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         match self.screen {
             Screen::MainMenu => self.ui_main_menu(ctx),
             Screen::InGame => self.ui_game(ctx),
@@ -196,6 +220,24 @@ impl RustyRunwaysGui {
 
     // in-game screen
     fn ui_game(&mut self, ctx: &eframe::egui::Context) {
+        // keyboard shortcuts
+        ctx.input(|i| {
+            if i.key_pressed(egui::Key::Space) {
+                if let Some(g) = self.game.as_mut() {
+                    g.advance(1);
+                    self.log.push("Advanced 1h".to_string());
+                    self.scroll_log = true;
+                }
+            }
+            if i.key_pressed(egui::Key::Escape) {
+                if self.plane_panel {
+                    self.plane_panel = false;
+                } else if self.airport_panel {
+                    self.airport_panel = false;
+                }
+            }
+        });
+
         // header
         egui::TopBottomPanel::top("header").show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -211,9 +253,14 @@ impl RustyRunwaysGui {
                 ));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("Save").clicked() {
-                        // TODO: Add saving functionality
+                        self.save_dialog = true;
+                        self.save_input.clear();
                     }
                     if ui.button("Load").clicked() {
+                        self.load_dialog = true;
+                        self.load_input.clear();
+                    }
+                    if ui.button("Menu").clicked() {
                         self.screen = Screen::MainMenu;
                     }
                     if ui.button("Exit").clicked() {
@@ -222,6 +269,52 @@ impl RustyRunwaysGui {
                 });
             });
         });
+
+        // Save dialog
+        if self.save_dialog {
+            let mut open = true;
+            let mut close = false;
+            Window::new("Save Game")
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    ui.label("Save name:");
+                    ui.text_edit_singleline(&mut self.save_input);
+                    if ui.button("Confirm").clicked() {
+                        if let Some(game) = &self.game {
+                            match game.save_game(&self.save_input) {
+                                Ok(_) => self.log.push(format!("Saved game '{}'.", self.save_input)),
+                                Err(e) => self.log.push(format!("Save failed: {}", e)),
+                            }
+                            self.scroll_log = true;
+                        }
+                        close = true;
+                    }
+                });
+            self.save_dialog = open && !close;
+        }
+
+        if self.load_dialog {
+            let mut open = true;
+            let mut close = false;
+            Window::new("Load Game")
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    ui.label("Load name:");
+                    ui.text_edit_singleline(&mut self.load_input);
+                    if ui.button("Confirm").clicked() {
+                        match Game::load_game(&self.load_input) {
+                            Ok(game_instance) => {
+                                self.log.push(format!("Loaded game '{}'.", self.load_input));
+                                self.game = Some(game_instance);
+                            }
+                            Err(e) => self.log.push(format!("Load failed: {}", e)),
+                        }
+                        self.scroll_log = true;
+                        close = true;
+                    }
+                });
+            self.load_dialog = open && !close;
+        }
 
         // Main content
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -262,24 +355,26 @@ impl RustyRunwaysGui {
                         for (idx, (airport, coord)) in airports.iter().enumerate() {
                             let screen_pos = world_to_screen(coord, transform);
 
-                            // make a tiny rectangle around the circle:
                             let hit_rect = Rect::from_center_size(screen_pos, Vec2::splat(12.0));
-                            let resp =
-                                ui.interact(hit_rect, Id::new(("airport", idx)), Sense::click());
+                            let resp = ui.interact(hit_rect, Id::new(("airport", idx)), Sense::click());
+                            let hovered = resp.hovered();
+                            let clicked = resp.clicked();
+                            resp.on_hover_text(format!(
+                                "{}\nFuel ${:.2}/L",
+                                airport.name, airport.fuel_price
+                            ));
 
-                            // highlight on hover
-                            if resp.hovered() {
+                            if hovered {
+                                self.hovered_airport = Some(idx);
                                 painter.circle_stroke(
                                     screen_pos,
                                     6.0,
                                     (2.0, egui::Color32::LIGHT_BLUE),
                                 );
                             }
-                            // or normal
                             painter.circle_filled(screen_pos, 4.0, egui::Color32::BLUE);
 
-                            // click => show panel
-                            if resp.clicked() {
+                            if clicked {
                                 self.selected_airport = Some(idx);
                                 self.airport_panel = true;
                             }
@@ -300,9 +395,30 @@ impl RustyRunwaysGui {
                             }
                         }
 
-                        for plane in airplanes {
+                        for (idx, plane) in airplanes.iter().enumerate() {
                             let p = world_to_screen(&plane.location, transform);
+                            let rect = Rect::from_center_size(p, Vec2::splat(12.0));
+                            let resp = ui.interact(rect, Id::new(("plane", idx)), Sense::click());
+                            let hovered = resp.hovered();
+                            let clicked = resp.clicked();
+                            resp.on_hover_text(format!(
+                                "Plane {}\nFuel {:.0}/{:.0}L\nPayload {:.0}/{:.0}kg",
+                                plane.id,
+                                plane.current_fuel,
+                                plane.specs.fuel_capacity,
+                                plane.current_payload,
+                                plane.specs.payload_capacity
+                            ));
+                            if hovered {
+                                self.hovered_airplane = Some(plane.id);
+                                painter.circle_stroke(p, 6.0, (2.0, egui::Color32::LIGHT_GREEN));
+                            }
                             painter.circle_filled(p, 5.0, egui::Color32::WHITE);
+
+                            if clicked {
+                                self.selected_airplane = Some(plane.id);
+                                self.plane_panel = true;
+                            }
                         }
                     });
                 });
@@ -322,42 +438,29 @@ impl RustyRunwaysGui {
                         ui.separator();
 
                         ui.heading("Fleet Overview");
-                        //Give 400 px to all other components, may need adjustment
                         ScrollArea::vertical()
                             .max_height(total_height - 400.0)
                             .show(ui, |ui| {
-                                Grid::new("fleet_grid")
-                                    .striped(true)
-                                    .min_col_width(40.0)
-                                    .show(ui, |ui| {
-                                        ui.heading("ID");
-                                        ui.heading("Model");
-                                        ui.heading("Status");
-                                        ui.end_row();
-
-                                        for plane in self.game.as_ref().unwrap().planes() {
-                                            ui.label(plane.id.to_string());
-                                            ui.label(format!("{:?}", plane.model));
-
-                                            let status = match &plane.status {
-                                                AirplaneStatus::Parked => "Parked".into(),
-                                                AirplaneStatus::Refueling => "Refueling".into(),
-                                                AirplaneStatus::Loading => "Loading".into(),
-                                                AirplaneStatus::Unloading => "Unloading".into(),
-                                                AirplaneStatus::Maintenance => "Maintenance".into(),
-                                                AirplaneStatus::InTransit {
-                                                    hours_remaining,
-                                                    ..
-                                                } => {
-                                                    format!("En-route ({}h left)", hours_remaining)
-                                                }
-                                            };
-
-                                            ui.label(status);
-
-                                            ui.end_row();
+                                for plane in self.game.as_ref().unwrap().planes() {
+                                    let status = match &plane.status {
+                                        AirplaneStatus::Parked => "Parked".into(),
+                                        AirplaneStatus::Refueling => "Refueling".into(),
+                                        AirplaneStatus::Loading => "Loading".into(),
+                                        AirplaneStatus::Unloading => "Unloading".into(),
+                                        AirplaneStatus::Maintenance => "Maintenance".into(),
+                                        AirplaneStatus::InTransit { hours_remaining, .. } => {
+                                            format!("En-route ({}h left)", hours_remaining)
                                         }
-                                    })
+                                    };
+
+                                    if ui
+                                        .button(format!("{} | {:?} | {}", plane.id, plane.model, status))
+                                        .clicked()
+                                    {
+                                        self.selected_airplane = Some(plane.id);
+                                        self.plane_panel = true;
+                                    }
+                                }
                             });
                         ui.separator();
 
@@ -365,6 +468,8 @@ impl RustyRunwaysGui {
                         ui.heading("Quick Actions");
                         if ui.button("Advance 1h").clicked() {
                             self.game.as_mut().unwrap().advance(1);
+                            self.log.push("Advanced 1h".to_string());
+                            self.scroll_log = true;
                         }
                         // TODO: Other quick actions
                     });
@@ -379,64 +484,252 @@ impl RustyRunwaysGui {
 
             if let Some(idx) = self.selected_airport {
                 if self.airport_panel {
-                    let (airport, coord) = &self.game.as_ref().unwrap().map.airports[idx];
-                    Window::new(format!("Airport: {}", airport.name))
+                    let (airport_clone, coord) = {
+                        let g = self.game.as_ref().unwrap();
+                        let (a, c) = &g.map.airports[idx];
+                        (a.clone(), *c)
+                    };
+                    let planes_here: Vec<usize> = {
+                        let g = self.game.as_ref().unwrap();
+                        g.planes()
+                            .iter()
+                            .filter(|p| p.location == coord)
+                            .map(|p| p.id)
+                            .collect()
+                    };
+                    Window::new(format!("Airport: {}", airport_clone.name))
                         .open(&mut self.airport_panel)
                         .min_width(left_w)
                         .max_width(total_width - 100.0)
-                        .min_height(left_h) 
+                        .min_height(left_h)
                         .max_height(total_height - 100.0)
-                        .resizable(true)  
+                        .resizable(true)
                         .show(ctx, |ui| {
-                            ui.label(format!("ID: {}", airport.id));
+                            ui.label(format!("ID: {}", airport_clone.id));
                             ui.label(format!("Location: ({:.1}, {:.1})", coord.x, coord.y));
-                            ui.label(format!("Runway: {:.0}m", airport.runway_length));
-                            ui.label(format!("Fuel price: ${:.2}/L", airport.fuel_price));
-                            ui.label(format!("Parking fee: ${:.2}/hr", airport.parking_fee));
-                            ui.label(format!("Landing fee: ${:.2}/ton", airport.landing_fee));
+                            ui.label(format!("Runway: {:.0}m", airport_clone.runway_length));
+                            ui.label(format!("Fuel price: ${:.2}/L", airport_clone.fuel_price));
+                            ui.label(format!("Parking fee: ${:.2}/hr", airport_clone.parking_fee));
+                            ui.label(format!("Landing fee: ${:.2}/ton", airport_clone.landing_fee));
                             ui.separator();
                             ui.heading("Outstanding Orders");
                             ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                                if airport.orders.is_empty() {
+                                if airport_clone.orders.is_empty() {
                                     ui.label("No pending orders.");
                                 } else {
                                     let full_width = ui.available_width();
-                                    for order in &airport.orders {
+                                    for order in &airport_clone.orders {
                                         ui.group(|group_ui| {
-                                            
                                             group_ui.set_width(full_width);
-
-                                            // Top line: “[ID] Name → Dest”
                                             let dest_name =
                                                 &self.game.as_ref().unwrap().map.airports
                                                     [order.destination_id]
                                                     .0
                                                     .name;
                                             group_ui.horizontal(|ui| {
-                                                ui.strong(format!(
-                                                    "[{}] {:?}",
-                                                    order.id, order.name
-                                                ));
+                                                ui.strong(format!("[{}] {:?}", order.id, order.name));
                                                 ui.separator();
                                                 ui.label("Dest:");
                                                 ui.label(dest_name);
                                             });
                                             group_ui.add_space(4.0);
-
-                                            // Each field on its own line
-                                            group_ui
-                                                .label(format!("Weight:   {:.1} kg", order.weight));
-                                            group_ui
-                                                .label(format!("Value:    ${:.2}", order.value));
+                                            group_ui.label(format!("Weight:   {:.1} kg", order.weight));
+                                            group_ui.label(format!("Value:    ${:.2}", order.value));
                                             group_ui.label(format!("Deadline: {}", order.deadline));
-
                                             group_ui.add_space(4.0);
                                         });
                                         ui.add_space(4.0);
                                     }
                                 }
                             });
+
+                            ui.separator();
+                            ui.heading("Load Order");
+                            if airport_clone.orders.is_empty() {
+                                ui.label("No orders to load");
+                            } else if planes_here.is_empty() {
+                                ui.label("No planes at airport");
+                            } else {
+                                egui::ComboBox::from_label("Order")
+                                    .selected_text(
+                                        self.airport_order_selection
+                                            .map(|o| o.to_string())
+                                            .unwrap_or_else(|| "Select".into()),
+                                    )
+                                    .show_ui(ui, |ui| {
+                                        for order in &airport_clone.orders {
+                                            ui.selectable_value(
+                                                &mut self.airport_order_selection,
+                                                Some(order.id),
+                                                order.id.to_string(),
+                                            );
+                                        }
+                                    });
+                                egui::ComboBox::from_label("Plane")
+                                    .selected_text(
+                                        self.airport_plane_selection
+                                            .map(|p| p.to_string())
+                                            .unwrap_or_else(|| "Select".into()),
+                                    )
+                                    .show_ui(ui, |ui| {
+                                        for plane_id in &planes_here {
+                                            ui.selectable_value(
+                                                &mut self.airport_plane_selection,
+                                                Some(*plane_id),
+                                                plane_id.to_string(),
+                                            );
+                                        }
+                                    });
+                                if ui.button("Load").clicked() {
+                                    if let (Some(o), Some(p)) =
+                                        (self.airport_order_selection, self.airport_plane_selection)
+                                    {
+                                        match self.game.as_mut().unwrap().load_order(o, p) {
+                                            Ok(_) => self
+                                                .log
+                                                .push(format!("Loaded order {} on plane {}", o, p)),
+                                            Err(e) => self.log.push(format!("Load failed: {}", e)),
+                                        }
+                                        self.scroll_log = true;
+                                    }
+                                }
+                            }
                         });
+                }
+            }
+
+            if let Some(pid) = self.selected_airplane {
+                if self.plane_panel {
+                    if let Some(plane_clone) = self
+                        .game
+                        .as_ref()
+                        .unwrap()
+                        .planes()
+                        .iter()
+                        .find(|p| p.id == pid)
+                        .cloned()
+                    {
+                        let orders_at_airport: Vec<usize> = {
+                            let g = self.game.as_ref().unwrap();
+                            g.map
+                                .airports
+                                .iter()
+                                .find(|(_, c)| *c == plane_clone.location)
+                                .map(|(a, _)| a.orders.iter().map(|o| o.id).collect())
+                                .unwrap_or_default()
+                        };
+                        let airports_list = {
+                            let g = self.game.as_ref().unwrap();
+                            g.airports()
+                                .iter()
+                                .map(|(a, _)| (a.id, a.name.clone()))
+                                .collect::<Vec<_>>()
+                        };
+
+                        Window::new(format!("Plane {}", pid))
+                            .open(&mut self.plane_panel)
+                            .show(ctx, |ui| {
+                                ui.label(format!("Model: {:?}", plane_clone.model));
+                                ui.label(format!(
+                                    "Fuel: {:.0}/{:.0}L",
+                                    plane_clone.current_fuel, plane_clone.specs.fuel_capacity
+                                ));
+                                ui.label(format!(
+                                    "Payload: {:.0}/{:.0}kg",
+                                    plane_clone.current_payload, plane_clone.specs.payload_capacity
+                                ));
+                                ui.separator();
+                                ui.heading("Manifest");
+                                ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                                    if plane_clone.manifest.is_empty() {
+                                        ui.label("No cargo");
+                                    } else {
+                                        for order in &plane_clone.manifest {
+                                            ui.label(format!(
+                                                "[{}] {:?} wt {:.1} val ${:.2} dl {}",
+                                                order.id, order.name, order.weight, order.value, order.deadline
+                                            ));
+                                        }
+                                    }
+                                });
+                                ui.separator();
+                                ui.horizontal(|ui| {
+                                    if ui.button("Refuel").clicked() {
+                                        match self.game.as_mut().unwrap().refuel_plane(pid) {
+                                            Ok(_) => self
+                                                .log
+                                                .push(format!("Plane {} refueling", pid)),
+                                            Err(e) => self.log.push(format!("Refuel failed: {}", e)),
+                                        }
+                                        self.scroll_log = true;
+                                    }
+                                    if ui.button("Unload All").clicked() {
+                                        match self.game.as_mut().unwrap().unload_all(pid) {
+                                            Ok(_) => self
+                                                .log
+                                                .push(format!("Plane {} unloading", pid)),
+                                            Err(e) => self.log.push(format!("Unload failed: {}", e)),
+                                        }
+                                        self.scroll_log = true;
+                                    }
+                                });
+                                if !orders_at_airport.is_empty() {
+                                    egui::ComboBox::from_label("Order")
+                                        .selected_text(
+                                            self.plane_order_selection
+                                                .map(|o| o.to_string())
+                                                .unwrap_or_else(|| "Select".into()),
+                                        )
+                                        .show_ui(ui, |ui| {
+                                            for o in &orders_at_airport {
+                                                ui.selectable_value(
+                                                    &mut self.plane_order_selection,
+                                                    Some(*o),
+                                                    o.to_string(),
+                                                );
+                                            }
+                                        });
+                                    if ui.button("Load").clicked() {
+                                        if let Some(o) = self.plane_order_selection {
+                                            match self.game.as_mut().unwrap().load_order(o, pid) {
+                                                Ok(_) => self
+                                                    .log
+                                                    .push(format!("Loaded order {} on plane {}", o, pid)),
+                                                Err(e) => self.log.push(format!("Load failed: {}", e)),
+                                            }
+                                            self.scroll_log = true;
+                                        }
+                                    }
+                                }
+
+                                egui::ComboBox::from_label("Destination")
+                                    .selected_text(
+                                        self.plane_destination
+                                            .and_then(|id| airports_list.iter().find(|(i, _)| *i == id).map(|(_, n)| n.clone()))
+                                            .unwrap_or_else(|| "Select".into()),
+                                    )
+                                    .show_ui(ui, |ui| {
+                                        for (id, name) in &airports_list {
+                                            ui.selectable_value(
+                                                &mut self.plane_destination,
+                                                Some(*id),
+                                                name.clone(),
+                                            );
+                                        }
+                                    });
+                                if ui.button("Depart").clicked() {
+                                    if let Some(dest) = self.plane_destination {
+                                        match self.game.as_mut().unwrap().depart_plane(pid, dest) {
+                                            Ok(_) => self
+                                                .log
+                                                .push(format!("Plane {} departing to {}", pid, dest)),
+                                            Err(e) => self.log.push(format!("Depart failed: {}", e)),
+                                        }
+                                        self.scroll_log = true;
+                                    }
+                                }
+                            });
+                    }
                 }
             }
 
@@ -444,11 +737,18 @@ impl RustyRunwaysGui {
             ui.separator();
             ui.add_space(4.0);
 
-            // Logs
             ui.collapsing("Game Log", |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    // TODO: Add logs
-                });
+                ScrollArea::vertical()
+                    .stick_to_bottom(true)
+                    .show(ui, |ui| {
+                        for entry in &self.log {
+                            ui.label(entry);
+                        }
+                        if self.scroll_log {
+                            ui.scroll_to_cursor(Some(egui::Align::BOTTOM));
+                            self.scroll_log = false;
+                        }
+                    });
             });
         });
     }
