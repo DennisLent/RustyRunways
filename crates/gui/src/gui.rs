@@ -737,10 +737,7 @@ impl RustyRunwaysGui {
                                 ui.heading("Reachable Airports");
                                 ScrollArea::vertical().max_height(200.0).id_salt("airports").show(ui, |ui|{
                                     for (airport, coord) in self.game.as_ref().unwrap().airports() {
-                                        let can_fly: bool = match plane_clone.can_fly_to(airport, coord) {
-                                            Ok(_) => true,
-                                            Err(_) => false
-                                        };
+                                        let can_fly: bool = plane_clone.can_fly_to(airport, coord).is_ok();
 
                                         ui.label(format!(
                                             "[{} | {}]: {}",

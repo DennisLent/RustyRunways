@@ -13,9 +13,11 @@ use crate::utils::orders::order::MAX_DEADLINE;
 use std::collections::BinaryHeap;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 const RESTOCK_CYCLE: u64 = MAX_DEADLINE * 24;
 const REPORT_INTERVAL: u64 = 24;
+const FUEL_INTERVAL: u64 = 6;
 
 /// Holds all mutable world state and drives the simulation via scheduled events.
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,6 +66,8 @@ impl Game {
 
         game.schedule(RESTOCK_CYCLE, Event::Restock);
         game.schedule(REPORT_INTERVAL, Event::DailyStats);
+        game.schedule(FUEL_INTERVAL, Event::DynamicPricing);
+        game.schedule_world_event();
 
         game
     }
@@ -79,10 +83,32 @@ impl Game {
         }
     }
 
+    fn schedule_world_event(&mut self) {
+        let mut rng = StdRng::seed_from_u64(self.map.seed);
+        // event every 4 to 5 days
+        let next_start = self.time + rng.gen_range(96..=120);
+
+        // 1/8 chance it is global
+        let is_global = rng.gen_bool(0.125);
+        let airport = if is_global {None} else {Some(rng.gen_range(0..self.map.num_airports))};
+
+        // price can spike or crash
+        let factor = if rng.gen_bool(0.5) {
+            rng.gen_range(1.2..=1.5)
+        } else {
+            rng.gen_range(0.5..=0.8)
+        };
+
+        // lasts 12 - 72 hours
+        let duration = rng.gen_range(24..72);
+        self.schedule(self.time + next_start, Event::WorldEvent { airport, factor, duration });
+
+    }
+
     /// Write the entire game state to JSON to save
     pub fn save_game(&self, name: &str) -> io::Result<()> {
         let save_dir = Path::new("save_games");
-        fs::create_dir_all(&save_dir)?;
+        fs::create_dir_all(save_dir)?;
 
         let mut path = PathBuf::from(save_dir);
         path.push(format!("{}.json", name));
@@ -256,6 +282,74 @@ impl Game {
                     self.daily_expenses = 0.0;
 
                     self.schedule(self.time + REPORT_INTERVAL, Event::DailyStats);
+                }
+
+                Event::DynamicPricing => {
+                    // Adjust prices across the board
+                    for (airport, _) in self.map.airports.iter_mut() {
+                        airport.adjust_fuel_price();
+                    }
+
+                    // Schedule next
+                    self.schedule(self.time + FUEL_INTERVAL, Event::DynamicPricing);
+                }
+
+                Event::WorldEvent { airport, factor, duration } => {
+                    match airport {
+                        Some(airport_id) => {
+                            self.map.airports[airport_id].0.fuel_price *= factor;
+                            let name = &self.map.airports[airport_id].0.name;
+
+                            let pct = (factor - 1.0) * 100.0;
+                            println!(
+                                "Fuel price spike of +{:.0}% at {} for {}h!",
+                                pct, name, duration
+                            );
+                        }
+                        None => {
+                            for (airport, _) in &mut self.map.airports {
+                                airport.fuel_price *= factor
+                            }
+
+                            let pct = (factor - 1.0) * 100.0;
+                            println!(
+                                "Global fuel price spike of +{:.0}% for {}h!",
+                                pct, duration
+                            );
+                        }
+                    }
+
+                    let event_end = self.time + duration;
+                    self.schedule(event_end, Event::WorldEventEnd { airport, factor });
+                }
+
+                // Reset world event
+                Event::WorldEventEnd { airport, factor } => {
+                    match airport {
+                        Some(airport_id) => {
+                            self.map.airports[airport_id].0.fuel_price /= factor;
+
+                            let name = &self.map.airports[airport_id].0.name;
+                            let pct = (factor - 1.0) * 100.0;
+                            println!(
+                                "Fuel price spike of +{:.0}% at {} has ended.",
+                                pct, name
+                            );
+                        }
+                        None => {
+                            for (airport, _) in &mut self.map.airports {
+                                airport.fuel_price /= factor
+                            }
+                            let pct = (factor - 1.0) * 100.0;
+                            println!(
+                                "Global fuel price spike of +{:.0}% has ended.",
+                                pct
+                            );
+                        }
+                    }
+
+                    // schedule the next event
+                    self.schedule_world_event();
                 }
 
                 _ => {
@@ -764,8 +858,9 @@ impl Game {
         let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
         let plane = &mut self.airplanes[plane_idx];
 
-        // fuel airplane
+        // fuel airplane and log liters for dynamic pricing
         let fueling_fee = self.map.airports[airport_idx].0.fueling_fee(plane);
+        self.map.airports[airport_idx].0.fuel_supply(plane);
         plane.refuel();
 
         // charge the player

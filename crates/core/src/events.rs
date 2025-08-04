@@ -32,6 +32,21 @@ pub enum Event {
     Restock,
 
     DailyStats,
+
+    // Event to adjust fuel price every 6 hours based on demand
+    DynamicPricing,
+
+    // Bigger, world-wide events that cause more fluctuation
+    WorldEvent {
+        airport: Option<usize>,
+        factor: f32,
+        duration: GameTime
+    },
+
+    WorldEventEnd {
+        airport: Option<usize>,
+        factor: f32
+    }
 }
 
 /// Wraps an `Event` with its scheduled occurrence time.

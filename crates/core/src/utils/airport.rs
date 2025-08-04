@@ -4,6 +4,9 @@ use crate::utils::{
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 
+// Elastic price adjustment for fuel prices (+- 5%)
+const ELASTICITY: f32 = 0.05;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Airport {
     pub id: usize,
@@ -13,6 +16,7 @@ pub struct Airport {
     pub landing_fee: f32,   // standard cost that gets multiplied by airplane per ton of mtow
     pub parking_fee: f32,   // standard fee per hour
     pub orders: Vec<Order>, // list of current orders
+    pub fuel_sold: f32          // demand based on how much fuel was bought
 }
 
 impl Airport {
@@ -64,6 +68,7 @@ impl Airport {
             landing_fee,
             parking_fee,
             orders: Vec::new(),
+            fuel_sold: 0.0,
         }
     }
 
@@ -126,6 +131,12 @@ impl Airport {
         self.fuel_price * (airplane.specs.fuel_capacity - airplane.current_fuel)
     }
 
+    /// Increases the fuel used to adjust price dynamically
+    pub fn fuel_supply(&mut self, airplane: &Airplane) {
+        let fuel_bought = airplane.specs.fuel_capacity - airplane.current_fuel;
+        self.fuel_sold += fuel_bought;
+    }
+
     /// Load a single order into the airplane
     pub fn load_order(
         &mut self,
@@ -171,6 +182,20 @@ impl Airport {
             }
         }
         Ok(())
+    }
+
+    /// Internal method that adjusts the fuel price based on supply
+    pub fn adjust_fuel_price(&mut self) {
+        if self.fuel_sold > 0.0 {
+
+            self.fuel_price *= 1.0 + ELASTICITY;
+        }
+        else {
+
+            self.fuel_price += 1.0 - ELASTICITY;
+        }
+        // reset
+        self.fuel_sold = 0.0;
     }
 }
 
