@@ -154,7 +154,7 @@ The game can also be manually progressed by 1 hour by pressing the Enter / Retur
 - [x] Expand automated testing.
 - [x] Hook up a simple GUI (Tauri or egui).
 - [x] Track operating costs.
-- [ ] dynamic fuel prices.
+- [x] dynamic fuel prices.
 - [ ] Python bindings for ML.
    - [x] extract cli version
    - [x] extract gui version
