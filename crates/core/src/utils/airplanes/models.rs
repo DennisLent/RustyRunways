@@ -150,4 +150,5 @@ pub enum AirplaneStatus {
         origin: Coordinate,
         total_hours: GameTime,
     },
+    Broken
 }

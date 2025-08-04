@@ -68,6 +68,7 @@ impl Game {
         game.schedule(REPORT_INTERVAL, Event::DailyStats);
         game.schedule(FUEL_INTERVAL, Event::DynamicPricing);
         game.schedule_world_event();
+        game.schedule(1, Event::MaintenanceCheck);
 
         game
     }
@@ -350,6 +351,26 @@ impl Game {
 
                     // schedule the next event
                     self.schedule_world_event();
+                }
+
+                Event::MaintenanceCheck => {
+                    for (index, airplane) in self.airplanes.iter_mut().enumerate() {
+                        if airplane.status != AirplaneStatus::Maintenance {
+                            airplane.add_hours_since_maintenance();
+                            let p_fail = airplane.risk_of_failure();
+
+                            if rand::thread_rng().gen_bool(p_fail as f64) {
+                                airplane.needs_maintenance = true;
+
+                                if airplane.status == AirplaneStatus::Parked || airplane.status == AirplaneStatus::Loading || airplane.status == AirplaneStatus::Unloading || airplane.status == AirplaneStatus::Refueling {
+                                    airplane.status = AirplaneStatus::Broken;
+
+                                    // we are at an airport so this cant fail
+                                    // TODO: find assciated airport
+                                }
+                            }
+                        }
+                    }
                 }
 
                 _ => {

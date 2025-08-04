@@ -46,7 +46,14 @@ pub enum Event {
     WorldEventEnd {
         airport: Option<usize>,
         factor: f32
+    },
+
+    MaintenanceCheck,
+    Maintenance {
+        plane: usize,
+        airport: usize
     }
+
 }
 
 /// Wraps an `Event` with its scheduled occurrence time.
