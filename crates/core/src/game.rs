@@ -113,7 +113,7 @@ impl Game {
     }
 
     /// Schedule `event` to occur at absolute simulation time `time`.
-    pub fn schedule(&mut self, time: GameTime, event: Event) {
+    fn schedule(&mut self, time: GameTime, event: Event) {
         self.events.push(ScheduledEvent { time, event });
     }
 
@@ -388,6 +388,28 @@ impl Game {
         Ok(airport.name.clone())
     }
 
+    /// Locate a plane and the index of the airport where it is currently parked.
+    ///
+    /// Returns [`GameError::PlaneIdInvalid`] if no plane with `plane_id` exists or
+    /// [`GameError::PlaneNotAtAirport`] if the plane is not located at any airport.
+    fn plane_and_airport_idx(&self, plane_id: usize) -> Result<(usize, usize), GameError> {
+        let plane_index = self
+            .airplanes
+            .iter()
+            .position(|p| p.id == plane_id)
+            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
+
+        let location = self.airplanes[plane_index].location;
+        let airport_idx = self
+            .map
+            .airports
+            .iter()
+            .position(|(_, coord)| *coord == location)
+            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+
+        Ok((plane_index, airport_idx))
+    }
+
     /// Display a summary of all airplanes in the game.
     pub fn list_airplanes(&self) -> Result<(), GameError> {
         println!("Airplanes ({} total):", self.airplanes.len());
@@ -559,23 +581,13 @@ impl Game {
         }
     }
 
-    /// Load an order if possible
+    /// Load an order if possible.
+    ///
+    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
+    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
     pub fn load_order(&mut self, order_id: usize, plane_id: usize) -> Result<(), GameError> {
-        // Find the airplane
-        let plane = self
-            .airplanes
-            .iter_mut()
-            .find(|p| p.id == plane_id)
-            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
-
-        // Find the associated airport
-        let airport_idx = self
-            .map
-            .airports
-            .iter()
-            .position(|(_, coord)| *coord == plane.location)
-            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
-
+        let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
+        let plane = &mut self.airplanes[plane_idx];
         let airport = &mut self.map.airports[airport_idx].0;
 
         airport.load_order(order_id, plane)?;
@@ -584,22 +596,15 @@ impl Game {
         Ok(())
     }
 
-    /// Unload all orders from the plane
+    /// Unload all orders from the plane.
+    ///
+    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
+    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
     pub fn unload_all(&mut self, plane_id: usize) -> Result<(), GameError> {
-        let plane = self
-            .airplanes
-            .iter_mut()
-            .find(|p| p.id == plane_id)
-            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
-
-        let airport_idx = self
-            .map
-            .airports
-            .iter()
-            .position(|(_, coord)| *coord == plane.location)
-            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+        let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
 
         let airport = &mut self.map.airports[airport_idx].0;
+        let plane = &mut self.airplanes[plane_idx];
         let mut deliveries = plane.unload_all();
 
         // Check deliveries
@@ -630,26 +635,19 @@ impl Game {
         Ok(())
     }
 
-    /// Unload a specific order
+    /// Unload a list of orders from a plane.
+    ///
+    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
+    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
     pub fn unload_orders(
         &mut self,
         order_id: Vec<usize>,
         plane_id: usize,
     ) -> Result<(), GameError> {
-        let plane = self
-            .airplanes
-            .iter_mut()
-            .find(|p| p.id == plane_id)
-            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
-
-        let airport_idx = self
-            .map
-            .airports
-            .iter()
-            .position(|(_, coord)| *coord == plane.location)
-            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+        let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
 
         let airport = &mut self.map.airports[airport_idx].0;
+        let plane = &mut self.airplanes[plane_idx];
 
         for order in order_id {
             let delivery = plane.unload_order(order)?;
@@ -678,22 +676,15 @@ impl Game {
         Ok(())
     }
 
-    /// Unload a specific order
+    /// Unload a specific order from a plane.
+    ///
+    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
+    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
     pub fn unload_order(&mut self, order_id: usize, plane_id: usize) -> Result<(), GameError> {
-        let plane = self
-            .airplanes
-            .iter_mut()
-            .find(|p| p.id == plane_id)
-            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
-
-        let airport_idx = self
-            .map
-            .airports
-            .iter()
-            .position(|(_, coord)| *coord == plane.location)
-            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+        let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
 
         let airport = &mut self.map.airports[airport_idx].0;
+        let plane = &mut self.airplanes[plane_idx];
 
         let delivery = plane.unload_order(order_id)?;
 
@@ -721,29 +712,18 @@ impl Game {
         Ok(())
     }
 
+    /// Depart a plane to another airport.
+    ///
+    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist,
+    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport, or
+    /// [`GameError::AirportIdInvalid`] if the destination airport doesn't exist.
     pub fn depart_plane(
         &mut self,
         plane_id: usize,
         destination_id: usize,
     ) -> Result<(), GameError> {
-        let (plane, origin_idx) = {
-            let plane = self
-                .airplanes
-                .iter_mut()
-                .find(|p| p.id == plane_id)
-                .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
-
-            let origin_idx = self
-                .map
-                .airports
-                .iter_mut()
-                .find(|(_, c)| *c == plane.location)
-                .ok_or(GameError::PlaneNotAtAirport { plane_id })?
-                .0
-                .id;
-
-            (plane, origin_idx)
-        };
+        let (plane_idx, origin_idx) = self.plane_and_airport_idx(plane_id)?;
+        let plane = &mut self.airplanes[plane_idx];
         let (dest_airport, dest_coords) = &self
             .map
             .airports
@@ -776,20 +756,13 @@ impl Game {
         Ok(())
     }
 
-    /// Refuel a plane and charge the player. Only works if the airplne is not in transit.
+    /// Refuel a plane and charge the player. Only works if the airplane is not in transit.
+    ///
+    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
+    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
     pub fn refuel_plane(&mut self, plane_id: usize) -> Result<(), GameError> {
-        let plane = self
-            .airplanes
-            .iter_mut()
-            .find(|p| p.id == plane_id)
-            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
-
-        let airport_idx = self
-            .map
-            .airports
-            .iter()
-            .position(|(_, coord)| *coord == plane.location)
-            .ok_or(GameError::PlaneNotAtAirport { plane_id })?;
+        let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
+        let plane = &mut self.airplanes[plane_idx];
 
         // fuel airplane
         let fueling_fee = self.map.airports[airport_idx].0.fueling_fee(plane);
