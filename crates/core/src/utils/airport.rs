@@ -16,7 +16,7 @@ pub struct Airport {
     pub landing_fee: f32,   // standard cost that gets multiplied by airplane per ton of mtow
     pub parking_fee: f32,   // standard fee per hour
     pub orders: Vec<Order>, // list of current orders
-    pub fuel_sold: f32          // demand based on how much fuel was bought
+    pub fuel_sold: f32,     // demand based on how much fuel was bought
 }
 
 impl Airport {
@@ -187,11 +187,8 @@ impl Airport {
     /// Internal method that adjusts the fuel price based on supply
     pub fn adjust_fuel_price(&mut self) {
         if self.fuel_sold > 0.0 {
-
             self.fuel_price *= 1.0 + ELASTICITY;
-        }
-        else {
-
+        } else {
             self.fuel_price += 1.0 - ELASTICITY;
         }
         // reset

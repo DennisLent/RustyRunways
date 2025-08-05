@@ -516,6 +516,7 @@ impl RustyRunwaysGui {
                                         } => {
                                             format!("En-route ({}h left)", hours_remaining)
                                         }
+                                        AirplaneStatus::Broken => "Broken".into(),
                                     };
 
                                     if ui
@@ -527,6 +528,24 @@ impl RustyRunwaysGui {
                                     {
                                         self.selected_airplane = Some(plane.id);
                                         self.plane_panel = true;
+                                    }
+                                }
+                            });
+                        ui.separator();
+
+                        ui.heading("Airports");
+                        ScrollArea::vertical()
+                            .max_height(total_height - 400.0)
+                            .show(ui, |ui| {
+                                for (idx, (airport, _)) in
+                                    self.game.as_ref().unwrap().airports().iter().enumerate()
+                                {
+                                    if ui
+                                        .button(format!("{} | {}", airport.id, airport.name))
+                                        .clicked()
+                                    {
+                                        self.selected_airport = Some(idx);
+                                        self.airport_panel = true;
                                     }
                                 }
                             });
@@ -716,37 +735,44 @@ impl RustyRunwaysGui {
                                 ));
                                 ui.separator();
                                 ui.heading("Manifest");
-                                ScrollArea::vertical().max_height(200.0).id_salt("manifest").show(ui, |ui| {
-                                    if plane_clone.manifest.is_empty() {
-                                        ui.label("No cargo");
-                                    } else {
-                                        for order in &plane_clone.manifest {
-                                            ui.label(format!(
-                                                "[{}] {:?} wt {:.1} val ${:.2} dl {}",
-                                                order.id,
-                                                order.name,
-                                                order.weight,
-                                                order.value,
-                                                order.deadline
-                                            ));
+                                ScrollArea::vertical()
+                                    .max_height(200.0)
+                                    .id_salt("manifest")
+                                    .show(ui, |ui| {
+                                        if plane_clone.manifest.is_empty() {
+                                            ui.label("No cargo");
+                                        } else {
+                                            for order in &plane_clone.manifest {
+                                                ui.label(format!(
+                                                    "[{}] {:?} wt {:.1} val ${:.2} dl {}",
+                                                    order.id,
+                                                    order.name,
+                                                    order.weight,
+                                                    order.value,
+                                                    order.deadline
+                                                ));
+                                            }
                                         }
-                                    }
-                                });
+                                    });
 
                                 ui.separator();
                                 ui.heading("Reachable Airports");
-                                ScrollArea::vertical().max_height(200.0).id_salt("airports").show(ui, |ui|{
-                                    for (airport, coord) in self.game.as_ref().unwrap().airports() {
-                                        let can_fly: bool = plane_clone.can_fly_to(airport, coord).is_ok();
+                                ScrollArea::vertical()
+                                    .max_height(200.0)
+                                    .id_salt("airports")
+                                    .show(ui, |ui| {
+                                        for (airport, coord) in
+                                            self.game.as_ref().unwrap().airports()
+                                        {
+                                            let can_fly: bool =
+                                                plane_clone.can_fly_to(airport, coord).is_ok();
 
-                                        ui.label(format!(
-                                            "[{} | {}]: {}",
-                                            airport.id,
-                                            airport.name,
-                                            can_fly
-                                        ));
-                                    }
-                                });
+                                            ui.label(format!(
+                                                "[{} | {}]: {}",
+                                                airport.id, airport.name, can_fly
+                                            ));
+                                        }
+                                    });
 
                                 ui.separator();
                                 ui.horizontal(|ui| {
@@ -768,6 +794,23 @@ impl RustyRunwaysGui {
                                             }
                                             Err(e) => {
                                                 self.log.push(format!("Unload failed: {}", e))
+                                            }
+                                        }
+                                        self.scroll_log = true;
+                                    }
+                                    if ui.button("Maintenance").clicked() {
+                                        match self
+                                            .game
+                                            .as_mut()
+                                            .unwrap()
+                                            .maintenance_on_airplane(pid)
+                                        {
+                                            Ok(_) => self.log.push(format!(
+                                                "Plane {} maintenance scheduled",
+                                                pid
+                                            )),
+                                            Err(e) => {
+                                                self.log.push(format!("Maintenance failed: {}", e))
                                             }
                                         }
                                         self.scroll_log = true;
@@ -878,7 +921,7 @@ impl RustyRunwaysGui {
 
 #[cfg(test)]
 mod tests {
-    use super::{ClickItem, RustyRunwaysGui};
+    use super::{ClickItem, RustyRunwaysGui, Screen};
 
     #[test]
     fn handle_click_item_airport() {
@@ -894,5 +937,12 @@ mod tests {
         gui.handle_click_item(ClickItem::Plane(7));
         assert_eq!(gui.selected_airplane, Some(7));
         assert!(gui.plane_panel);
+    }
+
+    #[test]
+    fn default_starts_on_main_menu() {
+        let gui = RustyRunwaysGui::default();
+        assert!(matches!(gui.screen, Screen::MainMenu));
+        assert!(gui.game.is_none());
     }
 }

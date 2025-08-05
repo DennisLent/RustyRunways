@@ -40,13 +40,18 @@ pub enum Event {
     WorldEvent {
         airport: Option<usize>,
         factor: f32,
-        duration: GameTime
+        duration: GameTime,
     },
 
     WorldEventEnd {
         airport: Option<usize>,
-        factor: f32
-    }
+        factor: f32,
+    },
+
+    MaintenanceCheck,
+    Maintenance {
+        plane: usize,
+    },
 }
 
 /// Wraps an `Event` with its scheduled occurrence time.

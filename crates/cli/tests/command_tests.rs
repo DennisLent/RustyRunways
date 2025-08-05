@@ -19,3 +19,9 @@ fn parse_invalid_command() {
     let err = parse_command("DO SOMETHING");
     assert!(err.is_err());
 }
+
+#[test]
+fn parse_maintenance_command() {
+    let cmd = parse_command("MAINTENANCE 3").unwrap();
+    assert!(matches!(cmd, Command::Maintenance { plane_id: 3 }));
+}

@@ -5,6 +5,9 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
+const LAMBDA0: f32 = 0.005;
+const K: f32 = 0.01;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// An airplane operating between airports, tracked by precise coordinates
 pub struct Airplane {
@@ -17,6 +20,8 @@ pub struct Airplane {
     pub current_fuel: f32,
     pub current_payload: f32,
     pub manifest: Vec<Order>,
+    pub hours_since_maintenance: GameTime,
+    pub needs_maintenance: bool,
 }
 
 impl Airplane {
@@ -32,6 +37,8 @@ impl Airplane {
             current_fuel: specs.fuel_capacity,
             current_payload: 0.0,
             manifest: Vec::new(),
+            hours_since_maintenance: 0,
+            needs_maintenance: false,
         }
     }
 
@@ -150,5 +157,22 @@ impl Airplane {
     pub fn refuel(&mut self) {
         self.current_fuel = self.specs.fuel_capacity;
         self.status = AirplaneStatus::Refueling;
+    }
+
+    /// Perform maintenance
+    pub fn maintenance(&mut self) {
+        self.hours_since_maintenance = 0;
+        self.status = AirplaneStatus::Maintenance;
+    }
+
+    pub fn add_hours_since_maintenance(&mut self) {
+        self.hours_since_maintenance += 1;
+    }
+
+    // Check the risk of failure based on the amount of hours since last maintenance
+    pub fn risk_of_failure(&self) -> f32 {
+        let lambda: f32 = LAMBDA0 * (K * self.hours_since_maintenance as f32).exp();
+        let p_fail = 1.0 - (-lambda).exp();
+        p_fail
     }
 }

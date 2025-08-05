@@ -10,10 +10,10 @@ use crate::utils::coordinate::Coordinate;
 use crate::utils::errors::GameError;
 use crate::utils::map::Map;
 use crate::utils::orders::order::MAX_DEADLINE;
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::collections::BinaryHeap;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use rand::{Rng, SeedableRng, rngs::StdRng};
 
 const RESTOCK_CYCLE: u64 = MAX_DEADLINE * 24;
 const REPORT_INTERVAL: u64 = 24;
@@ -68,6 +68,7 @@ impl Game {
         game.schedule(REPORT_INTERVAL, Event::DailyStats);
         game.schedule(FUEL_INTERVAL, Event::DynamicPricing);
         game.schedule_world_event();
+        game.schedule(1, Event::MaintenanceCheck);
 
         game
     }
@@ -90,7 +91,11 @@ impl Game {
 
         // 1/8 chance it is global
         let is_global = rng.gen_bool(0.125);
-        let airport = if is_global {None} else {Some(rng.gen_range(0..self.map.num_airports))};
+        let airport = if is_global {
+            None
+        } else {
+            Some(rng.gen_range(0..self.map.num_airports))
+        };
 
         // price can spike or crash
         let factor = if rng.gen_bool(0.5) {
@@ -101,8 +106,14 @@ impl Game {
 
         // lasts 12 - 72 hours
         let duration = rng.gen_range(24..72);
-        self.schedule(self.time + next_start, Event::WorldEvent { airport, factor, duration });
-
+        self.schedule(
+            self.time + next_start,
+            Event::WorldEvent {
+                airport,
+                factor,
+                duration,
+            },
+        );
     }
 
     /// Write the entire game state to JSON to save
@@ -223,42 +234,61 @@ impl Game {
 
                 // Update the progress of the flight
                 Event::FlightProgress { plane } => {
-                    let airplane = &mut self.airplanes[plane];
+                    // buffer for events
+                    let mut to_schedule: Vec<(GameTime, Event)> = Vec::new();
 
-                    if let AirplaneStatus::InTransit {
-                        hours_remaining,
-                        destination,
-                        origin,
-                        total_hours,
-                    } = airplane.status
                     {
-                        let dest_coord = self.map.airports[destination].1;
-                        let hours_elapsed = total_hours - hours_remaining + 1;
-                        let fraction = (hours_elapsed as f32) / (total_hours as f32);
+                        let airplane = &mut self.airplanes[plane];
 
-                        airplane.location = Coordinate {
-                            x: origin.x + (dest_coord.x - origin.x) * fraction,
-                            y: origin.y + (dest_coord.y - origin.y) * fraction,
-                        };
+                        if let AirplaneStatus::InTransit {
+                            hours_remaining,
+                            destination,
+                            origin,
+                            total_hours,
+                        } = airplane.status
+                        {
+                            let dest_coord = self.map.airports[destination].1;
+                            let hours_elapsed = total_hours - hours_remaining + 1;
+                            let fraction = (hours_elapsed as f32) / (total_hours as f32);
 
-                        if hours_remaining > 1 {
-                            airplane.status = AirplaneStatus::InTransit {
-                                hours_remaining: hours_remaining - 1,
-                                destination,
-                                origin,
-                                total_hours,
+                            airplane.location = Coordinate {
+                                x: origin.x + (dest_coord.x - origin.x) * fraction,
+                                y: origin.y + (dest_coord.y - origin.y) * fraction,
                             };
-                            self.schedule(self.time + 1, Event::FlightProgress { plane });
-                        } else {
-                            let (airport, _) = &self.map.airports[destination];
-                            let landing_fee = airport.landing_fee(airplane);
-                            self.player.cash -= landing_fee;
-                            self.daily_expenses += landing_fee;
 
-                            self.arrival_times[plane] = self.time;
-                            airplane.location = dest_coord;
-                            airplane.status = AirplaneStatus::Parked;
+                            if hours_remaining > 1 {
+                                airplane.status = AirplaneStatus::InTransit {
+                                    hours_remaining: hours_remaining - 1,
+                                    destination,
+                                    origin,
+                                    total_hours,
+                                };
+
+                                // still in transit
+                                to_schedule.push((self.time + 1, Event::FlightProgress { plane }));
+                            } else {
+                                // landing
+                                let (airport, _) = &self.map.airports[destination];
+                                let landing_fee = airport.landing_fee(airplane);
+                                self.player.cash -= landing_fee;
+                                self.daily_expenses += landing_fee;
+
+                                self.arrival_times[plane] = self.time;
+                                airplane.location = self.map.airports[destination].1;
+
+                                if airplane.needs_maintenance {
+                                    airplane.status = AirplaneStatus::Broken;
+                                    to_schedule.push((self.time + 8, Event::Maintenance { plane }));
+                                } else {
+                                    airplane.status = AirplaneStatus::Parked;
+                                }
+                            }
                         }
+                    }
+
+                    // Schedule new events
+                    for (when, ev) in to_schedule {
+                        self.schedule(when, ev);
                     }
                 }
 
@@ -294,7 +324,11 @@ impl Game {
                     self.schedule(self.time + FUEL_INTERVAL, Event::DynamicPricing);
                 }
 
-                Event::WorldEvent { airport, factor, duration } => {
+                Event::WorldEvent {
+                    airport,
+                    factor,
+                    duration,
+                } => {
                     match airport {
                         Some(airport_id) => {
                             self.map.airports[airport_id].0.fuel_price *= factor;
@@ -312,10 +346,7 @@ impl Game {
                             }
 
                             let pct = (factor - 1.0) * 100.0;
-                            println!(
-                                "Global fuel price spike of +{:.0}% for {}h!",
-                                pct, duration
-                            );
+                            println!("Global fuel price spike of +{:.0}% for {}h!", pct, duration);
                         }
                     }
 
@@ -331,25 +362,59 @@ impl Game {
 
                             let name = &self.map.airports[airport_id].0.name;
                             let pct = (factor - 1.0) * 100.0;
-                            println!(
-                                "Fuel price spike of +{:.0}% at {} has ended.",
-                                pct, name
-                            );
+                            println!("Fuel price spike of +{:.0}% at {} has ended.", pct, name);
                         }
                         None => {
                             for (airport, _) in &mut self.map.airports {
                                 airport.fuel_price /= factor
                             }
                             let pct = (factor - 1.0) * 100.0;
-                            println!(
-                                "Global fuel price spike of +{:.0}% has ended.",
-                                pct
-                            );
+                            println!("Global fuel price spike of +{:.0}% has ended.", pct);
                         }
                     }
 
                     // schedule the next event
                     self.schedule_world_event();
+                }
+
+                Event::MaintenanceCheck => {
+                    // Collect vec of planes that are broken:
+                    let mut just_broke = Vec::new();
+
+                    for (idx, airplane) in self.airplanes.iter_mut().enumerate() {
+                        if airplane.status != AirplaneStatus::Maintenance {
+                            airplane.add_hours_since_maintenance();
+                            let p_fail = airplane.risk_of_failure();
+                            if rand::thread_rng().gen_bool(p_fail as f64) {
+                                airplane.needs_maintenance = true;
+                                if matches!(
+                                    airplane.status,
+                                    AirplaneStatus::Parked
+                                        | AirplaneStatus::Loading
+                                        | AirplaneStatus::Unloading
+                                        | AirplaneStatus::Refueling
+                                ) {
+                                    airplane.status = AirplaneStatus::Broken;
+                                    just_broke.push(idx);
+                                }
+                            }
+                        }
+                    }
+
+                    // Schedule broken events
+                    for idx in just_broke {
+                        self.schedule(self.time + 8, Event::Maintenance { plane: idx });
+                    }
+
+                    // next check
+                    self.schedule(self.time + 1, Event::MaintenanceCheck);
+                }
+
+                Event::Maintenance { plane } => {
+                    let airplane = &mut self.airplanes[plane];
+                    airplane.status = AirplaneStatus::Parked;
+                    airplane.hours_since_maintenance = 0;
+                    airplane.needs_maintenance = false;
                 }
 
                 _ => {
@@ -825,16 +890,17 @@ impl Game {
             .find(|(a, _)| a.id == destination_id)
             .ok_or(GameError::AirportIdInvalid { id: destination_id })?;
 
+        // consume fuel & get flight_hours
+        // check before if we can get there, else we don't charge
+        let flight_hours = plane.consume_flight_fuel(dest_airport, dest_coords)?;
+        let origin_coord = plane.location;
+
         // charge parking
         let parked_since = self.arrival_times[plane_id];
         let parked_hours = (self.time - parked_since) as f32;
         let parking_fee = self.map.airports[origin_idx].0.parking_fee * parked_hours;
         self.player.cash -= parking_fee;
         self.daily_expenses += parking_fee;
-
-        // consume fuel & get flight_hours
-        let flight_hours = plane.consume_flight_fuel(dest_airport, dest_coords)?;
-        let origin_coord = plane.location;
 
         // set the status (no location change here!)
         plane.status = AirplaneStatus::InTransit {
@@ -870,6 +936,28 @@ impl Game {
         // schedule fueling event
         self.schedule(self.time + 1, Event::RefuelComplete { plane: plane_id });
 
+        Ok(())
+    }
+
+    /// Perform maintenance on airplane
+    pub fn maintenance_on_airplane(&mut self, plane_id: usize) -> Result<(), GameError> {
+        let airplane = &mut self.airplanes[plane_id];
+
+        // cannot perform maintenance when not at an airport
+        if matches!(
+            airplane.status,
+            AirplaneStatus::InTransit {
+                hours_remaining: _,
+                destination: _,
+                origin: _,
+                total_hours: _
+            }
+        ) {
+            return Err(GameError::PlaneNotAtAirport { plane_id: plane_id });
+        }
+
+        airplane.maintenance();
+        self.schedule(self.time + 1, Event::Maintenance { plane: plane_id });
         Ok(())
     }
 
