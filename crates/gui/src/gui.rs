@@ -533,6 +533,24 @@ impl RustyRunwaysGui {
                             });
                         ui.separator();
 
+                        ui.heading("Airports");
+                        ScrollArea::vertical()
+                            .max_height(total_height - 400.0)
+                            .show(ui, |ui| {
+                                for (idx, (airport, _)) in
+                                    self.game.as_ref().unwrap().airports().iter().enumerate()
+                                {
+                                    if ui
+                                        .button(format!("{} | {}", airport.id, airport.name))
+                                        .clicked()
+                                    {
+                                        self.selected_airport = Some(idx);
+                                        self.airport_panel = true;
+                                    }
+                                }
+                            });
+                        ui.separator();
+
                         // QUICK ACTIONS
                         ui.heading("Quick Actions");
                         if ui.button("Advance 1h").clicked() {
@@ -780,6 +798,23 @@ impl RustyRunwaysGui {
                                         }
                                         self.scroll_log = true;
                                     }
+                                    if ui.button("Maintenance").clicked() {
+                                        match self
+                                            .game
+                                            .as_mut()
+                                            .unwrap()
+                                            .maintenance_on_airplane(pid)
+                                        {
+                                            Ok(_) => self.log.push(format!(
+                                                "Plane {} maintenance scheduled",
+                                                pid
+                                            )),
+                                            Err(e) => {
+                                                self.log.push(format!("Maintenance failed: {}", e))
+                                            }
+                                        }
+                                        self.scroll_log = true;
+                                    }
                                 });
                                 if !orders_at_airport.is_empty() {
                                     egui::ComboBox::from_label("Order")
@@ -886,7 +921,7 @@ impl RustyRunwaysGui {
 
 #[cfg(test)]
 mod tests {
-    use super::{ClickItem, RustyRunwaysGui};
+    use super::{ClickItem, RustyRunwaysGui, Screen};
 
     #[test]
     fn handle_click_item_airport() {
@@ -902,5 +937,12 @@ mod tests {
         gui.handle_click_item(ClickItem::Plane(7));
         assert_eq!(gui.selected_airplane, Some(7));
         assert!(gui.plane_panel);
+    }
+
+    #[test]
+    fn default_starts_on_main_menu() {
+        let gui = RustyRunwaysGui::default();
+        assert!(matches!(gui.screen, Screen::MainMenu));
+        assert!(gui.game.is_none());
     }
 }
