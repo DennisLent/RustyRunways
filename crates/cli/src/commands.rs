@@ -130,7 +130,7 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
             plane: plane_id.parse().map_err(|_| "bad plane id")?,
         }),
 
-        ["MINTENANCE", plane_id] => Ok(Command::Maintenance {
+        ["MAINTENANCE", plane_id] => Ok(Command::Maintenance {
             plane_id: plane_id.parse().map_err(|_| "bad plane id")?,
         }),
 
