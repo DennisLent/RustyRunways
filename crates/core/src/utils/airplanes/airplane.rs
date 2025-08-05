@@ -21,7 +21,7 @@ pub struct Airplane {
     pub current_payload: f32,
     pub manifest: Vec<Order>,
     pub hours_since_maintenance: GameTime,
-    pub needs_maintenance: bool
+    pub needs_maintenance: bool,
 }
 
 impl Airplane {
@@ -38,7 +38,7 @@ impl Airplane {
             current_payload: 0.0,
             manifest: Vec::new(),
             hours_since_maintenance: 0,
-            needs_maintenance: false
+            needs_maintenance: false,
         }
     }
 

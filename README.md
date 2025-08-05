@@ -138,6 +138,8 @@ The game can be interacted with using a Domain-specific language (DSL). This mak
 
 `HOLD PLANE <plane_id>`: Plane stays parked at current location
 
+`MAINTENANCE <plane_id>`: Performs a routine maintenance check on the airplane (takes 1 hour). **KEEP IN MIND**: If you do not perform routine checks on your fleet, they can break and cause long-term disruption and grounding.
+
 ## Time control
 
 `ADVANCE <n>`: Advances the game by n hours (ticks) or until a new event occurs

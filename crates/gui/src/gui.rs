@@ -516,6 +516,7 @@ impl RustyRunwaysGui {
                                         } => {
                                             format!("En-route ({}h left)", hours_remaining)
                                         }
+                                        AirplaneStatus::Broken => "Broken".into(),
                                     };
 
                                     if ui
@@ -716,37 +717,44 @@ impl RustyRunwaysGui {
                                 ));
                                 ui.separator();
                                 ui.heading("Manifest");
-                                ScrollArea::vertical().max_height(200.0).id_salt("manifest").show(ui, |ui| {
-                                    if plane_clone.manifest.is_empty() {
-                                        ui.label("No cargo");
-                                    } else {
-                                        for order in &plane_clone.manifest {
-                                            ui.label(format!(
-                                                "[{}] {:?} wt {:.1} val ${:.2} dl {}",
-                                                order.id,
-                                                order.name,
-                                                order.weight,
-                                                order.value,
-                                                order.deadline
-                                            ));
+                                ScrollArea::vertical()
+                                    .max_height(200.0)
+                                    .id_salt("manifest")
+                                    .show(ui, |ui| {
+                                        if plane_clone.manifest.is_empty() {
+                                            ui.label("No cargo");
+                                        } else {
+                                            for order in &plane_clone.manifest {
+                                                ui.label(format!(
+                                                    "[{}] {:?} wt {:.1} val ${:.2} dl {}",
+                                                    order.id,
+                                                    order.name,
+                                                    order.weight,
+                                                    order.value,
+                                                    order.deadline
+                                                ));
+                                            }
                                         }
-                                    }
-                                });
+                                    });
 
                                 ui.separator();
                                 ui.heading("Reachable Airports");
-                                ScrollArea::vertical().max_height(200.0).id_salt("airports").show(ui, |ui|{
-                                    for (airport, coord) in self.game.as_ref().unwrap().airports() {
-                                        let can_fly: bool = plane_clone.can_fly_to(airport, coord).is_ok();
+                                ScrollArea::vertical()
+                                    .max_height(200.0)
+                                    .id_salt("airports")
+                                    .show(ui, |ui| {
+                                        for (airport, coord) in
+                                            self.game.as_ref().unwrap().airports()
+                                        {
+                                            let can_fly: bool =
+                                                plane_clone.can_fly_to(airport, coord).is_ok();
 
-                                        ui.label(format!(
-                                            "[{} | {}]: {}",
-                                            airport.id,
-                                            airport.name,
-                                            can_fly
-                                        ));
-                                    }
-                                });
+                                            ui.label(format!(
+                                                "[{} | {}]: {}",
+                                                airport.id, airport.name, can_fly
+                                            ));
+                                        }
+                                    });
 
                                 ui.separator();
                                 ui.horizontal(|ui| {

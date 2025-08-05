@@ -21,6 +21,7 @@ pub enum Command {
     Exit,
     SaveGame { name: String },
     LoadGame { name: String },
+    Maintenance { plane_id: usize },
 }
 
 fn parse_id_list(s: &str) -> Result<Vec<usize>, String> {
@@ -127,6 +128,10 @@ pub fn parse_command(line: &str) -> Result<Command, String> {
 
         ["HOLD", "PLANE", plane_id] => Ok(Command::HoldPlane {
             plane: plane_id.parse().map_err(|_| "bad plane id")?,
+        }),
+
+        ["MINTENANCE", plane_id] => Ok(Command::Maintenance {
+            plane_id: plane_id.parse().map_err(|_| "bad plane id")?,
         }),
 
         // Cargo handling
