@@ -898,7 +898,7 @@ impl RustyRunwaysGui {
 
             // Game logs
             ui.collapsing("Game Log", |ui| {
-                ScrollArea::vertical().wid.stick_to_bottom(true).show(ui, |ui| {
+                ScrollArea::vertical().stick_to_bottom(true).show(ui, |ui| {
                     for entry in &self.log {
                         ui.label(entry);
                     }
