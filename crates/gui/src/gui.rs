@@ -490,6 +490,7 @@ impl RustyRunwaysGui {
                 ui.vertical(|ui| {
                     ui.set_width(total_width - left_w);
                     ui.group(|ui| {
+                        
                         // STATS
                         ui.heading("Game Stats");
                         ui.label(format!(
@@ -499,9 +500,11 @@ impl RustyRunwaysGui {
                             self.game.as_ref().unwrap().player.orders_delivered
                         ));
                         ui.separator();
-
+                        
+                        // Fleet overview
                         ui.heading("Fleet Overview");
                         ScrollArea::vertical()
+                            .id_salt("Fleet Overview")
                             .max_height(total_height - 400.0)
                             .show(ui, |ui| {
                                 for plane in self.game.as_ref().unwrap().planes() {
@@ -532,9 +535,11 @@ impl RustyRunwaysGui {
                                 }
                             });
                         ui.separator();
-
+                        
+                        // Airport overview
                         ui.heading("Airports");
                         ScrollArea::vertical()
+                            .id_salt("Airport Overview")
                             .max_height(total_height - 400.0)
                             .show(ui, |ui| {
                                 for (idx, (airport, _)) in
@@ -891,8 +896,9 @@ impl RustyRunwaysGui {
             ui.separator();
             ui.add_space(4.0);
 
+            // Game logs
             ui.collapsing("Game Log", |ui| {
-                ScrollArea::vertical().stick_to_bottom(true).show(ui, |ui| {
+                ScrollArea::vertical().wid.stick_to_bottom(true).show(ui, |ui| {
                     for entry in &self.log {
                         ui.label(entry);
                     }
