@@ -55,6 +55,12 @@ pub enum GameError {
     },
     NoCargo,
     SameAirport,
+    ParseError {
+        msg: String,
+    },
+    IoError {
+        msg: String,
+    },
 }
 
 impl GameError {
@@ -157,6 +163,12 @@ impl fmt::Display for GameError {
             }
             GameError::SameAirport => {
                 write!(f, "Cannot fly to the airport the plane is currently at")
+            }
+            GameError::ParseError { msg } => {
+                write!(f, "Parse error: {}", msg)
+            }
+            GameError::IoError { msg } => {
+                write!(f, "IO error: {}", msg)
             }
         }
     }
