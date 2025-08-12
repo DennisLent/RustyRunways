@@ -21,13 +21,14 @@ jobs:
             --all-features \
             --workspace \
             --timeout 120 \
-            --out Xml
+            --out Xml \
+            --output-dir target/tarpaulin
       - name: Upload to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./tarpaulin-report.xml
+          files: ./target/tarpaulin/tarpaulin-report.xml
           flags: rust
           fail_ci_if_error: true
           verbose: true

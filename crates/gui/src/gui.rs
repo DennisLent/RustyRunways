@@ -235,12 +235,10 @@ impl RustyRunwaysGui {
     fn ui_game(&mut self, ctx: &eframe::egui::Context) {
         // keyboard shortcuts
         ctx.input(|i| {
-            if i.key_pressed(egui::Key::Space) {
-                if let Some(g) = self.game.as_mut() {
-                    g.advance(1);
-                    self.log.push("Advanced 1h".to_string());
-                    self.scroll_log = true;
-                }
+            if let (true, Some(g)) = (i.key_pressed(egui::Key::Space), self.game.as_mut()) {
+                g.advance(1);
+                self.log.push("Advanced 1h".to_string());
+                self.scroll_log = true;
             }
             if i.key_pressed(egui::Key::Escape) {
                 if self.plane_panel {
@@ -454,34 +452,35 @@ impl RustyRunwaysGui {
 
                 if self.overlap_menu_open {
                     let popup_id = egui::Id::new("overlap_menu");
-                    if let Some(resp) = egui::Popup::new(
-                        popup_id,
-                        ui.ctx().clone(),
-                        self.overlap_menu_pos,
-                        ui.layer_id(),
-                    )
-                    .show(|ui| {
-                        ui.vertical(|ui| {
-                            for item in self.overlap_menu_items.clone() {
-                                let label = match item {
-                                    ClickItem::Airport(i) => format!("Airport {}", i),
-                                    ClickItem::Plane(p) => format!("Plane {}", p),
-                                };
-                                if ui.button(label).clicked() {
-                                    self.handle_click_item(item);
-                                    self.overlap_menu_open = false;
+                    if let (Some(resp), true) = (
+                        egui::Popup::new(
+                            popup_id,
+                            ui.ctx().clone(),
+                            self.overlap_menu_pos,
+                            ui.layer_id(),
+                        )
+                        .show(|ui| {
+                            ui.vertical(|ui| {
+                                for item in self.overlap_menu_items.clone() {
+                                    let label = match item {
+                                        ClickItem::Airport(i) => format!("Airport {}", i),
+                                        ClickItem::Plane(p) => format!("Plane {}", p),
+                                    };
+                                    if ui.button(label).clicked() {
+                                        self.handle_click_item(item);
+                                        self.overlap_menu_open = false;
+                                    }
                                 }
-                            }
-                        });
-                    }) {
-                        if ui.input(|i| i.pointer.any_click()) {
-                            if let Some(pos) = ui.ctx().input(|i| i.pointer.interact_pos()) {
-                                if !resp.response.rect.contains(pos) {
-                                    self.overlap_menu_open = false;
-                                }
-                            } else {
+                            });
+                        }),
+                        ui.input(|i| i.pointer.any_click()),
+                    ) {
+                        if let Some(pos) = ui.ctx().input(|i| i.pointer.interact_pos()) {
+                            if !resp.response.rect.contains(pos) {
                                 self.overlap_menu_open = false;
                             }
+                        } else {
+                            self.overlap_menu_open = false;
                         }
                     }
                 }
@@ -573,321 +572,289 @@ impl RustyRunwaysGui {
             let left_w = total_width * 0.7;
             let left_h = total_height * 0.7;
 
-            if let Some(idx) = self.selected_airport {
-                if self.airport_panel {
-                    let (airport_clone, coord) = {
+            if let (Some(idx), true) = (self.selected_airport, self.airport_panel) {
+                let (airport_clone, coord) = {
+                    let g = self.game.as_ref().unwrap();
+                    let (a, c) = &g.map.airports[idx];
+                    (a.clone(), *c)
+                };
+                let planes_here: Vec<usize> = {
+                    let g = self.game.as_ref().unwrap();
+                    g.planes()
+                        .iter()
+                        .filter(|p| p.location == coord)
+                        .map(|p| p.id)
+                        .collect()
+                };
+                Window::new(format!("Airport: {}", airport_clone.name))
+                    .open(&mut self.airport_panel)
+                    .min_width(left_w)
+                    .max_width(total_width - 100.0)
+                    .min_height(left_h)
+                    .max_height(total_height - 100.0)
+                    .resizable(true)
+                    .show(ctx, |ui| {
+                        ui.label(format!("ID: {}", airport_clone.id));
+                        ui.label(format!("Location: ({:.1}, {:.1})", coord.x, coord.y));
+                        ui.label(format!("Runway: {:.0}m", airport_clone.runway_length));
+                        ui.label(format!("Fuel price: ${:.2}/L", airport_clone.fuel_price));
+                        ui.label(format!("Parking fee: ${:.2}/hr", airport_clone.parking_fee));
+                        ui.label(format!(
+                            "Landing fee: ${:.2}/ton",
+                            airport_clone.landing_fee
+                        ));
+                        ui.separator();
+                        ui.heading("Outstanding Orders");
+                        ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+                            if airport_clone.orders.is_empty() {
+                                ui.label("No pending orders.");
+                            } else {
+                                let full_width = ui.available_width();
+                                for order in &airport_clone.orders {
+                                    ui.group(|group_ui| {
+                                        group_ui.set_width(full_width);
+                                        let dest_name = &self.game.as_ref().unwrap().map.airports
+                                            [order.destination_id]
+                                            .0
+                                            .name;
+                                        group_ui.horizontal(|ui| {
+                                            ui.strong(format!("[{}] {:?}", order.id, order.name));
+                                            ui.separator();
+                                            ui.label("Dest:");
+                                            ui.label(dest_name);
+                                        });
+                                        group_ui.add_space(4.0);
+                                        group_ui.label(format!("Weight:   {:.1} kg", order.weight));
+                                        group_ui.label(format!("Value:    ${:.2}", order.value));
+                                        group_ui.label(format!("Deadline: {}", order.deadline));
+                                        group_ui.add_space(4.0);
+                                    });
+                                    ui.add_space(4.0);
+                                }
+                            }
+                        });
+
+                        ui.separator();
+                        ui.heading("Load Order");
+                        if airport_clone.orders.is_empty() {
+                            ui.label("No orders to load");
+                        } else if planes_here.is_empty() {
+                            ui.label("No planes at airport");
+                        } else {
+                            egui::ComboBox::from_label("Order")
+                                .selected_text(
+                                    self.airport_order_selection
+                                        .map(|o| o.to_string())
+                                        .unwrap_or_else(|| "Select".into()),
+                                )
+                                .show_ui(ui, |ui| {
+                                    for order in &airport_clone.orders {
+                                        ui.selectable_value(
+                                            &mut self.airport_order_selection,
+                                            Some(order.id),
+                                            order.id.to_string(),
+                                        );
+                                    }
+                                });
+                            egui::ComboBox::from_label("Plane")
+                                .selected_text(
+                                    self.airport_plane_selection
+                                        .map(|p| p.to_string())
+                                        .unwrap_or_else(|| "Select".into()),
+                                )
+                                .show_ui(ui, |ui| {
+                                    for plane_id in &planes_here {
+                                        ui.selectable_value(
+                                            &mut self.airport_plane_selection,
+                                            Some(*plane_id),
+                                            plane_id.to_string(),
+                                        );
+                                    }
+                                });
+                            if let (true, Some(o), Some(p)) = (
+                                ui.button("Load").clicked(),
+                                self.airport_order_selection,
+                                self.airport_plane_selection,
+                            ) {
+                                match self.game.as_mut().unwrap().load_order(o, p) {
+                                    Ok(_) => {
+                                        self.log.push(format!("Loaded order {} on plane {}", o, p))
+                                    }
+                                    Err(e) => self.log.push(format!("Load failed: {}", e)),
+                                }
+                                self.scroll_log = true;
+                            }
+                        }
+                    });
+            }
+
+            if let (Some(pid), true) = (self.selected_airplane, self.plane_panel) {
+                if let Some(plane_clone) = self
+                    .game
+                    .as_ref()
+                    .unwrap()
+                    .planes()
+                    .iter()
+                    .find(|p| p.id == pid)
+                    .cloned()
+                {
+                    let orders_at_airport: Vec<usize> = {
                         let g = self.game.as_ref().unwrap();
-                        let (a, c) = &g.map.airports[idx];
-                        (a.clone(), *c)
-                    };
-                    let planes_here: Vec<usize> = {
-                        let g = self.game.as_ref().unwrap();
-                        g.planes()
+                        g.map
+                            .airports
                             .iter()
-                            .filter(|p| p.location == coord)
-                            .map(|p| p.id)
-                            .collect()
+                            .find(|(_, c)| *c == plane_clone.location)
+                            .map(|(a, _)| a.orders.iter().map(|o| o.id).collect())
+                            .unwrap_or_default()
                     };
-                    Window::new(format!("Airport: {}", airport_clone.name))
-                        .open(&mut self.airport_panel)
-                        .min_width(left_w)
-                        .max_width(total_width - 100.0)
-                        .min_height(left_h)
-                        .max_height(total_height - 100.0)
-                        .resizable(true)
+                    let airports_list = {
+                        let g = self.game.as_ref().unwrap();
+                        g.airports()
+                            .iter()
+                            .map(|(a, _)| (a.id, a.name.clone()))
+                            .collect::<Vec<_>>()
+                    };
+
+                    Window::new(format!("Plane {}", pid))
+                        .open(&mut self.plane_panel)
                         .show(ctx, |ui| {
-                            ui.label(format!("ID: {}", airport_clone.id));
-                            ui.label(format!("Location: ({:.1}, {:.1})", coord.x, coord.y));
-                            ui.label(format!("Runway: {:.0}m", airport_clone.runway_length));
-                            ui.label(format!("Fuel price: ${:.2}/L", airport_clone.fuel_price));
-                            ui.label(format!("Parking fee: ${:.2}/hr", airport_clone.parking_fee));
+                            ui.label(format!("Model: {:?}", plane_clone.model));
                             ui.label(format!(
-                                "Landing fee: ${:.2}/ton",
-                                airport_clone.landing_fee
+                                "Fuel: {:.0}/{:.0}L",
+                                plane_clone.current_fuel, plane_clone.specs.fuel_capacity
+                            ));
+                            ui.label(format!(
+                                "Payload: {:.0}/{:.0}kg",
+                                plane_clone.current_payload, plane_clone.specs.payload_capacity
                             ));
                             ui.separator();
-                            ui.heading("Outstanding Orders");
-                            ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                                if airport_clone.orders.is_empty() {
-                                    ui.label("No pending orders.");
-                                } else {
-                                    let full_width = ui.available_width();
-                                    for order in &airport_clone.orders {
-                                        ui.group(|group_ui| {
-                                            group_ui.set_width(full_width);
-                                            let dest_name =
-                                                &self.game.as_ref().unwrap().map.airports
-                                                    [order.destination_id]
-                                                    .0
-                                                    .name;
-                                            group_ui.horizontal(|ui| {
-                                                ui.strong(format!(
-                                                    "[{}] {:?}",
-                                                    order.id, order.name
-                                                ));
-                                                ui.separator();
-                                                ui.label("Dest:");
-                                                ui.label(dest_name);
-                                            });
-                                            group_ui.add_space(4.0);
-                                            group_ui
-                                                .label(format!("Weight:   {:.1} kg", order.weight));
-                                            group_ui
-                                                .label(format!("Value:    ${:.2}", order.value));
-                                            group_ui.label(format!("Deadline: {}", order.deadline));
-                                            group_ui.add_space(4.0);
-                                        });
-                                        ui.add_space(4.0);
+                            ui.heading("Manifest");
+                            ScrollArea::vertical()
+                                .max_height(200.0)
+                                .id_salt("manifest")
+                                .show(ui, |ui| {
+                                    if plane_clone.manifest.is_empty() {
+                                        ui.label("No cargo");
+                                    } else {
+                                        for order in &plane_clone.manifest {
+                                            ui.label(format!(
+                                                "[{}] {:?} wt {:.1} val ${:.2} dl {}",
+                                                order.id,
+                                                order.name,
+                                                order.weight,
+                                                order.value,
+                                                order.deadline
+                                            ));
+                                        }
                                     }
-                                }
-                            });
+                                });
 
                             ui.separator();
-                            ui.heading("Load Order");
-                            if airport_clone.orders.is_empty() {
-                                ui.label("No orders to load");
-                            } else if planes_here.is_empty() {
-                                ui.label("No planes at airport");
-                            } else {
+                            ui.heading("Reachable Airports");
+                            ScrollArea::vertical()
+                                .max_height(200.0)
+                                .id_salt("airports")
+                                .show(ui, |ui| {
+                                    for (airport, coord) in self.game.as_ref().unwrap().airports() {
+                                        let can_fly: bool =
+                                            plane_clone.can_fly_to(airport, coord).is_ok();
+
+                                        ui.label(format!(
+                                            "[{} | {}]: {}",
+                                            airport.id, airport.name, can_fly
+                                        ));
+                                    }
+                                });
+
+                            ui.separator();
+                            ui.horizontal(|ui| {
+                                if ui.button("Refuel").clicked() {
+                                    match self.game.as_mut().unwrap().refuel_plane(pid) {
+                                        Ok(_) => self.log.push(format!("Plane {} refueling", pid)),
+                                        Err(e) => self.log.push(format!("Refuel failed: {}", e)),
+                                    }
+                                    self.scroll_log = true;
+                                }
+                                if ui.button("Unload All").clicked() {
+                                    match self.game.as_mut().unwrap().unload_all(pid) {
+                                        Ok(_) => self.log.push(format!("Plane {} unloading", pid)),
+                                        Err(e) => self.log.push(format!("Unload failed: {}", e)),
+                                    }
+                                    self.scroll_log = true;
+                                }
+                                if ui.button("Maintenance").clicked() {
+                                    match self.game.as_mut().unwrap().maintenance_on_airplane(pid) {
+                                        Ok(_) => self
+                                            .log
+                                            .push(format!("Plane {} maintenance scheduled", pid)),
+                                        Err(e) => {
+                                            self.log.push(format!("Maintenance failed: {}", e))
+                                        }
+                                    }
+                                    self.scroll_log = true;
+                                }
+                            });
+                            if !orders_at_airport.is_empty() {
                                 egui::ComboBox::from_label("Order")
                                     .selected_text(
-                                        self.airport_order_selection
+                                        self.plane_order_selection
                                             .map(|o| o.to_string())
                                             .unwrap_or_else(|| "Select".into()),
                                     )
                                     .show_ui(ui, |ui| {
-                                        for order in &airport_clone.orders {
+                                        for o in &orders_at_airport {
                                             ui.selectable_value(
-                                                &mut self.airport_order_selection,
-                                                Some(order.id),
-                                                order.id.to_string(),
+                                                &mut self.plane_order_selection,
+                                                Some(*o),
+                                                o.to_string(),
                                             );
                                         }
                                     });
-                                egui::ComboBox::from_label("Plane")
-                                    .selected_text(
-                                        self.airport_plane_selection
-                                            .map(|p| p.to_string())
-                                            .unwrap_or_else(|| "Select".into()),
-                                    )
-                                    .show_ui(ui, |ui| {
-                                        for plane_id in &planes_here {
-                                            ui.selectable_value(
-                                                &mut self.airport_plane_selection,
-                                                Some(*plane_id),
-                                                plane_id.to_string(),
-                                            );
-                                        }
-                                    });
-                                if ui.button("Load").clicked() {
-                                    if let (Some(o), Some(p)) =
-                                        (self.airport_order_selection, self.airport_plane_selection)
-                                    {
-                                        match self.game.as_mut().unwrap().load_order(o, p) {
-                                            Ok(_) => self
-                                                .log
-                                                .push(format!("Loaded order {} on plane {}", o, p)),
-                                            Err(e) => self.log.push(format!("Load failed: {}", e)),
-                                        }
-                                        self.scroll_log = true;
+                                if let (true, Some(o)) =
+                                    (ui.button("Load").clicked(), self.plane_order_selection)
+                                {
+                                    match self.game.as_mut().unwrap().load_order(o, pid) {
+                                        Ok(_) => self
+                                            .log
+                                            .push(format!("Loaded order {} on plane {}", o, pid)),
+                                        Err(e) => self.log.push(format!("Load failed: {}", e)),
                                     }
+                                    self.scroll_log = true;
                                 }
                             }
-                        });
-                }
-            }
 
-            if let Some(pid) = self.selected_airplane {
-                if self.plane_panel {
-                    if let Some(plane_clone) = self
-                        .game
-                        .as_ref()
-                        .unwrap()
-                        .planes()
-                        .iter()
-                        .find(|p| p.id == pid)
-                        .cloned()
-                    {
-                        let orders_at_airport: Vec<usize> = {
-                            let g = self.game.as_ref().unwrap();
-                            g.map
-                                .airports
-                                .iter()
-                                .find(|(_, c)| *c == plane_clone.location)
-                                .map(|(a, _)| a.orders.iter().map(|o| o.id).collect())
-                                .unwrap_or_default()
-                        };
-                        let airports_list = {
-                            let g = self.game.as_ref().unwrap();
-                            g.airports()
-                                .iter()
-                                .map(|(a, _)| (a.id, a.name.clone()))
-                                .collect::<Vec<_>>()
-                        };
-
-                        Window::new(format!("Plane {}", pid))
-                            .open(&mut self.plane_panel)
-                            .show(ctx, |ui| {
-                                ui.label(format!("Model: {:?}", plane_clone.model));
-                                ui.label(format!(
-                                    "Fuel: {:.0}/{:.0}L",
-                                    plane_clone.current_fuel, plane_clone.specs.fuel_capacity
-                                ));
-                                ui.label(format!(
-                                    "Payload: {:.0}/{:.0}kg",
-                                    plane_clone.current_payload, plane_clone.specs.payload_capacity
-                                ));
-                                ui.separator();
-                                ui.heading("Manifest");
-                                ScrollArea::vertical()
-                                    .max_height(200.0)
-                                    .id_salt("manifest")
-                                    .show(ui, |ui| {
-                                        if plane_clone.manifest.is_empty() {
-                                            ui.label("No cargo");
-                                        } else {
-                                            for order in &plane_clone.manifest {
-                                                ui.label(format!(
-                                                    "[{}] {:?} wt {:.1} val ${:.2} dl {}",
-                                                    order.id,
-                                                    order.name,
-                                                    order.weight,
-                                                    order.value,
-                                                    order.deadline
-                                                ));
-                                            }
-                                        }
-                                    });
-
-                                ui.separator();
-                                ui.heading("Reachable Airports");
-                                ScrollArea::vertical()
-                                    .max_height(200.0)
-                                    .id_salt("airports")
-                                    .show(ui, |ui| {
-                                        for (airport, coord) in
-                                            self.game.as_ref().unwrap().airports()
-                                        {
-                                            let can_fly: bool =
-                                                plane_clone.can_fly_to(airport, coord).is_ok();
-
-                                            ui.label(format!(
-                                                "[{} | {}]: {}",
-                                                airport.id, airport.name, can_fly
-                                            ));
-                                        }
-                                    });
-
-                                ui.separator();
-                                ui.horizontal(|ui| {
-                                    if ui.button("Refuel").clicked() {
-                                        match self.game.as_mut().unwrap().refuel_plane(pid) {
-                                            Ok(_) => {
-                                                self.log.push(format!("Plane {} refueling", pid))
-                                            }
-                                            Err(e) => {
-                                                self.log.push(format!("Refuel failed: {}", e))
-                                            }
-                                        }
-                                        self.scroll_log = true;
-                                    }
-                                    if ui.button("Unload All").clicked() {
-                                        match self.game.as_mut().unwrap().unload_all(pid) {
-                                            Ok(_) => {
-                                                self.log.push(format!("Plane {} unloading", pid))
-                                            }
-                                            Err(e) => {
-                                                self.log.push(format!("Unload failed: {}", e))
-                                            }
-                                        }
-                                        self.scroll_log = true;
-                                    }
-                                    if ui.button("Maintenance").clicked() {
-                                        match self
-                                            .game
-                                            .as_mut()
-                                            .unwrap()
-                                            .maintenance_on_airplane(pid)
-                                        {
-                                            Ok(_) => self.log.push(format!(
-                                                "Plane {} maintenance scheduled",
-                                                pid
-                                            )),
-                                            Err(e) => {
-                                                self.log.push(format!("Maintenance failed: {}", e))
-                                            }
-                                        }
-                                        self.scroll_log = true;
+                            egui::ComboBox::from_label("Destination")
+                                .selected_text(
+                                    self.plane_destination
+                                        .and_then(|id| {
+                                            airports_list
+                                                .iter()
+                                                .find(|(i, _)| *i == id)
+                                                .map(|(_, n)| n.clone())
+                                        })
+                                        .unwrap_or_else(|| "Select".into()),
+                                )
+                                .show_ui(ui, |ui| {
+                                    for (id, name) in &airports_list {
+                                        ui.selectable_value(
+                                            &mut self.plane_destination,
+                                            Some(*id),
+                                            name.clone(),
+                                        );
                                     }
                                 });
-                                if !orders_at_airport.is_empty() {
-                                    egui::ComboBox::from_label("Order")
-                                        .selected_text(
-                                            self.plane_order_selection
-                                                .map(|o| o.to_string())
-                                                .unwrap_or_else(|| "Select".into()),
-                                        )
-                                        .show_ui(ui, |ui| {
-                                            for o in &orders_at_airport {
-                                                ui.selectable_value(
-                                                    &mut self.plane_order_selection,
-                                                    Some(*o),
-                                                    o.to_string(),
-                                                );
-                                            }
-                                        });
-                                    if ui.button("Load").clicked() {
-                                        if let Some(o) = self.plane_order_selection {
-                                            match self.game.as_mut().unwrap().load_order(o, pid) {
-                                                Ok(_) => self.log.push(format!(
-                                                    "Loaded order {} on plane {}",
-                                                    o, pid
-                                                )),
-                                                Err(e) => {
-                                                    self.log.push(format!("Load failed: {}", e))
-                                                }
-                                            }
-                                            self.scroll_log = true;
-                                        }
-                                    }
+                            if let (true, Some(dest)) =
+                                (ui.button("Depart").clicked(), self.plane_destination)
+                            {
+                                match self.game.as_mut().unwrap().depart_plane(pid, dest) {
+                                    Ok(_) => self
+                                        .log
+                                        .push(format!("Plane {} departing to {}", pid, dest)),
+                                    Err(e) => self.log.push(format!("Depart failed: {}", e)),
                                 }
-
-                                egui::ComboBox::from_label("Destination")
-                                    .selected_text(
-                                        self.plane_destination
-                                            .and_then(|id| {
-                                                airports_list
-                                                    .iter()
-                                                    .find(|(i, _)| *i == id)
-                                                    .map(|(_, n)| n.clone())
-                                            })
-                                            .unwrap_or_else(|| "Select".into()),
-                                    )
-                                    .show_ui(ui, |ui| {
-                                        for (id, name) in &airports_list {
-                                            ui.selectable_value(
-                                                &mut self.plane_destination,
-                                                Some(*id),
-                                                name.clone(),
-                                            );
-                                        }
-                                    });
-                                if ui.button("Depart").clicked() {
-                                    if let Some(dest) = self.plane_destination {
-                                        match self.game.as_mut().unwrap().depart_plane(pid, dest) {
-                                            Ok(_) => self.log.push(format!(
-                                                "Plane {} departing to {}",
-                                                pid, dest
-                                            )),
-                                            Err(e) => {
-                                                self.log.push(format!("Depart failed: {}", e))
-                                            }
-                                        }
-                                        self.scroll_log = true;
-                                    }
-                                }
-                            });
-                    }
+                                self.scroll_log = true;
+                            }
+                        });
                 }
             }
 
