@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
 
 pub mod cli;
-pub mod commands;
 pub mod read;
+pub use rusty_runways_core::commands;

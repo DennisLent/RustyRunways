@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::commands::{Command, parse_command};
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::statistics::DailyStats;
@@ -40,6 +41,30 @@ pub struct Game {
     pub daily_expenses: f32,
     /// History of all stats
     pub stats: Vec<DailyStats>,
+    /// Log of events for debugging/agents
+    pub log: Vec<String>,
+}
+
+/// Compact observation of the game state.
+#[derive(Serialize)]
+pub struct Observation {
+    pub time: GameTime,
+    pub cash: f32,
+    pub airports: Vec<AirportObs>,
+    pub planes: Vec<PlaneObs>,
+}
+
+#[derive(Serialize)]
+pub struct AirportObs {
+    pub id: usize,
+    pub name: String,
+}
+
+#[derive(Serialize)]
+pub struct PlaneObs {
+    pub id: usize,
+    pub status: AirplaneStatus,
+    pub location: Coordinate,
 }
 
 impl Game {
@@ -62,6 +87,7 @@ impl Game {
             daily_income: 0.0,
             daily_expenses: 0.0,
             stats: Vec::new(),
+            log: Vec::new(),
         };
 
         game.schedule(RESTOCK_CYCLE, Event::Restock);
@@ -71,6 +97,106 @@ impl Game {
         game.schedule(1, Event::MaintenanceCheck);
 
         game
+    }
+
+    /// Advance the simulation by `hours`.
+    pub fn step(&mut self, hours: GameTime) {
+        self.advance(hours);
+    }
+
+    /// Return a stable, serializable snapshot of the current state.
+    pub fn observe(&self) -> Observation {
+        let airports = self
+            .map
+            .airports
+            .iter()
+            .map(|(a, _)| AirportObs {
+                id: a.id,
+                name: a.name.clone(),
+            })
+            .collect();
+
+        let planes = self
+            .airplanes
+            .iter()
+            .map(|p| PlaneObs {
+                id: p.id,
+                status: p.status.clone(),
+                location: p.location,
+            })
+            .collect();
+
+        Observation {
+            time: self.time,
+            cash: self.player.cash,
+            airports,
+            planes,
+        }
+    }
+
+    /// Drain the log and return accumulated messages.
+    pub fn drain_log(&mut self) -> Vec<String> {
+        self.log.drain(..).collect()
+    }
+
+    /// Execute a command string using the CLI parser.
+    pub fn execute_str(&mut self, line: &str) -> Result<(), GameError> {
+        self.log.push(format!("cmd: {}", line));
+        match parse_command(line).map_err(|e| GameError::ParseError { msg: e })? {
+            Command::ShowAirports { with_orders } => {
+                self.list_airports(with_orders);
+                Ok(())
+            }
+            Command::ShowAirport { id, with_orders } => self.list_airport(id, with_orders),
+            Command::ShowAirplanes => self.list_airplanes(),
+            Command::ShowAirplane { id } => self.list_airplane(id),
+            Command::ShowDistances { plane_id } => self.show_distances(plane_id),
+            Command::BuyPlane { model, airport } => self.buy_plane(&model, airport),
+            Command::LoadOrder { order, plane } => self.load_order(order, plane),
+            Command::LoadOrders { orders, plane } => {
+                for o in orders {
+                    self.load_order(o, plane)?;
+                }
+                Ok(())
+            }
+            Command::UnloadOrder { order, plane } => self.unload_order(order, plane),
+            Command::UnloadOrders { orders, plane } => {
+                for o in orders {
+                    self.unload_order(o, plane)?;
+                }
+                Ok(())
+            }
+            Command::UnloadAll { plane } => self.unload_all(plane),
+            Command::Refuel { plane } => self.refuel_plane(plane),
+            Command::DepartPlane { plane, dest } => self.depart_plane(plane, dest),
+            Command::HoldPlane { plane } => self.unload_all(plane),
+            Command::Advance { hours } => {
+                self.advance(hours);
+                Ok(())
+            }
+            Command::ShowCash => {
+                self.show_cash();
+                Ok(())
+            }
+            Command::ShowTime => {
+                self.show_time();
+                Ok(())
+            }
+            Command::ShowStats => {
+                self.show_stats();
+                Ok(())
+            }
+            Command::Exit => Ok(()),
+            Command::SaveGame { name } => self
+                .save_game(&name)
+                .map_err(|e| GameError::IoError { msg: e.to_string() }),
+            Command::LoadGame { name } => {
+                *self = Game::load_game(&name)
+                    .map_err(|e| GameError::IoError { msg: e.to_string() })?;
+                Ok(())
+            }
+            Command::Maintenance { plane_id } => self.maintenance_on_airplane(plane_id),
+        }
     }
 
     fn days_and_hours(&self, total_hours: GameTime) -> String {
@@ -126,8 +252,7 @@ impl Game {
 
         let file = fs::File::create(&path)?;
         let writer = io::BufWriter::new(file);
-        serde_json::to_writer_pretty(writer, self)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        serde_json::to_writer_pretty(writer, self).map_err(io::Error::other)
     }
 
     /// Load a game from JSON
@@ -144,8 +269,7 @@ impl Game {
 
         let file = fs::File::open(&path)?;
         let reader = io::BufReader::new(file);
-        let game: Game =
-            serde_json::from_reader(reader).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let game: Game = serde_json::from_reader(reader).map_err(io::Error::other)?;
         Ok(game)
     }
 
@@ -219,6 +343,10 @@ impl Game {
         if let Some(scheduled) = self.events.pop() {
             // advance time
             self.time = scheduled.time;
+            self.log.push(format!(
+                "event: {:?} at {}",
+                scheduled.event, scheduled.time
+            ));
 
             match scheduled.event {
                 // Restock every 14 days
@@ -953,7 +1081,7 @@ impl Game {
                 total_hours: _
             }
         ) {
-            return Err(GameError::PlaneNotAtAirport { plane_id: plane_id });
+            return Err(GameError::PlaneNotAtAirport { plane_id });
         }
 
         airplane.maintenance();

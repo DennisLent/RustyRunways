@@ -15,7 +15,16 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
       - name: Clippy
-        run: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
       - name: Test
         run: cargo test --all --verbose
+      - name: Install Python package
+        run: |
+          pip install pytest
+          pip install ./crates/py
+      - name: Python tests
+        run: pytest crates/py/tests

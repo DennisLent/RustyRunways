@@ -7,25 +7,21 @@ on:
     branches: [ main ]
 
 jobs:
-  coverage:
+  rust:
     runs-on: ubuntu-latest
     container:
       image: xd009642/tarpaulin:develop-nightly
       options: --security-opt seccomp=unconfined
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
       - name: Run Tarpaulin
         run: |
-          # run all tests, produce XML for Codecov
           cargo tarpaulin \
             --all-features \
             --workspace \
             --timeout 120 \
             --out Xml
-
       - name: Upload to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v3
@@ -33,5 +29,35 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cobertura.xml
           flags: rust
+          fail_ci_if_error: true
+          verbose: true
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install dependencies
+        run: |
+          pip install pytest coverage
+          pip install ./crates/py
+      - name: Run tests with coverage
+        run: |
+          coverage run -m pytest crates/py/tests
+          coverage xml
+      - name: Upload to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: python
           fail_ci_if_error: true
           verbose: true
