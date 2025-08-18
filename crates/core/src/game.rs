@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::statistics::DailyStats;
@@ -10,6 +9,8 @@ use crate::utils::errors::GameError;
 use crate::utils::map::Map;
 use crate::utils::orders::order::MAX_DEADLINE;
 use rand::{Rng, SeedableRng, rngs::StdRng};
+use rusty_runways_commands::{Command, parse_command};
+use serde::{Deserialize, Serialize};
 use std::collections::BinaryHeap;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -39,6 +40,50 @@ pub struct Game {
     pub daily_expenses: f32,
     /// History of all stats
     pub stats: Vec<DailyStats>,
+}
+
+#[derive(Serialize)]
+pub struct Observation {
+    pub time: u64,
+    pub cash: f32,
+    pub airports: Vec<AirportObs>,
+    pub planes: Vec<PlaneObs>,
+}
+
+#[derive(Serialize)]
+pub struct AirportObs {
+    pub id: usize,
+    pub name: String,
+    pub x: f32,
+    pub y: f32,
+    pub fuel_price: f32,
+    pub runway_length: f32,
+    pub num_orders: usize,
+}
+
+#[derive(Serialize)]
+pub struct PlaneObs {
+    pub id: usize,
+    pub model: String,
+    pub x: f32,
+    pub y: f32,
+    pub status: String,
+    pub fuel: FuelObs,
+    pub payload: PayloadObs,
+    pub destination: Option<usize>,
+    pub hours_remaining: Option<u64>,
+}
+
+#[derive(Serialize)]
+pub struct FuelObs {
+    pub current: f32,
+    pub capacity: f32,
+}
+
+#[derive(Serialize)]
+pub struct PayloadObs {
+    pub current: f32,
+    pub capacity: f32,
 }
 
 impl Game {
@@ -125,8 +170,7 @@ impl Game {
 
         let file = fs::File::create(&path)?;
         let writer = io::BufWriter::new(file);
-        serde_json::to_writer_pretty(writer, self)
-            .map_err(io::Error::other)
+        serde_json::to_writer_pretty(writer, self).map_err(io::Error::other)
     }
 
     /// Load a game from JSON
@@ -143,8 +187,7 @@ impl Game {
 
         let file = fs::File::open(&path)?;
         let reader = io::BufReader::new(file);
-        let game: Game =
-            serde_json::from_reader(reader).map_err(io::Error::other)?;
+        let game: Game = serde_json::from_reader(reader).map_err(io::Error::other)?;
         Ok(game)
     }
 
@@ -958,6 +1001,115 @@ impl Game {
         airplane.maintenance();
         self.schedule(self.time + 1, Event::Maintenance { plane: plane_id });
         Ok(())
+    }
+
+    pub fn execute_str(&mut self, line: &str) -> Result<(), GameError> {
+        let cmd =
+            parse_command(line).map_err(|e| GameError::InvalidCommand { msg: e.to_string() })?;
+        self.execute(cmd)
+    }
+
+    pub fn execute(&mut self, cmd: Command) -> Result<(), GameError> {
+        use Command::*;
+        match cmd {
+            ShowAirports { .. }
+            | ShowAirport { .. }
+            | ShowAirplanes
+            | ShowAirplane { .. }
+            | ShowDistances { .. }
+            | ShowCash
+            | ShowTime
+            | ShowStats
+            | Exit => Ok(()),
+            BuyPlane { model, airport } => self.buy_plane(&model, airport),
+            LoadOrder { order, plane } => self.load_order(order, plane),
+            LoadOrders { orders, plane } => {
+                for o in orders {
+                    self.load_order(o, plane)?;
+                }
+                Ok(())
+            }
+            UnloadOrder { order, plane } => self.unload_order(order, plane),
+            UnloadOrders { orders, plane } => {
+                for o in orders {
+                    self.unload_order(o, plane)?;
+                }
+                Ok(())
+            }
+            UnloadAll { plane } => self.unload_all(plane),
+            Refuel { plane } => self.refuel_plane(plane),
+            DepartPlane { plane, dest } => self.depart_plane(plane, dest),
+            HoldPlane { .. } => Ok(()),
+            Advance { hours } => {
+                self.advance(hours);
+                Ok(())
+            }
+            SaveGame { name } => self
+                .save_game(&name)
+                .map_err(|e| GameError::InvalidCommand { msg: e.to_string() }),
+            LoadGame { name } => {
+                *self = Game::load_game(&name)
+                    .map_err(|e| GameError::InvalidCommand { msg: e.to_string() })?;
+                Ok(())
+            }
+            Maintenance { plane_id } => self.maintenance_on_airplane(plane_id),
+        }
+    }
+
+    pub fn observe(&self) -> Observation {
+        let airports = self
+            .map
+            .airports
+            .iter()
+            .map(|(airport, coord)| AirportObs {
+                id: airport.id,
+                name: airport.name.clone(),
+                x: coord.x,
+                y: coord.y,
+                fuel_price: airport.fuel_price,
+                runway_length: airport.runway_length,
+                num_orders: airport.orders.len(),
+            })
+            .collect();
+
+        let planes = self
+            .airplanes
+            .iter()
+            .map(|plane| {
+                let (destination, hours_remaining) = match plane.status {
+                    AirplaneStatus::InTransit {
+                        destination,
+                        hours_remaining,
+                        ..
+                    } => (Some(destination), Some(hours_remaining)),
+                    _ => (None, None),
+                };
+                PlaneObs {
+                    id: plane.id,
+                    model: format!("{:?}", plane.model),
+                    x: plane.location.x,
+                    y: plane.location.y,
+                    status: format!("{:?}", plane.status),
+                    fuel: FuelObs {
+                        current: plane.current_fuel,
+                        capacity: plane.specs.fuel_capacity,
+                    },
+                    payload: PayloadObs {
+                        current: plane.current_payload,
+                        capacity: plane.specs.payload_capacity,
+                    },
+                    destination,
+                    hours_remaining,
+                }
+            })
+            .collect();
+
+        Observation {
+            time: self.time,
+            cash: self.player.cash,
+            airports,
+            planes,
+        }
     }
 
     // ************************

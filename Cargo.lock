@@ -2509,15 +2509,21 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "rand",
+ "rusty_runways_commands",
  "rusty_runways_core",
  "rustyline",
 ]
+
+[[package]]
+name = "rusty_runways_commands"
+version = "0.1.0"
 
 [[package]]
 name = "rusty_runways_core"
 version = "0.1.0"
 dependencies = [
  "rand",
+ "rusty_runways_commands",
  "serde",
  "serde_json",
  "strsim 0.10.0",
