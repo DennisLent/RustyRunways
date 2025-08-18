@@ -490,7 +490,6 @@ impl RustyRunwaysGui {
                 ui.vertical(|ui| {
                     ui.set_width(total_width - left_w);
                     ui.group(|ui| {
-                        
                         // STATS
                         ui.heading("Game Stats");
                         ui.label(format!(
@@ -500,7 +499,7 @@ impl RustyRunwaysGui {
                             self.game.as_ref().unwrap().player.orders_delivered
                         ));
                         ui.separator();
-                        
+
                         // Fleet overview
                         ui.heading("Fleet Overview");
                         ScrollArea::vertical()
@@ -535,7 +534,7 @@ impl RustyRunwaysGui {
                                 }
                             });
                         ui.separator();
-                        
+
                         // Airport overview
                         ui.heading("Airports");
                         ScrollArea::vertical()

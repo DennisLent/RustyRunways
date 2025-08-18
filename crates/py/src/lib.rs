@@ -81,7 +81,12 @@ pub struct VectorGameEnv {
     seeds: Vec<u64>,
 }
 
-fn parse_arg<T: Clone + for<'a> FromPyObject<'a>>(py: Python<'_>, obj: Option<PyObject>, n: usize, defaults: Vec<T>) -> PyResult<Vec<T>> {
+fn parse_arg<T: Clone + for<'a> FromPyObject<'a>>(
+    py: Python<'_>,
+    obj: Option<PyObject>,
+    n: usize,
+    defaults: Vec<T>,
+) -> PyResult<Vec<T>> {
     match obj {
         Some(o) => {
             let any = o.as_ref();
@@ -102,7 +107,11 @@ fn parse_arg<T: Clone + for<'a> FromPyObject<'a>>(py: Python<'_>, obj: Option<Py
     }
 }
 
-fn parse_num_airports(py: Python<'_>, obj: Option<PyObject>, n: usize) -> PyResult<Vec<Option<usize>>> {
+fn parse_num_airports(
+    py: Python<'_>,
+    obj: Option<PyObject>,
+    n: usize,
+) -> PyResult<Vec<Option<usize>>> {
     match obj {
         Some(o) => {
             let any = o.as_ref();
@@ -125,7 +134,12 @@ fn parse_num_airports(py: Python<'_>, obj: Option<PyObject>, n: usize) -> PyResu
 #[pymethods]
 impl VectorGameEnv {
     #[new]
-    fn new(n_envs: usize, seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) -> Self {
+    fn new(
+        n_envs: usize,
+        seed: Option<u64>,
+        num_airports: Option<usize>,
+        cash: Option<f32>,
+    ) -> Self {
         let base_seed = seed.unwrap_or(0);
         let mut envs = Vec::with_capacity(n_envs);
         let mut seeds = Vec::with_capacity(n_envs);
@@ -210,7 +224,13 @@ impl VectorGameEnv {
         }
     }
 
-    fn step_masked(&mut self, py: Python, hours: u64, mask: Vec<bool>, parallel: Option<bool>) -> PyResult<()> {
+    fn step_masked(
+        &mut self,
+        py: Python,
+        hours: u64,
+        mask: Vec<bool>,
+        parallel: Option<bool>,
+    ) -> PyResult<()> {
         if mask.len() != self.envs.len() {
             return Err(PyValueError::new_err("mask length mismatch"));
         }
@@ -315,4 +335,3 @@ fn rusty_runways_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<VectorGameEnv>()?;
     Ok(())
 }
-
