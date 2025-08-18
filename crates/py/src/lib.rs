@@ -4,15 +4,15 @@ use rayon::prelude::*;
 use rusty_runways_core::Game;
 
 #[pyclass]
-pub struct PyGame {
+pub struct GameEnv {
     game: Game,
 }
 
 #[pymethods]
-impl PyGame {
+impl GameEnv {
     #[new]
     fn new(seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) -> Self {
-        PyGame {
+        GameEnv {
             game: Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0)),
         }
     }
@@ -76,7 +76,7 @@ impl PyGame {
 }
 
 #[pyclass]
-pub struct PyVectorEnv {
+pub struct VectorGameEnv {
     envs: Vec<Game>,
     seeds: Vec<u64>,
 }
@@ -84,8 +84,8 @@ pub struct PyVectorEnv {
 fn parse_arg<T: Clone + for<'a> FromPyObject<'a>>(py: Python<'_>, obj: Option<PyObject>, n: usize, defaults: Vec<T>) -> PyResult<Vec<T>> {
     match obj {
         Some(o) => {
-            let any = o.as_ref(py);
-            if let Ok(v) = any.extract::<Vec<T>>() {
+            let any = o.as_ref();
+            if let Ok(v) = any.extract::<Vec<T>>(py) {
                 if v.len() == n {
                     Ok(v)
                 } else if v.len() == 1 {
@@ -94,7 +94,7 @@ fn parse_arg<T: Clone + for<'a> FromPyObject<'a>>(py: Python<'_>, obj: Option<Py
                     Err(PyValueError::new_err("length mismatch"))
                 }
             } else {
-                let val = any.extract::<T>()?;
+                let val = any.extract::<T>(py)?;
                 Ok(vec![val; n])
             }
         }
@@ -105,8 +105,8 @@ fn parse_arg<T: Clone + for<'a> FromPyObject<'a>>(py: Python<'_>, obj: Option<Py
 fn parse_num_airports(py: Python<'_>, obj: Option<PyObject>, n: usize) -> PyResult<Vec<Option<usize>>> {
     match obj {
         Some(o) => {
-            let any = o.as_ref(py);
-            if let Ok(v) = any.extract::<Vec<usize>>() {
+            let any = o.as_ref();
+            if let Ok(v) = any.extract::<Vec<usize>>(py) {
                 if v.len() == n {
                     Ok(v.into_iter().map(Some).collect())
                 } else if v.len() == 1 {
@@ -115,7 +115,7 @@ fn parse_num_airports(py: Python<'_>, obj: Option<PyObject>, n: usize) -> PyResu
                     Err(PyValueError::new_err("length mismatch"))
                 }
             } else {
-                Ok(vec![Some(any.extract::<usize>()?); n])
+                Ok(vec![Some(any.extract::<usize>(py)?); n])
             }
         }
         None => Ok(vec![None; n]),
@@ -123,7 +123,7 @@ fn parse_num_airports(py: Python<'_>, obj: Option<PyObject>, n: usize) -> PyResu
 }
 
 #[pymethods]
-impl PyVectorEnv {
+impl VectorGameEnv {
     #[new]
     fn new(n_envs: usize, seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) -> Self {
         let base_seed = seed.unwrap_or(0);
@@ -134,7 +134,7 @@ impl PyVectorEnv {
             envs.push(Game::new(s, num_airports, cash.unwrap_or(1_000_000.0)));
             seeds.push(s);
         }
-        PyVectorEnv { envs, seeds }
+        VectorGameEnv { envs, seeds }
     }
 
     fn env_count(&self) -> usize {
@@ -310,9 +310,9 @@ impl PyVectorEnv {
 }
 
 #[pymodule]
-fn rusty_runways_py(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyGame>()?;
-    m.add_class::<PyVectorEnv>()?;
+fn rusty_runways_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<GameEnv>()?;
+    m.add_class::<VectorGameEnv>()?;
     Ok(())
 }
 
