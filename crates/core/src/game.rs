@@ -19,6 +19,10 @@ const RESTOCK_CYCLE: u64 = MAX_DEADLINE * 24;
 const REPORT_INTERVAL: u64 = 24;
 const FUEL_INTERVAL: u64 = 6;
 
+fn default_rng() -> StdRng {
+    StdRng::seed_from_u64(0)
+}
+
 /// Holds all mutable world state and drives the simulation via scheduled events.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Game {
@@ -40,6 +44,14 @@ pub struct Game {
     pub daily_expenses: f32,
     /// History of all stats
     pub stats: Vec<DailyStats>,
+    /// Seed used to create the RNG for deterministic behaviour
+    pub seed: u64,
+    /// Game-local random number generator to avoid global RNG usage
+    #[serde(skip, default = "default_rng")]
+    rng: StdRng,
+    /// Log of messages generated during play
+    #[serde(skip, default)]
+    log: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -106,6 +118,9 @@ impl Game {
             daily_income: 0.0,
             daily_expenses: 0.0,
             stats: Vec::new(),
+            seed,
+            rng: StdRng::seed_from_u64(seed),
+            log: Vec::new(),
         };
 
         game.schedule(RESTOCK_CYCLE, Event::Restock);
@@ -115,6 +130,22 @@ impl Game {
         game.schedule(1, Event::MaintenanceCheck);
 
         game
+    }
+
+    /// Return the seed used to initialize this game
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
+
+    /// Drain the internal log, returning all messages collected so far
+    pub fn drain_log(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.log)
+    }
+
+    /// Reinitialize runtime-only fields after deserializing
+    pub fn reset_runtime(&mut self) {
+        self.rng = StdRng::seed_from_u64(self.seed);
+        self.log.clear();
     }
 
     fn days_and_hours(&self, total_hours: GameTime) -> String {
@@ -129,27 +160,26 @@ impl Game {
     }
 
     fn schedule_world_event(&mut self) {
-        let mut rng = StdRng::seed_from_u64(self.map.seed);
         // event every 4 to 5 days
-        let next_start = self.time + rng.gen_range(96..=120);
+        let next_start = self.time + self.rng.gen_range(96..=120);
 
         // 1/8 chance it is global
-        let is_global = rng.gen_bool(0.125);
+        let is_global = self.rng.gen_bool(0.125);
         let airport = if is_global {
             None
         } else {
-            Some(rng.gen_range(0..self.map.num_airports))
+            Some(self.rng.gen_range(0..self.map.num_airports))
         };
 
         // price can spike or crash
-        let factor = if rng.gen_bool(0.5) {
-            rng.gen_range(1.2..=1.5)
+        let factor = if self.rng.gen_bool(0.5) {
+            self.rng.gen_range(1.2..=1.5)
         } else {
-            rng.gen_range(0.5..=0.8)
+            self.rng.gen_range(0.5..=0.8)
         };
 
         // lasts 12 - 72 hours
-        let duration = rng.gen_range(24..72);
+        let duration = self.rng.gen_range(24..72);
         self.schedule(
             self.time + next_start,
             Event::WorldEvent {
@@ -427,7 +457,7 @@ impl Game {
                         if airplane.status != AirplaneStatus::Maintenance {
                             airplane.add_hours_since_maintenance();
                             let p_fail = airplane.risk_of_failure();
-                            if rand::thread_rng().gen_bool(p_fail as f64) {
+                            if self.rng.gen_bool(p_fail as f64) {
                                 airplane.needs_maintenance = true;
                                 if matches!(
                                     airplane.status,
