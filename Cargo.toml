@@ -3,6 +3,7 @@ members = [
     "crates/core",
     "crates/cli",
     "crates/gui",
-    "crates/py"
+    "crates/commands",
+    "crates/py",
 ]
-resolver = "3"
+resolver = "2"

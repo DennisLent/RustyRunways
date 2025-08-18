@@ -55,6 +55,9 @@ pub enum GameError {
     },
     NoCargo,
     SameAirport,
+    InvalidCommand {
+        msg: String,
+    },
 }
 
 impl GameError {
@@ -157,6 +160,9 @@ impl fmt::Display for GameError {
             }
             GameError::SameAirport => {
                 write!(f, "Cannot fly to the airport the plane is currently at")
+            }
+            GameError::InvalidCommand { msg } => {
+                write!(f, "{}", msg)
             }
         }
     }
