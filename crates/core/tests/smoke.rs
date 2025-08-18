@@ -149,7 +149,7 @@ fn delivery_cycle() {
 
     game.advance(1);
     assert_eq!(game.airplanes[0].status, AirplaneStatus::Parked);
-    assert_eq!(game.airplanes[0].manifest.is_empty(), true);
+    assert!(game.airplanes[0].manifest.is_empty());
     assert_eq!(game.airplanes[0].current_payload, 0.0);
     assert_eq!(game.player.cash, before_unload + order_value);
 

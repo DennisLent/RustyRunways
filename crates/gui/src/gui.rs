@@ -258,7 +258,7 @@ impl RustyRunwaysGui {
                 ui.separator();
                 ui.label(format!("${:.0}", self.game.as_ref().unwrap().get_cash()));
                 ui.separator();
-                ui.label(format!("{}", self.game.as_ref().unwrap().get_time()));
+                ui.label(self.game.as_ref().unwrap().get_time().to_string());
                 ui.separator();
                 ui.label(format!(
                     "{} planes",

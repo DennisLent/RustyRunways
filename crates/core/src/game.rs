@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::statistics::DailyStats;
@@ -127,7 +126,7 @@ impl Game {
         let file = fs::File::create(&path)?;
         let writer = io::BufWriter::new(file);
         serde_json::to_writer_pretty(writer, self)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            .map_err(io::Error::other)
     }
 
     /// Load a game from JSON
@@ -145,7 +144,7 @@ impl Game {
         let file = fs::File::open(&path)?;
         let reader = io::BufReader::new(file);
         let game: Game =
-            serde_json::from_reader(reader).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            serde_json::from_reader(reader).map_err(io::Error::other)?;
         Ok(game)
     }
 
@@ -953,7 +952,7 @@ impl Game {
                 total_hours: _
             }
         ) {
-            return Err(GameError::PlaneNotAtAirport { plane_id: plane_id });
+            return Err(GameError::PlaneNotAtAirport { plane_id });
         }
 
         airplane.maintenance();

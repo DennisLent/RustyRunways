@@ -16,6 +16,6 @@ jobs:
           toolchain: stable
           override: true
       - name: Clippy
-        run: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
       - name: Test
         run: cargo test --all --verbose
