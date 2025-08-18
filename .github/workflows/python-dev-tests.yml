@@ -18,6 +18,6 @@ jobs:
         run: |
           python -m venv .venv
           source .venv/bin/activate
-          pip install maturin pytest
-          maturin develop -m crates/py/pyproject.toml
+          pip install -U pip maturin pytest
+          maturin develop -m crates/py/Cargo.toml
           pytest crates/py/tests
