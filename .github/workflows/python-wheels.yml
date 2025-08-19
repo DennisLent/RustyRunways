@@ -8,19 +8,23 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-13, windows-latest]
+
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+
       - name: Build wheels with maturin
         uses: messense/maturin-action@v1
         with:
           maturin-version: "v1.9.3"
           command: build
+
           args: >
             --release
-            -m crates/py/pyproject.toml
-            --sdist
-            ${{ runner.os == 'macOS' && '--target universal2-apple-darwin' || '' }}
+            ${{ runner.os == 'Windows' && '-m crates/py/Cargo.toml' || '' }}
+            ${{ runner.os == 'macOS'  && '-m crates/py/Cargo.toml' || '' }}
+            ${{ runner.os == 'Linux'  && '-m crates/py/pyproject.toml --sdist' || '' }}
+            ${{ runner.os == 'macOS'  && '--target universal2-apple-darwin' || '' }}
           manylinux: "manylinux2014"
           sccache: true
 
