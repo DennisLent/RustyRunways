@@ -11,12 +11,16 @@ pub struct GameEnv {
 #[pymethods]
 impl GameEnv {
     #[new]
+    #[pyo3(signature = (seed=None, num_airports=None, cash=None))]
+    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None)")]
     fn new(seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) -> Self {
         GameEnv {
             game: Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0)),
         }
     }
 
+    #[pyo3(signature = (seed=None, num_airports=None, cash=None))]
+    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None)")]
     fn reset(&mut self, seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) {
         self.game = Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0));
     }
@@ -134,6 +138,7 @@ fn parse_num_airports(
 #[pymethods]
 impl VectorGameEnv {
     #[new]
+    #[pyo3(signature = (n_envs, seed=None, num_airports=None, cash=None))]
     fn new(
         n_envs: usize,
         seed: Option<u64>,
@@ -163,6 +168,7 @@ impl VectorGameEnv {
         self.seeds.clone()
     }
 
+    #[pyo3(signature = (seed=None, num_airports=None, cash=None))]
     fn reset_all(
         &mut self,
         py: Python,
@@ -212,6 +218,7 @@ impl VectorGameEnv {
         self.envs[idx] = Game::new(s, num_airports, c);
     }
 
+    #[pyo3(signature = (hours, parallel=None))]
     fn step_all(&mut self, py: Python, hours: u64, parallel: Option<bool>) {
         if parallel.unwrap_or(true) {
             py.allow_threads(|| {
@@ -224,6 +231,7 @@ impl VectorGameEnv {
         }
     }
 
+    #[pyo3(signature = (hours, mask, parallel=None))]
     fn step_masked(
         &mut self,
         py: Python,
@@ -255,6 +263,7 @@ impl VectorGameEnv {
         Ok(())
     }
 
+    #[pyo3(signature = (cmds, parallel=None))]
     fn execute_all(
         &mut self,
         py: Python,
