@@ -15,35 +15,19 @@ jobs:
 
       - name: Run Tarpaulin
         run: |
-          set -euxo pipefail
-          mkdir -p coverage
+          # run all tests, produce XML for Codecov
           cargo tarpaulin \
             --all-features \
             --workspace \
             --timeout 120 \
-            --out Xml \
-            --output-dir coverage
-
-          if [ -f coverage/cobertura.xml ]; then
-            mv coverage/cobertura.xml coverage/coverage.xml
-          elif [ -f coverage/tarpaulin-report.xml ]; then
-            mv coverage/tarpaulin-report.xml coverage/coverage.xml
-          else
-            echo "No coverage XML produced!"
-            echo "Contents of coverage/:"
-            ls -la coverage || true
-            exit 1
-          fi
-
-          echo "Final coverage file:"
-          ls -la coverage/coverage.xml
+            --out Xml
 
       - name: Upload to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/coverage.xml
+          files: ./cobertura.xml
           flags: rust
           fail_ci_if_error: true
           verbose: true
