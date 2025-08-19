@@ -20,7 +20,7 @@ jobs:
             --release
             -m crates/py/pyproject.toml
             --sdist
-            ${{ runner.os == 'macOS' && '-target universal2-apple-darwin' || '' }}
+            ${{ runner.os == 'macOS' && '--target universal2-apple-darwin' || '' }}
           manylinux: "manylinux2014"
           sccache: true
 
