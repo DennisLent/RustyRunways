@@ -934,6 +934,8 @@ mod tests {
         gui.handle_click_item(ClickItem::Airport(2));
         assert_eq!(gui.selected_airport, Some(2));
         assert!(gui.airport_panel);
+        assert!(gui.selected_airplane.is_none());
+        assert!(!gui.plane_panel);
     }
 
     #[test]
@@ -942,6 +944,8 @@ mod tests {
         gui.handle_click_item(ClickItem::Plane(7));
         assert_eq!(gui.selected_airplane, Some(7));
         assert!(gui.plane_panel);
+        assert!(gui.selected_airport.is_none());
+        assert!(!gui.airport_panel);
     }
 
     #[test]
@@ -949,5 +953,13 @@ mod tests {
         let gui = RustyRunwaysGui::default();
         assert!(matches!(gui.screen, Screen::MainMenu));
         assert!(gui.game.is_none());
+    }
+
+    #[test]
+    fn default_inputs_are_seeded() {
+        let gui = RustyRunwaysGui::default();
+        assert_eq!(gui.seed_str, "1");
+        assert_eq!(gui.airports_str, "5");
+        assert_eq!(gui.cash_str, "1000000");
     }
 }
