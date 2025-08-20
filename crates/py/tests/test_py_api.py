@@ -125,3 +125,29 @@ def test_vector_env_reset_at_only_one():
     assert env.times() == [0, 2]
     assert env.seeds() == [5, 2]
 
+
+def test_step_zero_noop():
+    g = GameEnv(seed=1)
+    g.step(0)
+    assert g.time() == 0
+
+
+def test_vector_env_execute_all_parallel():
+    env = VectorGameEnv(2, seed=1)
+    res = env.execute_all(["ADVANCE 1", "ADVANCE 1"], parallel=True)
+    assert res == [(True, None), (True, None)]
+    assert env.times() == [1, 1]
+
+
+def test_vector_env_reset_at_invalid_index():
+    env = VectorGameEnv(2, seed=1)
+    import pytest
+    with pytest.raises(Exception):
+        env.reset_at(5, seed=1)
+
+
+def test_vector_env_step_all_zero():
+    env = VectorGameEnv(3, seed=1)
+    env.step_all(0, parallel=False)
+    assert env.times() == [0, 0, 0]
+

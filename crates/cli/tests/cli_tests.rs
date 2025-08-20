@@ -60,3 +60,15 @@ fn cli_allows_negative_cash() {
     let game = init_game_from_cli(cli).unwrap();
     assert_eq!(game.player.cash, -500.0);
 }
+
+#[test]
+fn cli_rejects_negative_airports() {
+    let res = Cli::try_parse_from(["test", "--seed", "1", "--n", "-5"]);
+    assert!(res.is_err());
+}
+
+#[test]
+fn cli_rejects_non_numeric_cash() {
+    let res = Cli::try_parse_from(["test", "--seed", "1", "--n", "5", "--c", "abc"]);
+    assert!(res.is_err());
+}
