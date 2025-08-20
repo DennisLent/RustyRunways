@@ -113,5 +113,5 @@ fn advance_processes_all_events_at_same_time() {
     });
     game.advance(3);
     assert_eq!(game.time, 3);
-    assert!(game.events.peek().map_or(true, |e| e.time > 3));
+    assert!(game.events.peek().is_none_or(|e| e.time > 3));
 }
