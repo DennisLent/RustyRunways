@@ -1,0 +1,8 @@
+[test_config]
+manifest-path = "./Cargo.toml"
+exclude = ["rusty_runways_py"]
+exclude-files = [
+    "crates/gui/**",
+    "crates/py/**",
+    "crates/cli/src/main.rs"
+]

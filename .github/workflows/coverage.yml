@@ -17,9 +17,9 @@ jobs:
         run: |
           # run all tests, produce XML for Codecov
           cargo tarpaulin \
+            --config tarpaulin.toml \
             --all-features \
             --workspace \
-            --exclude rusty_runways_py \
             --timeout 120 \
             --out Xml \
             --output-dir coverage
