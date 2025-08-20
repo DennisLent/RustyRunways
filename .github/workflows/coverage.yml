@@ -1,10 +1,6 @@
 name: Coverage
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+on: pull_request
 
 jobs:
   coverage:
@@ -23,15 +19,18 @@ jobs:
           cargo tarpaulin \
             --all-features \
             --workspace \
+            --exclude rusty_runways_py \
             --timeout 120 \
-            --out Xml
+            --out Xml \
+            --output-dir coverage
+          ls -lah coverage
 
       - name: Upload to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./cobertura.xml
+          files: coverage/cobertura.xml
           flags: rust
           fail_ci_if_error: true
           verbose: true

@@ -4,6 +4,15 @@ use rusty_runways_cli::cli::{Cli, init_game_from_cli};
 #[test]
 fn cli_requires_seed_and_n() {
     let cli = Cli::try_parse_from(["test", "--seed", "1"]).unwrap();
+    assert_eq!(
+        init_game_from_cli(cli).unwrap_err(),
+        "Both --seed and --n must be specified"
+    );
+}
+
+#[test]
+fn cli_requires_n_and_seed() {
+    let cli = Cli::try_parse_from(["test", "--n", "5"]).unwrap();
     assert!(init_game_from_cli(cli).is_err());
 }
 
@@ -31,4 +40,35 @@ fn cli_random_when_no_args() {
     let game = init_game_from_cli(cli).unwrap();
     assert!(game.map.num_airports >= 4 && game.map.num_airports <= 10);
     assert_eq!(game.player.cash, 1_000_000.0);
+}
+
+#[test]
+fn cli_rejects_non_numeric_seed() {
+    let res = Cli::try_parse_from(["test", "--seed", "abc", "--n", "5"]);
+    assert!(res.is_err());
+}
+
+#[test]
+fn cli_rejects_non_numeric_n() {
+    let res = Cli::try_parse_from(["test", "--seed", "1", "--n", "foo"]);
+    assert!(res.is_err());
+}
+
+#[test]
+fn cli_allows_negative_cash() {
+    let cli = Cli::try_parse_from(["test", "--seed", "1", "--n", "5", "--c=-500"]).unwrap();
+    let game = init_game_from_cli(cli).unwrap();
+    assert_eq!(game.player.cash, -500.0);
+}
+
+#[test]
+fn cli_rejects_negative_airports() {
+    let res = Cli::try_parse_from(["test", "--seed", "1", "--n", "-5"]);
+    assert!(res.is_err());
+}
+
+#[test]
+fn cli_rejects_non_numeric_cash() {
+    let res = Cli::try_parse_from(["test", "--seed", "1", "--n", "5", "--c", "abc"]);
+    assert!(res.is_err());
 }

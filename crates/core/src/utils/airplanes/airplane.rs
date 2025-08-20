@@ -172,7 +172,7 @@ impl Airplane {
     // Check the risk of failure based on the amount of hours since last maintenance
     pub fn risk_of_failure(&self) -> f32 {
         let lambda: f32 = LAMBDA0 * (K * self.hours_since_maintenance as f32).exp();
-        let p_fail = 1.0 - (-lambda).exp();
-        p_fail
+
+        1.0 - (-lambda).exp()
     }
 }

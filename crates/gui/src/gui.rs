@@ -258,7 +258,7 @@ impl RustyRunwaysGui {
                 ui.separator();
                 ui.label(format!("${:.0}", self.game.as_ref().unwrap().get_cash()));
                 ui.separator();
-                ui.label(format!("{}", self.game.as_ref().unwrap().get_time()));
+                ui.label(self.game.as_ref().unwrap().get_time().to_string());
                 ui.separator();
                 ui.label(format!(
                     "{} planes",
@@ -490,7 +490,6 @@ impl RustyRunwaysGui {
                 ui.vertical(|ui| {
                     ui.set_width(total_width - left_w);
                     ui.group(|ui| {
-                        
                         // STATS
                         ui.heading("Game Stats");
                         ui.label(format!(
@@ -500,7 +499,7 @@ impl RustyRunwaysGui {
                             self.game.as_ref().unwrap().player.orders_delivered
                         ));
                         ui.separator();
-                        
+
                         // Fleet overview
                         ui.heading("Fleet Overview");
                         ScrollArea::vertical()
@@ -535,7 +534,7 @@ impl RustyRunwaysGui {
                                 }
                             });
                         ui.separator();
-                        
+
                         // Airport overview
                         ui.heading("Airports");
                         ScrollArea::vertical()
@@ -935,6 +934,8 @@ mod tests {
         gui.handle_click_item(ClickItem::Airport(2));
         assert_eq!(gui.selected_airport, Some(2));
         assert!(gui.airport_panel);
+        assert!(gui.selected_airplane.is_none());
+        assert!(!gui.plane_panel);
     }
 
     #[test]
@@ -943,6 +944,8 @@ mod tests {
         gui.handle_click_item(ClickItem::Plane(7));
         assert_eq!(gui.selected_airplane, Some(7));
         assert!(gui.plane_panel);
+        assert!(gui.selected_airport.is_none());
+        assert!(!gui.airport_panel);
     }
 
     #[test]
@@ -950,5 +953,13 @@ mod tests {
         let gui = RustyRunwaysGui::default();
         assert!(matches!(gui.screen, Screen::MainMenu));
         assert!(gui.game.is_none());
+    }
+
+    #[test]
+    fn default_inputs_are_seeded() {
+        let gui = RustyRunwaysGui::default();
+        assert_eq!(gui.seed_str, "1");
+        assert_eq!(gui.airports_str, "5");
+        assert_eq!(gui.cash_str, "1000000");
     }
 }

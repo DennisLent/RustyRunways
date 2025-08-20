@@ -67,6 +67,12 @@ impl LineReaderHelper {
     }
 }
 
+impl Default for LineReaderHelper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Helper for LineReaderHelper {}
 
 impl Completer for LineReaderHelper {

@@ -1,0 +1,47 @@
+name: Python Wheels
+
+on: pull_request
+
+jobs:
+  build-wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            args: >
+              --release
+              -m crates/py/Cargo.toml
+              --sdist
+            manylinux: manylinux2014
+          - os: macos-13
+            args: >
+              --release
+              -m crates/py/Cargo.toml
+              --sdist
+            target: universal2-apple-darwin
+          - os: windows-latest
+            args: >
+              --release
+              -m crates/py/Cargo.toml
+              --sdist
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build wheels with maturin
+        uses: messense/maturin-action@v1
+        with:
+          maturin-version: "v1.9.3"
+          command: build
+          args: ${{ matrix.args }}
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          sccache: true
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ runner.os }}
+          path: target/wheels/*

@@ -1,0 +1,30 @@
+name: Rust CI
+
+on: pull_request
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@1.87.0
+        with:
+          components: clippy, rustfmt
+
+      - name: Toolchain info
+        run: |
+          rustc -Vv
+          cargo -V
+          rustup show active-toolchain
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace

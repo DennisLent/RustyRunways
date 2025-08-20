@@ -18,10 +18,12 @@ RustyRunways is a small logistics simulation game written in Rust. You manage an
 
 ## Project Structure
 
-The repository is organised as a Cargo workspace with two main crates:
+The repository is organised as a Cargo workspace with multiple crates:
 
 * **`rusty_runways_core`** – a library crate that implements the game engine. It contains all simulation logic and can be used without any I/O.
-* **`rusty_runways_cli`** – a binary crate that provides the command‑line interface. It depends on the core crate and offers the interactive gameplay loop.
+* **`rusty_runways_cli`** – a binary crate that provides the command‑line interface.
+* **`rusty_runways_gui`** – a graphical interface built on top of the core crate.
+* **`rusty_runways_py`** – Python bindings exposing the game for scripting or machine learning. Both single (`GameEnv`) and vectorised (`VectorGameEnv`) environments are available.
 
 Building or testing from the workspace root acts on both crates. Individual crates can also be built or tested separately using the `-p` flag.
 
@@ -91,6 +93,31 @@ Building or testing from the workspace root acts on both crates. Individual crat
    This will launch you into the main menu and allow you to create a game or initialize a random game.
 
    Please mind that the GUI is still in progress...
+
+6. **Run the Python API**
+
+   The project also exposes Python bindings that mirror the Rust game engine and support both single and vectorised environments. To install the module locally and try it out:
+
+   ```bash
+   cd crates/py
+   maturin develop --release
+   ```
+
+   Example usage from Python:
+
+   ```python
+   from rusty_runways_py import GameEnv, VectorGameEnv
+
+   g = GameEnv(seed=1)
+   g.step(1)
+   print(g.time(), g.cash())
+
+   env = VectorGameEnv(4, seed=1)
+   env.step_all(1, parallel=True)
+   print(env.times())
+   ```
+
+   Deterministic behaviour is controlled by seeds. `VectorGameEnv` can step environments in parallel using Rayon under the hood.
 
 ---
 

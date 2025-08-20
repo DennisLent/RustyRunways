@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 rusty_runways_core = { path = "../core" }
+rusty_runways_commands = { path = "../commands" }
 rustyline = "16.0.0"
 clap = { version = "4.5", features = ["derive"] }
 rand = { version = "0.8", features = ["std_rng"] }
