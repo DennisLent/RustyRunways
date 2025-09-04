@@ -20,6 +20,7 @@ pub enum Command {
     ShowCash,
     ShowTime,
     ShowStats,
+    ShowModels,
     Exit,
     SaveGame { name: String },
     LoadGame { name: String },
@@ -121,6 +122,7 @@ pub fn parse_command(line: &str) -> Result<Command> {
         ["SHOW", "CASH"] => Ok(Command::ShowCash),
         ["SHOW", "TIME"] => Ok(Command::ShowTime),
         ["SHOW", "STATS"] => Ok(Command::ShowStats),
+        ["SHOW", "MODELS"] => Ok(Command::ShowModels),
         ["ADVANCE", n] => Ok(Command::Advance {
             hours: n
                 .parse()

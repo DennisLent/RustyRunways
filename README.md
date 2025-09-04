@@ -1,8 +1,11 @@
 # RustyRunways
 
 [![codecov](https://codecov.io/github/DennisLent/RustyRunways/graph/badge.svg?token=NVMX1JW002)](https://codecov.io/github/DennisLent/RustyRunways)
+[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://dennislent.github.io/RustyRunways)
 
-RustyRunways is a small logistics simulation game written in Rust. You manage an airline company, buying and operating airplanes to transport cargo orders between randomly generated airports. The simulation is driven by an event-based system, allowing flights and deadlines to occur at precise times.
+RustyRunways is a logistics and airline‑ops simulation written in Rust. Manage a cargo airline: buy planes, load and deliver orders, refuel, pay fees, and meet deadlines. The engine is deterministic and event‑driven, with a CLI, an `egui` GUI, and Python bindings designed for AI/ML/RL research and training.
+
+Keywords: reinforcement learning environment, AI/ML simulation, vectorized environments, parallel stepping, deterministic seeding, Rust game engine, Python bindings, gym‑style loop.
 
 ---
 
@@ -13,6 +16,8 @@ RustyRunways is a small logistics simulation game written in Rust. You manage an
 * **Multiple airplane models**: From small props to super‑heavy freighters, each with realistic specs and purchase prices.
 * **Event-driven simulation**: Schedule and process flight arrivals and order deadlines efficiently.
 * **Player management**: Track cash, fleet, and delivered orders; buy new airplanes.
+* **Python environments**: Single and vectorized envs with optional parallel stepping (Rayon), ideal for RL pipelines.
+* **Deterministic + scalable**: Control seeds for reproducibility; vectorize to scale data collection.
 
 ---
 
@@ -119,6 +124,31 @@ Building or testing from the workspace root acts on both crates. Individual crat
 
    Deterministic behaviour is controlled by seeds. `VectorGameEnv` can step environments in parallel using Rayon under the hood.
 
+   Gymnasium‑style loop (sketch):
+
+   ```python
+   from rusty_runways_py import GameEnv
+
+   env = GameEnv(seed=42, num_airports=6)
+   for t in range(100):
+       # choose an action via CLI DSL or high‑level policy
+       env.execute("ADVANCE 1")
+       obs = env.state_json()      # or full_state_json()
+       logs = env.drain_log()
+       # compute reward from obs/logs (custom to your task)
+   ```
+
+---
+
+## Why RustyRunways for RL/AI
+
+- Deterministic + seedable: reproduce scenarios for stable evaluation and ablations.
+- Vectorized environments: `VectorGameEnv` batches N worlds; toggle parallel stepping to scale experience.
+- Simple action surface: use a compact CLI‑style DSL (load/unload/refuel/depart/advance/maintenance) or build higher‑level policies.
+- Rich observations: query JSON snapshots (`state_json`, `full_state_json`) for state features and logging.
+- Operational constraints: range, runway length, payload, fuel prices, deadlines—great for decision‑making under constraints.
+- Multi‑frontend: CLI for scripting, GUI for inspection and control, Python for training.
+
 ---
 
 ## Commands
@@ -187,20 +217,29 @@ The game can also be manually progressed by 1 hour by pressing the Enter / Retur
 
 `EXIT`: As the name suggests
 
+## Documentation
+
+Full documentation (Core mechanics, CLI, GUI, Python) is hosted on GitHub Pages:
+
+- Docs: https://dennislent.github.io/RustyRunways
+
+Includes exact airplane spec tables, event/economy/error references, and end‑to‑end examples.
+
+---
 `SAVE <game_name>`: Saves the game under that name (please be careful this will override any save with the same name)
 
 `LOAD <game_name>`: Loads the game under that name
 
 ## Next Steps
 
-- [ ] Add scheduled maintenance and breakdown events.
+- [x] Add scheduled maintenance and breakdown events.
 - [x] Ensure charging of aircrafts and cargo works.
 - [ ] Dispatch & reroute flights.
 - [x] Expand automated testing.
 - [x] Hook up a simple GUI (Tauri or egui).
 - [x] Track operating costs.
 - [x] dynamic fuel prices.
-- [ ] Python bindings for ML.
+- [x] Python bindings for ML.
    - [x] extract cli version
    - [x] extract gui version
    - [ ] extract python version
