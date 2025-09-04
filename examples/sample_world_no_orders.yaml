@@ -1,0 +1,19 @@
+version: 1
+seed: 7
+starting_cash: 1500000.0
+generate_orders: false
+airports:
+  - id: 0
+    name: AAA
+    location: { x: 500.0, y: 2500.0 }
+    runway_length_m: 3000.0
+    fuel_price_per_l: 1.0
+    landing_fee_per_ton: 4.0
+    parking_fee_per_hour: 18.0
+  - id: 1
+    name: AAB
+    location: { x: 4500.0, y: 1500.0 }
+    runway_length_m: 2400.0
+    fuel_price_per_l: 1.9
+    landing_fee_per_ton: 6.0
+    parking_fee_per_hour: 25.0

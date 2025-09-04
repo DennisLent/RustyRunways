@@ -1,0 +1,19 @@
+version: 1
+seed: 42
+starting_cash: 1000000.0
+generate_orders: true
+airports:
+  - id: 0
+    name: HUB
+    location: { x: 1000.0, y: 1000.0 }
+    runway_length_m: 3500.0
+    fuel_price_per_l: 1.2
+    landing_fee_per_ton: 5.0
+    parking_fee_per_hour: 20.0
+  - id: 1
+    name: AAB
+    location: { x: 3000.0, y: 2000.0 }
+    runway_length_m: 2800.0
+    fuel_price_per_l: 1.7
+    landing_fee_per_ton: 4.5
+    parking_fee_per_hour: 15.0

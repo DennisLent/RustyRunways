@@ -13,6 +13,13 @@ The GUI (`rusty_runways_gui`) is built with `eframe/egui` and uses the Core engi
 - Center: world map with airports and planes; hover for details, click to select, overlapping targets show a context popup.
 - Bottom panel: full‑width game log with sticky scrolling.
 
+## Start From Config
+
+- Main menu includes a “Start From Config” section with:
+  - Path input and a Browse file picker (YAML/YML) via native dialog.
+  - Preview window listing all parsed airports and fees.
+  - Start launches a new game using the YAML config.
+
 ## Panels & Windows
 
 - Airport window
@@ -43,4 +50,3 @@ The GUI (`rusty_runways_gui`) is built with `eframe/egui` and uses the Core engi
 - Resizable panels and windows; stable sizes for Save/Load and info windows.
 - Multi‑order selection and filters improve throughput when dispatching multiple orders.
 - Log panel spans full width and sticks to the latest message.
-

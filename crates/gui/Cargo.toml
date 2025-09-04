@@ -7,3 +7,5 @@ edition = "2024"
 rusty_runways_core = { path = "../core" }
 eframe = "0.32.0"
 rand = { version = "0.8", features = ["std_rng"] }
+serde_yaml = "0.9"
+rfd = "0.14"

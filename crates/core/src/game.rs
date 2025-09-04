@@ -1,3 +1,4 @@
+use crate::config::WorldConfig;
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::statistics::DailyStats;
@@ -130,6 +131,106 @@ impl Game {
         game.schedule(1, Event::MaintenanceCheck);
 
         game
+    }
+
+    /// Initialize a game from a configuration (airports explicitly provided).
+    pub fn from_config(cfg: WorldConfig) -> Result<Self, GameError> {
+        if cfg.airports.is_empty() {
+            return Err(GameError::InvalidConfig {
+                msg: "no airports provided".into(),
+            });
+        }
+
+        // validate unique ids and duplicate names
+        {
+            use std::collections::HashSet;
+            let mut ids = HashSet::new();
+            let mut names = HashSet::new();
+            for a in &cfg.airports {
+                if !ids.insert(a.id) {
+                    return Err(GameError::InvalidConfig {
+                        msg: format!("duplicate airport id {}", a.id),
+                    });
+                }
+                let lower = a.name.to_lowercase();
+                if !names.insert(lower) {
+                    return Err(GameError::InvalidConfig {
+                        msg: format!("duplicate airport name '{}'", a.name),
+                    });
+                }
+            }
+        }
+
+        let mut airports_vec = Vec::with_capacity(cfg.airports.len());
+        for a in &cfg.airports {
+            if a.runway_length_m <= 0.0 {
+                return Err(GameError::InvalidConfig {
+                    msg: format!("airport {} runway_length must be > 0", a.id),
+                });
+            }
+            if a.fuel_price_per_l <= 0.0 {
+                return Err(GameError::InvalidConfig {
+                    msg: format!("airport {} fuel_price_per_l must be > 0", a.id),
+                });
+            }
+            if !(0.0..=10000.0).contains(&a.location.x) || !(0.0..=10000.0).contains(&a.location.y)
+            {
+                return Err(GameError::InvalidConfig {
+                    msg: format!(
+                        "airport {} location ({:.2},{:.2}) out of bounds [0,10000]",
+                        a.id, a.location.x, a.location.y
+                    ),
+                });
+            }
+            let ap = Airport {
+                id: a.id,
+                name: a.name.clone(),
+                runway_length: a.runway_length_m,
+                fuel_price: a.fuel_price_per_l,
+                landing_fee: a.landing_fee_per_ton,
+                parking_fee: a.parking_fee_per_hour,
+                orders: Vec::new(),
+                fuel_sold: 0.0,
+            };
+            let coord = Coordinate::new(a.location.x, a.location.y);
+            airports_vec.push((ap, coord));
+        }
+
+        let seed = cfg.seed.unwrap_or(0);
+        let mut map = Map::from_airports(seed, airports_vec);
+        if cfg.generate_orders {
+            map.restock_airports();
+        }
+
+        let player = Player::new(cfg.starting_cash, &map);
+        let airplanes = player.fleet.clone();
+        let arrival_times = vec![0; airplanes.len()];
+        let events = BinaryHeap::new();
+
+        let mut game = Game {
+            time: 0,
+            map,
+            airplanes,
+            player,
+            events,
+            arrival_times,
+            daily_income: 0.0,
+            daily_expenses: 0.0,
+            stats: Vec::new(),
+            seed,
+            rng: StdRng::seed_from_u64(seed),
+            log: Vec::new(),
+        };
+
+        game.schedule(RESTOCK_CYCLE, Event::Restock);
+        game.schedule(REPORT_INTERVAL, Event::DailyStats);
+        game.schedule(FUEL_INTERVAL, Event::DynamicPricing);
+        game.schedule_world_event();
+        game.schedule(1, Event::MaintenanceCheck);
+
+        // (no duplicate-name warnings; duplicate names are treated as errors in validation)
+
+        Ok(game)
     }
 
     /// Return the seed used to initialize this game
@@ -1051,6 +1152,7 @@ impl Game {
             | ShowTime
             | ShowStats
             | ShowModels
+            | LoadConfig { .. }
             | Exit => Ok(()),
             BuyPlane { model, airport } => self.buy_plane(&model, airport),
             LoadOrder { order, plane } => self.load_order(order, plane),

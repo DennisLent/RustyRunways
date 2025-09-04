@@ -21,6 +21,7 @@ pub enum Command {
     ShowTime,
     ShowStats,
     ShowModels,
+    LoadConfig { path: String },
     Exit,
     SaveGame { name: String },
     LoadGame { name: String },
@@ -127,6 +128,9 @@ pub fn parse_command(line: &str) -> Result<Command> {
             hours: n
                 .parse()
                 .map_err(|_| CommandError::Syntax("bad time n".into()))?,
+        }),
+        ["LOAD", "CONFIG", path] => Ok(Command::LoadConfig {
+            path: path.to_string(),
         }),
         [] => Ok(Command::Advance { hours: 1 }),
         ["DEPART", "PLANE", plane_id, destination_airport_id] => Ok(Command::DepartPlane {

@@ -27,7 +27,7 @@ Two classes are exported:
 Constructor signature:
 
 ```python
-GameEnv(seed: int | None = None, num_airports: int | None = None, cash: float | None = None)
+GameEnv(seed: int | None = None, num_airports: int | None = None, cash: float | None = None, config_path: str | None = None)
 ```
 
 Example:
@@ -58,6 +58,7 @@ VectorGameEnv(
     seed: int | None = None,
     num_airports: int | None = None,
     cash: float | None = None,
+    config_path: str | None = None,
 )
 ```
 
@@ -79,6 +80,12 @@ env = VectorGameEnv(4, seed=1)
 env.step_all(1, parallel=True)
 print(env.times())
 print(env.cashes())
+
+"""
+# start from a custom world (broadcast to all envs)
+env2 = VectorGameEnv(4, config_path="examples/sample_world.yaml")
+print(env2.times())
+"""
 ```
 
 Example (serial stepping for determinism checks):
@@ -90,6 +97,11 @@ parallel.step_all(3, parallel=True)
 serial.step_all(3, parallel=False)
 assert parallel.times() == serial.times() == [3, 3]
 assert parallel.cashes() == serial.cashes()
+"""
+# load from custom world
+g2 = GameEnv(config_path="examples/sample_world.yaml")
+print(g2.time(), g2.cash())
+"""
 ```
 
 ## Notes
@@ -97,4 +109,3 @@ assert parallel.cashes() == serial.cashes()
 - All rules and constraints match the Rust Core engine.
 - Seeds control determinism. Vector environments default to `base_seed + index` if a single seed is provided.
 - Parallel operations release the GIL and use Rayon internally.
-

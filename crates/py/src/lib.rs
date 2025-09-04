@@ -2,6 +2,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use rusty_runways_core::Game;
+use rusty_runways_core::config::WorldConfig;
 
 #[pyclass]
 pub struct GameEnv {
@@ -11,18 +12,46 @@ pub struct GameEnv {
 #[pymethods]
 impl GameEnv {
     #[new]
-    #[pyo3(signature = (seed=None, num_airports=None, cash=None))]
-    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None)")]
-    fn new(seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) -> Self {
-        GameEnv {
-            game: Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0)),
+    #[pyo3(signature = (seed=None, num_airports=None, cash=None, config_path=None))]
+    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None, config_path=None)")]
+    fn new(
+        seed: Option<u64>,
+        num_airports: Option<usize>,
+        cash: Option<f32>,
+        config_path: Option<String>,
+    ) -> PyResult<Self> {
+        if let Some(path) = config_path {
+            let text = std::fs::read_to_string(&path)
+                .map_err(|e| PyValueError::new_err(format!("read {}: {}", path, e)))?;
+            let cfg: WorldConfig = serde_yaml::from_str(&text)
+                .map_err(|e| PyValueError::new_err(format!("yaml: {}", e)))?;
+            let game = Game::from_config(cfg).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            return Ok(GameEnv { game });
         }
+        Ok(GameEnv {
+            game: Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0)),
+        })
     }
 
-    #[pyo3(signature = (seed=None, num_airports=None, cash=None))]
-    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None)")]
-    fn reset(&mut self, seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) {
+    #[pyo3(signature = (seed=None, num_airports=None, cash=None, config_path=None))]
+    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None, config_path=None)")]
+    fn reset(
+        &mut self,
+        seed: Option<u64>,
+        num_airports: Option<usize>,
+        cash: Option<f32>,
+        config_path: Option<String>,
+    ) -> PyResult<()> {
+        if let Some(path) = config_path {
+            let text = std::fs::read_to_string(&path)
+                .map_err(|e| PyValueError::new_err(format!("read {}: {}", path, e)))?;
+            let cfg: WorldConfig = serde_yaml::from_str(&text)
+                .map_err(|e| PyValueError::new_err(format!("yaml: {}", e)))?;
+            self.game = Game::from_config(cfg).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            return Ok(());
+        }
         self.game = Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0));
+        Ok(())
     }
 
     fn step(&mut self, hours: u64) {
@@ -138,17 +167,30 @@ fn parse_num_airports(
 #[pymethods]
 impl VectorGameEnv {
     #[new]
-    #[pyo3(signature = (n_envs, seed=None, num_airports=None, cash=None))]
+    #[pyo3(signature = (n_envs, seed=None, num_airports=None, cash=None, config_path=None))]
     fn new(
         n_envs: usize,
         seed: Option<u64>,
         num_airports: Option<usize>,
         cash: Option<f32>,
+        config_path: Option<String>,
     ) -> Self {
         let base_seed = seed.unwrap_or(0);
         let mut envs = Vec::with_capacity(n_envs);
         let mut seeds = Vec::with_capacity(n_envs);
-        for i in 0..n_envs {
+        let paths: Vec<Option<String>> = vec![config_path; n_envs];
+        for (i, p_opt) in paths.iter().enumerate() {
+            if let Some(p) = p_opt {
+                if let Ok(text) = std::fs::read_to_string(p) {
+                    if let Ok(cfg) = serde_yaml::from_str::<WorldConfig>(&text) {
+                        if let Ok(g) = Game::from_config(cfg) {
+                            seeds.push(g.seed());
+                            envs.push(g);
+                            continue;
+                        }
+                    }
+                }
+            }
             let s = base_seed + i as u64;
             envs.push(Game::new(s, num_airports, cash.unwrap_or(1_000_000.0)));
             seeds.push(s);

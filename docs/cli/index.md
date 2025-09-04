@@ -54,10 +54,11 @@ Queries
 - `SHOW CASH`
 - `SHOW TIME`
 - `SHOW STATS`
+- `SHOW MODELS` — list all airplane models with specs table
 
 Game
 
 - `SAVE <game_name>` — save game
 - `LOAD <game_name>` — load game
+- `LOAD CONFIG <path.yaml>` — rebuild game from a custom YAML world
 - `EXIT` — exit the REPL
-
