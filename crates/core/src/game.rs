@@ -10,6 +10,7 @@ use crate::utils::errors::GameError;
 use crate::utils::map::Map;
 use crate::utils::orders::order::MAX_DEADLINE;
 use rand::{Rng, SeedableRng, rngs::StdRng};
+use rusty_runways_commands::Command::*;
 use rusty_runways_commands::{Command, parse_command};
 use serde::{Deserialize, Serialize};
 use std::collections::BinaryHeap;
@@ -1141,7 +1142,6 @@ impl Game {
     }
 
     pub fn execute(&mut self, cmd: Command) -> Result<(), GameError> {
-        use Command::*;
         match cmd {
             ShowAirports { .. }
             | ShowAirport { .. }

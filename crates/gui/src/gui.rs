@@ -146,7 +146,7 @@ impl RustyRunwaysGui {
                 ui.add_space(24.0);
             });
 
-            ui.columns(3, |cols| {
+            ui.columns(2, |cols| {
                 // Left column for new game
                 cols[0].group(|ui| {
                     ui.heading("Start New Game");
@@ -234,56 +234,56 @@ impl RustyRunwaysGui {
                         }
                     }
                 });
+            });
 
-                // right column: start from config
-                cols[2].group(|ui| {
-                    ui.heading("Start From Config");
-                    ui.add_space(12.0);
-                    ui.label("Config path (.yaml)");
-                    ui.horizontal(|ui| {
-                        ui.text_edit_singleline(&mut self.config_path);
-                        if ui.button("Browse").clicked() {
-                            if let Some(path) = rfd::FileDialog::new()
-                                .add_filter("YAML", &["yaml", "yml"])
-                                .pick_file()
-                            {
-                                if let Some(p) = path.to_str() {
-                                    self.config_path = p.to_string();
-                                }
+            ui.add_space(12.0);
+            ui.group(|ui| {
+                ui.heading("Start From Config");
+                ui.add_space(12.0);
+                ui.label("Config path (.yaml)");
+                ui.horizontal(|ui| {
+                    ui.text_edit_singleline(&mut self.config_path);
+                    if ui.button("Browse").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("YAML", &["yaml", "yml"])
+                            .pick_file()
+                        {
+                            if let Some(p) = path.to_str() {
+                                self.config_path = p.to_string();
                             }
-                        }
-                    });
-                    ui.add_space(6.0);
-                    if ui.button("Preview").clicked() {
-                        match std::fs::read_to_string(&self.config_path) {
-                            Ok(text) => match serde_yaml::from_str::<WorldConfig>(&text) {
-                                Ok(cfg) => {
-                                    self.preview_cfg = Some(cfg);
-                                    self.preview_open = true;
-                                    self.error = None;
-                                }
-                                Err(e) => self.error = Some(format!("YAML error: {}", e)),
-                            },
-                            Err(e) => self.error = Some(format!("Read error: {}", e)),
-                        }
-                    }
-                    if ui.button("Start").clicked() {
-                        match std::fs::read_to_string(&self.config_path) {
-                            Ok(text) => match serde_yaml::from_str::<WorldConfig>(&text) {
-                                Ok(cfg) => match Game::from_config(cfg) {
-                                    Ok(g) => {
-                                        self.game = Some(g);
-                                        self.screen = Screen::InGame;
-                                        self.error = None;
-                                    }
-                                    Err(e) => self.error = Some(e.to_string()),
-                                },
-                                Err(e) => self.error = Some(format!("YAML error: {}", e)),
-                            },
-                            Err(e) => self.error = Some(format!("Read error: {}", e)),
                         }
                     }
                 });
+                ui.add_space(6.0);
+                if ui.button("Preview").clicked() {
+                    match std::fs::read_to_string(&self.config_path) {
+                        Ok(text) => match serde_yaml::from_str::<WorldConfig>(&text) {
+                            Ok(cfg) => {
+                                self.preview_cfg = Some(cfg);
+                                self.preview_open = true;
+                                self.error = None;
+                            }
+                            Err(e) => self.error = Some(format!("YAML error: {}", e)),
+                        },
+                        Err(e) => self.error = Some(format!("Read error: {}", e)),
+                    }
+                }
+                if ui.button("Start").clicked() {
+                    match std::fs::read_to_string(&self.config_path) {
+                        Ok(text) => match serde_yaml::from_str::<WorldConfig>(&text) {
+                            Ok(cfg) => match Game::from_config(cfg) {
+                                Ok(g) => {
+                                    self.game = Some(g);
+                                    self.screen = Screen::InGame;
+                                    self.error = None;
+                                }
+                                Err(e) => self.error = Some(e.to_string()),
+                            },
+                            Err(e) => self.error = Some(format!("YAML error: {}", e)),
+                        },
+                        Err(e) => self.error = Some(format!("Read error: {}", e)),
+                    }
+                }
             });
 
             ui.vertical_centered(|ui| {

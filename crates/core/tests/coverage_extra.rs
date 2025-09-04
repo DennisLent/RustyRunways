@@ -11,13 +11,22 @@ fn depart_runway_too_short_errors() {
     // choose plane 0 and a destination different from its current airport id
     let plane_id = 0usize;
     let current_loc = game.airplanes[plane_id].location;
+    // pick a destination within range so runway check is hit before range check
+    let max_range = game.airplanes[plane_id].max_range();
     let dest_id = game
         .map
         .airports
         .iter()
-        .find(|(_, c)| *c != current_loc)
+        .filter(|(_, c)| *c != current_loc)
+        .filter(|(_, c)| {
+            let dx = current_loc.x - c.x;
+            let dy = current_loc.y - c.y;
+            let dist = (dx * dx + dy * dy).sqrt();
+            dist <= max_range
+        })
         .map(|(a, _)| a.id)
-        .unwrap();
+        .next()
+        .expect("expected at least one in-range destination");
 
     // force destination runway too short
     if let Some((ap, _)) = game.map.airports.iter_mut().find(|(a, _)| a.id == dest_id) {
