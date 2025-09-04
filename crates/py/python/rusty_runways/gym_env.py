@@ -495,7 +495,7 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
                 curr_id = self._current_airport_id_for_plane(s, plane)
                 ids = [x for x in ids if x != curr_id]
                 dest = ids[dest_idx % len(ids)] if ids else None
-                cmds[i] = (f"DEPART PLANE {plane} {dest}" if dest is not None else None)
+                cmds[i] = f"DEPART PLANE {plane} {dest}" if dest is not None else None
             elif op == 5:
                 load_requests[i] = (plane, sel)
 
@@ -524,7 +524,7 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
         self._last_states = states
 
         terminated = np.zeros((self.n_envs,), dtype=bool)
-        truncated = (self._elapsed >= self._max_hours)
+        truncated = self._elapsed >= self._max_hours
         infos = [{} for _ in range(self.n_envs)]
         return obs, rewards, terminated, truncated, infos
 
@@ -577,7 +577,9 @@ def make_sb3_envs(
     thunks: List[Callable[[], gym.Env]] = []
     base_seed = 0 if seed is None else int(seed)
     for i in range(n_envs):
+
         def _thunk(i=i):
             return RustyRunwaysGymEnv(seed=base_seed + i, **kwargs)
+
         thunks.append(_thunk)
     return thunks

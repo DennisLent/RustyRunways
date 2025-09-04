@@ -99,6 +99,7 @@ def test_vector_env_parallel_vs_serial():
 def test_vector_env_reset_all_mismatch():
     env = VectorGameEnv(2, seed=1)
     import pytest
+
     with pytest.raises(ValueError):
         env.reset_all(seed=[1, 2, 3])
 
@@ -106,6 +107,7 @@ def test_vector_env_reset_all_mismatch():
 def test_vector_env_step_masked_length_error():
     env = VectorGameEnv(2, seed=1)
     import pytest
+
     with pytest.raises(ValueError):
         env.step_masked(1, [True])
 
@@ -142,6 +144,7 @@ def test_vector_env_execute_all_parallel():
 def test_vector_env_reset_at_invalid_index():
     env = VectorGameEnv(2, seed=1)
     import pytest
+
     with pytest.raises(Exception):
         env.reset_at(5, seed=1)
 
@@ -150,4 +153,3 @@ def test_vector_env_step_all_zero():
     env = VectorGameEnv(3, seed=1)
     env.step_all(0, parallel=False)
     assert env.times() == [0, 0, 0]
-
