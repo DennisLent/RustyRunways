@@ -155,14 +155,24 @@ class RustyRunwaysGymEnv(gym.Env):
         reward_fn: Optional[Callable[[dict, dict], float]] = None,
     ) -> None:
         super().__init__()
-        self._params = dict(seed=seed, num_airports=num_airports, cash=cash, config_path=config_path)
+        self._params = dict(
+            seed=seed,
+            num_airports=num_airports,
+            cash=cash,
+            config_path=config_path,
+        )
         self._env = GameEnv(**self._params)  # type: ignore[arg-type]
         self._elapsed = 0
         self.max_hours = int(max_hours)
         self._reward_fn = reward_fn
 
         obs = self._observe()
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=obs.shape, dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=obs.shape,
+            dtype=np.float32,
+        )
         # Actions encoded as MultiDiscrete([N_OPS, MAX_PLANES, MAX_SELECT, MAX_AIRPORTS])
         # N_OPS:
         #   0 ADVANCE 1h
@@ -175,12 +185,19 @@ class RustyRunwaysGymEnv(gym.Env):
         self.MAX_PLANES = 16
         self.MAX_SELECT = 64
         self.MAX_AIRPORTS = 256
-        self.action_space = spaces.MultiDiscrete([self.N_OPS, self.MAX_PLANES, self.MAX_SELECT, self.MAX_AIRPORTS])
+        self.action_space = spaces.MultiDiscrete(
+            [self.N_OPS, self.MAX_PLANES, self.MAX_SELECT, self.MAX_AIRPORTS]
+        )
 
         self._last_cash = float(self._state_cache.get("cash", 0.0))
 
     # ----------- Gym API -----------
-    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None) -> Tuple[np.ndarray, dict]:
+    def reset(
+        self,
+        *,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None,
+    ) -> Tuple[np.ndarray, dict]:
         """Reset the environment.
 
         Parameters
@@ -203,7 +220,13 @@ class RustyRunwaysGymEnv(gym.Env):
         if seed is not None:
             params["seed"] = seed
         # allow passing overrides via options
-        params.update({k: v for k, v in options.items() if k in ("seed", "num_airports", "cash", "config_path")})
+        params.update(
+            {
+                k: v
+                for k, v in options.items()
+                if k in ("seed", "num_airports", "cash", "config_path")
+            }
+        )
         self._env.reset(**params)  # type: ignore[arg-type]
         self._elapsed = 0
         obs = self._observe()
@@ -400,12 +423,19 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
         max_hours: int = 1000,
     ) -> None:
         self.n_envs = int(n_envs)
-        self._params = dict(seed=seed, num_airports=num_airports, cash=cash, config_path=config_path)
+        self._params = dict(
+            seed=seed,
+            num_airports=num_airports,
+            cash=cash,
+            config_path=config_path,
+        )
         # infer spaces from single env
         tmp = RustyRunwaysGymEnv(**self._params)
         obs_space = tmp.observation_space
         self.MAX_AIRPORTS = 256
-        act_space = spaces.MultiDiscrete([self.N_OPS, self.MAX_PLANES, self.MAX_SELECT, self.MAX_AIRPORTS])
+        act_space = spaces.MultiDiscrete(
+            [self.N_OPS, self.MAX_PLANES, self.MAX_SELECT, self.MAX_AIRPORTS]
+        )
         tmp.close()
         super().__init__(self.n_envs, obs_space, act_space)
 
@@ -444,7 +474,12 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
         cmds: List[Optional[str]] = [None] * self.n_envs
         load_requests: List[Optional[Tuple[int, int]]] = [None] * self.n_envs
         for i in range(self.n_envs):
-            op, plane, sel, dest_idx = int(acts[i, 0]), int(acts[i, 1]), int(acts[i, 2]), int(acts[i, 3])
+            op, plane, sel, dest_idx = (
+                int(acts[i, 0]),
+                int(acts[i, 1]),
+                int(acts[i, 2]),
+                int(acts[i, 3]),
+            )
             if op == 0:
                 cmds[i] = None
             elif op == 1:
@@ -530,7 +565,9 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
         return None
 
 
-def make_sb3_envs(n_envs: int, seed: Optional[int] = None, **kwargs: Any) -> List[Callable[[], gym.Env]]:
+def make_sb3_envs(
+    n_envs: int, seed: Optional[int] = None, **kwargs: Any
+) -> List[Callable[[], gym.Env]]:
     """Return a list of callables for SB3's VecEnv builders.
 
     Example:

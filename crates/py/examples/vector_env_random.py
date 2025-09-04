@@ -1,5 +1,4 @@
 from rusty_runways_py import PyVectorEnv
-import random
 
 
 def main():

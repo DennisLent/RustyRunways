@@ -12,10 +12,10 @@ except Exception as _e:  # gymnasium not installed or import error inside wrappe
 
     class _MissingGym:  # minimal callable raising a helpful error on use
         def __init__(self, *args, **kwargs):
-            raise ImportError(_MISSING_GYM_MSG) from _e
+            raise ImportError(_MISSING_GYM_MSG)
 
     def make_sb3_envs(*args, **kwargs):  # noqa: D401
-        raise ImportError(_MISSING_GYM_MSG) from _e
+        raise ImportError(_MISSING_GYM_MSG)
 
     RustyRunwaysGymEnv = _MissingGym  # type: ignore
     RustyRunwaysGymVectorEnv = _MissingGym  # type: ignore

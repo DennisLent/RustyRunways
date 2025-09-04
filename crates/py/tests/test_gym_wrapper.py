@@ -1,5 +1,4 @@
 import numpy as np
-import gymnasium as gym
 
 from rusty_runways import RustyRunwaysGymEnv, make_sb3_envs
 from rusty_runways import RustyRunwaysGymVectorEnv
