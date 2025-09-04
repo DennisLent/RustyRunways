@@ -1050,6 +1050,7 @@ impl Game {
             | ShowCash
             | ShowTime
             | ShowStats
+            | ShowModels
             | Exit => Ok(()),
             BuyPlane { model, airport } => self.buy_plane(&model, airport),
             LoadOrder { order, plane } => self.load_order(order, plane),

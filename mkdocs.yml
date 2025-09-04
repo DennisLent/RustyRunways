@@ -1,0 +1,46 @@
+site_name: RustyRunways Docs
+site_description: Documentation for the RustyRunways logistics simulation game
+repo_url: https://github.com/DennisLent/RustyRunways
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.tracking
+    - navigation.top
+    - toc.integrate
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: indigo
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: indigo
+  logo: assets/rusty_runways.png
+  favicon: assets/rusty_runways.png
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - deflist
+  - tables
+  - attr_list
+  - footnotes
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+nav:
+  - Overview: index.md
+  - Core:
+    - Introduction: core/index.md
+    - Airplanes: core/airplanes.md
+    - Events: core/events.md
+    - Economy: core/economy.md
+    - Errors: core/errors.md
+  - CLI: cli/index.md
+  - GUI: gui/index.md
+  - Python: python/index.md

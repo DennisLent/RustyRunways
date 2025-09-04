@@ -6,6 +6,7 @@ use rusty_runways_cli::{
     commands::parse_command,
 };
 use rusty_runways_core::Game;
+use rusty_runways_core::utils::airplanes::models::AirplaneModel;
 use rustyline::{ColorMode, CompletionType, Config, Editor};
 use std::error::Error;
 
@@ -33,6 +34,41 @@ fn main() -> Result<(), Box<dyn Error>> {
         let _ = line_reader.add_history_entry(line.as_str());
 
         match parse_command(&line) {
+            Ok(Command::ShowModels) => {
+                // Print airplane models table
+                println!(
+                    "{:<16} {:>8} {:>8} {:>7} {:>8} {:>10} {:>12} {:>12}",
+                    "Model", "Cruise", "Fuel", "Burn", "Oper/h", "Payload", "Price", "Runway"
+                );
+                println!(
+                    "{:-<16} {:-<8} {:-<8} {:-<7} {:-<8} {:-<10} {:-<12} {:-<12}",
+                    "", "", "", "", "", "", "", ""
+                );
+                let models = [
+                    AirplaneModel::SparrowLight,
+                    AirplaneModel::FalconJet,
+                    AirplaneModel::CometRegional,
+                    AirplaneModel::Atlas,
+                    AirplaneModel::TitanHeavy,
+                    AirplaneModel::Goliath,
+                    AirplaneModel::Zephyr,
+                    AirplaneModel::Lightning,
+                ];
+                for m in models {
+                    let s = m.specs();
+                    println!(
+                        "{:<16} {:>8.0} {:>8.0} {:>7.0} {:>8.0} {:>10.0} {:>12.0} {:>12.0}",
+                        format!("{:?}", m),
+                        s.cruise_speed,
+                        s.fuel_capacity,
+                        s.fuel_consumption,
+                        s.operating_cost,
+                        s.payload_capacity,
+                        s.purchase_price,
+                        s.min_runway_length,
+                    );
+                }
+            }
             Ok(Command::ShowAirports { with_orders }) => game.list_airports(with_orders),
 
             Ok(Command::ShowAirport { id, with_orders }) => {
