@@ -17,10 +17,13 @@ This documentation provides a high‑level overview of the project and links to 
 
 ## Quick Start
 
+- Python (pip): `pip install rusty-runways` — see Python page for Gym wrappers and extra installs
 - Build: `cargo build --release`
 - CLI: `cargo run -p rusty_runways_cli -- --seed 1 --n 5 --c 1000000`
 - GUI: `cargo run -p rusty_runways_gui`
-- Python: `cd crates/py && maturin develop --release`
+- Python (local dev): `cd crates/py && maturin develop --release`
+
+!!! note "Python wrappers and Gymnasium"
+    For usage examples and how to enable the optional Gym wrappers, see the Python page: [Python Bindings](python/index.md). To install with Gym support: `pip install 'rusty-runways[gym]'`.
 
 Use the sidebar to navigate to each section. The table of contents on each page follows the headings.
-

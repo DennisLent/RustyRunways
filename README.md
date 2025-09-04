@@ -2,10 +2,28 @@
 
 [![codecov](https://codecov.io/github/DennisLent/RustyRunways/graph/badge.svg?token=NVMX1JW002)](https://codecov.io/github/DennisLent/RustyRunways)
 [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://dennislent.github.io/RustyRunways)
+[![PyPI](https://img.shields.io/pypi/v/rusty-runways.svg)](https://pypi.org/project/rusty-runways/)
 
 RustyRunways is a logistics and airline‑ops simulation written in Rust. Manage a cargo airline: buy planes, load and deliver orders, refuel, pay fees, and meet deadlines. The engine is deterministic and event‑driven, with a CLI, an `egui` GUI, and Python bindings designed for AI/ML/RL research and training.
 
 Keywords: reinforcement learning environment, AI/ML simulation, vectorized environments, parallel stepping, deterministic seeding, Rust game engine, Python bindings, gym‑style loop.
+
+---
+
+## Python Install
+
+```bash
+pip install rusty-runways
+```
+
+Quick check (engine bindings):
+
+```python
+from rusty_runways_py import GameEnv
+g = GameEnv(seed=1)
+g.step(1)
+print(g.time(), g.cash())
+```
 
 ---
 
@@ -99,7 +117,7 @@ Building or testing from the workspace root acts on both crates. Individual crat
 
    Please mind that the GUI is still in progress...
 
-6. **Run the Python API**
+6. **Python API**
 
    The project also exposes Python bindings that mirror the Rust game engine and support both single and vectorised environments. To install the module locally and try it out:
 
@@ -108,7 +126,7 @@ Building or testing from the workspace root acts on both crates. Individual crat
    maturin develop --release
    ```
 
-   Example usage from Python:
+   Engine bindings (single + vector envs):
 
    ```python
    from rusty_runways_py import GameEnv, VectorGameEnv
@@ -124,19 +142,26 @@ Building or testing from the workspace root acts on both crates. Individual crat
 
    Deterministic behaviour is controlled by seeds. `VectorGameEnv` can step environments in parallel using Rayon under the hood.
 
-   Gymnasium‑style loop (sketch):
+   Gym wrappers (requires Gymnasium):
 
    ```python
-   from rusty_runways_py import GameEnv
+   from stable_baselines3 import PPO
+   from stable_baselines3.common.vec_env import DummyVecEnv
+   from rusty_runways import RustyRunwaysGymEnv, make_sb3_envs
 
-   env = GameEnv(seed=42, num_airports=6)
-   for t in range(100):
-       # choose an action via CLI DSL or high‑level policy
-       env.execute("ADVANCE 1")
-       obs = env.state_json()      # or full_state_json()
-       logs = env.drain_log()
-       # compute reward from obs/logs (custom to your task)
+   # SB3 vectorized training
+   vec_env = DummyVecEnv(make_sb3_envs(4, seed=1, num_airports=5))
+   model = PPO("MlpPolicy", vec_env, verbose=1)
+   model.learn(total_timesteps=10_000)
+
+   # Single-env rollouts
+   env = RustyRunwaysGymEnv(seed=1, num_airports=5)
+   obs, info = env.reset()
+   action = env.action_space.sample()
+   obs, reward, terminated, truncated, info = env.step(action)
    ```
+
+   Note: Install Gymnasium only if you need the wrappers. See “Gymnasium dependency” below.
 
 ---
 
@@ -234,7 +259,6 @@ Includes exact airplane spec tables, event/economy/error references, and end‑t
 
 - [x] Add scheduled maintenance and breakdown events.
 - [x] Ensure charging of aircrafts and cargo works.
-- [ ] Dispatch & reroute flights.
 - [x] Expand automated testing.
 - [x] Hook up a simple GUI (Tauri or egui).
 - [x] Track operating costs.
@@ -242,12 +266,25 @@ Includes exact airplane spec tables, event/economy/error references, and end‑t
 - [x] Python bindings for ML.
    - [x] extract cli version
    - [x] extract gui version
-   - [ ] extract python version
-- [ ] Weather conditions?
-- [ ] Creating a game with input file instead of random.
+   - [x] extract python version
+- [x] Creating a game with input file instead of random.
 - [x] Handle refueling
 - [x] Arrow key history for commands
 - [x] Tab-completion
 - [x] Helper function
+- [ ] Dispatch & reroute flights.
+- [ ] Weather conditions?
 
 Contributions welcome! Feel free to open issues or PRs for new features or improvements.
+
+---
+
+## Gymnasium dependency
+
+- Core engine bindings (`rusty_runways_py`) do not depend on Gymnasium.
+- The optional wrappers in the pure‑Python package (`rusty_runways`) require `gymnasium`.
+- Recommendation: keep Gymnasium optional to avoid forcing RL deps on non‑RL users. You can:
+  - Document `pip install gymnasium` for users who need wrappers, or
+  - Provide an extra like `pip install rusty-runways[gym]` by declaring an optional dependency in `crates/py/pyproject.toml`.
+
+If you want, we can add an optional dependency extra and make the wrappers import lazily so importing `rusty_runways` gives a clear error only when wrappers are used without Gymnasium installed.

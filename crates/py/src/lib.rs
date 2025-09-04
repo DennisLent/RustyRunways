@@ -106,6 +106,51 @@ impl GameEnv {
     fn state_full_json(&self) -> PyResult<String> {
         self.full_state_json()
     }
+
+    /// Return order IDs at the airport where the given plane is currently located.
+    ///
+    /// Parameters
+    /// ----------
+    /// plane_id : usize
+    ///     Game plane identifier.
+    ///
+    /// Returns
+    /// -------
+    /// Vec<usize>
+    ///     List of order IDs available at that airport (empty if none).
+    #[pyo3(text_signature = "(plane_id)")]
+    fn orders_at_plane(&self, plane_id: usize) -> Vec<usize> {
+        // find plane by id
+        if let Some(p) = self.game.airplanes.iter().find(|p| p.id == plane_id) {
+            let loc = p.location;
+            if let Some((ap, _)) = self
+                .game
+                .map
+                .airports
+                .iter()
+                .find(|(_, c)| **c == loc)
+            {
+                return ap.orders.iter().map(|o| o.id).collect();
+            }
+        }
+        Vec::new()
+    }
+
+    /// Return all airport IDs in the current world.
+    ///
+    /// Returns
+    /// -------
+    /// Vec<usize>
+    ///     List of airport identifiers.
+    #[pyo3(text_signature = "()")]
+    fn airport_ids(&self) -> Vec<usize> {
+        self.game
+            .map
+            .airports
+            .iter()
+            .map(|(a, _)| a.id)
+            .collect()
+    }
 }
 
 #[pyclass]
@@ -377,6 +422,47 @@ impl VectorGameEnv {
 
     fn drain_logs(&mut self) -> Vec<Vec<String>> {
         self.envs.iter_mut().map(|g| g.drain_log()).collect()
+    }
+
+    /// Vectorized: for each env, returns order IDs at the airport where the plane sits.
+    ///
+    /// Parameters
+    /// ----------
+    /// plane_id : usize
+    ///     Game plane identifier to query across all environments.
+    ///
+    /// Returns
+    /// -------
+    /// Vec[List[int]]
+    ///     For each env, a list of order IDs.
+    #[pyo3(text_signature = "(plane_id)")]
+    fn orders_at_plane_all(&self, plane_id: usize) -> Vec<Vec<usize>> {
+        let mut out = Vec::with_capacity(self.envs.len());
+        for g in &self.envs {
+            if let Some(p) = g.airplanes.iter().find(|p| p.id == plane_id) {
+                let loc = p.location;
+                if let Some((ap, _)) = g.map.airports.iter().find(|(_, c)| **c == loc) {
+                    out.push(ap.orders.iter().map(|o| o.id).collect());
+                    continue;
+                }
+            }
+            out.push(Vec::new());
+        }
+        out
+    }
+
+    /// For each env, return the list of airport IDs in that world.
+    ///
+    /// Returns
+    /// -------
+    /// Vec[List[int]]
+    ///     Airport IDs per environment.
+    #[pyo3(text_signature = "()")]
+    fn airport_ids_all(&self) -> Vec<Vec<usize>> {
+        self.envs
+            .iter()
+            .map(|g| g.map.airports.iter().map(|(a, _)| a.id).collect())
+            .collect()
     }
 }
 
