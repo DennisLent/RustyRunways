@@ -1,11 +1,10 @@
 use clap::Parser;
-use rusty_runways_cli::commands::Command;
+use rusty_runways_cli::cli::{Cli, init_game_from_cli};
 use rusty_runways_cli::read::{LineReaderHelper, print_banner};
-use rusty_runways_cli::{
-    cli::{Cli, init_game_from_cli},
-    commands::parse_command,
-};
+use rusty_runways_commands::Command;
+use rusty_runways_commands::parse_command;
 use rusty_runways_core::Game;
+use rusty_runways_core::config::WorldConfig;
 use rusty_runways_core::utils::airplanes::models::AirplaneModel;
 use rustyline::{ColorMode, CompletionType, Config, Editor};
 use std::error::Error;
@@ -32,6 +31,24 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         let line = line_reader.readline("> ")?;
         let _ = line_reader.add_history_entry(line.as_str());
+
+        if line.to_uppercase().starts_with("LOAD CONFIG ") {
+            let path = line[12..].trim();
+            match std::fs::read_to_string(path) {
+                Ok(text) => match serde_yaml::from_str::<WorldConfig>(&text) {
+                    Ok(cfg) => match Game::from_config(cfg) {
+                        Ok(new_game) => {
+                            game = new_game;
+                            println!("Loaded config from {}", path);
+                        }
+                        Err(e) => println!("Invalid config: {}", e),
+                    },
+                    Err(e) => println!("YAML parse error: {}", e),
+                },
+                Err(e) => println!("Failed to read {}: {}", path, e),
+            }
+            continue;
+        }
 
         match parse_command(&line) {
             Ok(Command::ShowModels) => {
@@ -69,6 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     );
                 }
             }
+
             Ok(Command::ShowAirports { with_orders }) => game.list_airports(with_orders),
 
             Ok(Command::ShowAirport { id, with_orders }) => {

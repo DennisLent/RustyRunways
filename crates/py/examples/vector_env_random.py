@@ -1,9 +1,8 @@
-from rusty_runways_py import PyVectorEnv
-import random
+from rusty_runways_py import VectorGameEnv
 
 
 def main():
-    env = PyVectorEnv(8, seed=1)
+    env = VectorGameEnv(8, seed=1)
     env.step_all(1, parallel=True)
     print("times", env.times())
     states = env.state_all_py()

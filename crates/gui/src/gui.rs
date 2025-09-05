@@ -2,6 +2,7 @@ use eframe::egui::{
     self, CornerRadius, Id, Pos2, Rect, ScrollArea, Sense, SidePanel, TopBottomPanel, Vec2, Window,
 };
 use rand::Rng;
+use rusty_runways_core::config::WorldConfig;
 use rusty_runways_core::utils::airplanes::models::AirplaneModel;
 use rusty_runways_core::{Game, utils::airplanes::models::AirplaneStatus};
 
@@ -29,6 +30,10 @@ pub struct RustyRunwaysGui {
     save_name: String,
     recent_saves: Vec<String>,
     error: Option<String>,
+    // config loader
+    config_path: String,
+    preview_cfg: Option<WorldConfig>,
+    preview_open: bool,
 
     // In Game
     game: Option<Game>,
@@ -86,6 +91,9 @@ impl Default for RustyRunwaysGui {
             recent_saves: Vec::new(),
             error: None,
             game: None,
+            config_path: String::new(),
+            preview_cfg: None,
+            preview_open: false,
             log: Vec::new(),
             scroll_log: false,
             save_dialog: false,
@@ -195,7 +203,7 @@ impl RustyRunwaysGui {
                     }
                 });
 
-                // right column for loading game
+                // middle column for loading game
                 cols[1].group(|ui| {
                     ui.heading("Load Saved Game");
                     ui.add_space(12.0);
@@ -228,6 +236,56 @@ impl RustyRunwaysGui {
                 });
             });
 
+            ui.add_space(12.0);
+            ui.group(|ui| {
+                ui.heading("Start From Config");
+                ui.add_space(12.0);
+                ui.label("Config path (.yaml)");
+                ui.horizontal(|ui| {
+                    ui.text_edit_singleline(&mut self.config_path);
+                    if ui.button("Browse").clicked() {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("YAML", &["yaml", "yml"])
+                            .pick_file()
+                        {
+                            if let Some(p) = path.to_str() {
+                                self.config_path = p.to_string();
+                            }
+                        }
+                    }
+                });
+                ui.add_space(6.0);
+                if ui.button("Preview").clicked() {
+                    match std::fs::read_to_string(&self.config_path) {
+                        Ok(text) => match serde_yaml::from_str::<WorldConfig>(&text) {
+                            Ok(cfg) => {
+                                self.preview_cfg = Some(cfg);
+                                self.preview_open = true;
+                                self.error = None;
+                            }
+                            Err(e) => self.error = Some(format!("YAML error: {}", e)),
+                        },
+                        Err(e) => self.error = Some(format!("Read error: {}", e)),
+                    }
+                }
+                if ui.button("Start").clicked() {
+                    match std::fs::read_to_string(&self.config_path) {
+                        Ok(text) => match serde_yaml::from_str::<WorldConfig>(&text) {
+                            Ok(cfg) => match Game::from_config(cfg) {
+                                Ok(g) => {
+                                    self.game = Some(g);
+                                    self.screen = Screen::InGame;
+                                    self.error = None;
+                                }
+                                Err(e) => self.error = Some(e.to_string()),
+                            },
+                            Err(e) => self.error = Some(format!("YAML error: {}", e)),
+                        },
+                        Err(e) => self.error = Some(format!("Read error: {}", e)),
+                    }
+                }
+            });
+
             ui.vertical_centered(|ui| {
                 ui.add_space(12.0);
 
@@ -251,6 +309,57 @@ impl RustyRunwaysGui {
                 }
             });
         });
+
+        // Config preview window
+        if self.preview_open {
+            let mut open = true;
+            Window::new("Config Preview")
+                .open(&mut open)
+                .resizable(true)
+                .default_size(Vec2::new(640.0, 420.0))
+                .show(ctx, |ui| {
+                    if let Some(cfg) = &self.preview_cfg {
+                        ui.label(format!(
+                            "Seed: {:?} | Starting Cash: ${:.0} | Generate Orders: {}",
+                            cfg.seed, cfg.starting_cash, cfg.generate_orders
+                        ));
+                        ui.separator();
+                        ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
+                            for a in &cfg.airports {
+                                ui.group(|ui| {
+                                    ui.label(format!(
+                                        "[{}] {} @ ({:.1}, {:.1})",
+                                        a.id, a.name, a.location.x, a.location.y
+                                    ));
+                                    ui.label(format!(
+                                        "Runway: {:.0}m | Fuel: ${:.2}/L | Landing: ${:.2}/t | Parking: ${:.2}/h",
+                                        a.runway_length_m,
+                                        a.fuel_price_per_l,
+                                        a.landing_fee_per_ton,
+                                        a.parking_fee_per_hour
+                                    ));
+                                });
+                                ui.add_space(6.0);
+                            }
+                        });
+                        ui.separator();
+                        if ui.button("Start Game").clicked() {
+                            if let Some(cfg2) = self.preview_cfg.clone() {
+                                match Game::from_config(cfg2) {
+                                    Ok(g) => {
+                                        self.game = Some(g);
+                                        self.screen = Screen::InGame;
+                                        self.error = None;
+                                        self.preview_open = false;
+                                    }
+                                    Err(e) => self.error = Some(e.to_string()),
+                                }
+                            }
+                        }
+                    }
+                });
+            self.preview_open = open;
+        }
     }
 
     // in-game screen

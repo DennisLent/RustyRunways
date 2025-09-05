@@ -41,6 +41,7 @@ nav:
     - Events: core/events.md
     - Economy: core/economy.md
     - Errors: core/errors.md
+    - Custom Worlds: core/custom_worlds.md
   - CLI: cli/index.md
   - GUI: gui/index.md
   - Python: python/index.md

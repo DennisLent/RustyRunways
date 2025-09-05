@@ -2,6 +2,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use rusty_runways_core::Game;
+use rusty_runways_core::config::WorldConfig;
 
 #[pyclass]
 pub struct GameEnv {
@@ -11,18 +12,46 @@ pub struct GameEnv {
 #[pymethods]
 impl GameEnv {
     #[new]
-    #[pyo3(signature = (seed=None, num_airports=None, cash=None))]
-    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None)")]
-    fn new(seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) -> Self {
-        GameEnv {
-            game: Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0)),
+    #[pyo3(signature = (seed=None, num_airports=None, cash=None, config_path=None))]
+    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None, config_path=None)")]
+    fn new(
+        seed: Option<u64>,
+        num_airports: Option<usize>,
+        cash: Option<f32>,
+        config_path: Option<String>,
+    ) -> PyResult<Self> {
+        if let Some(path) = config_path {
+            let text = std::fs::read_to_string(&path)
+                .map_err(|e| PyValueError::new_err(format!("read {}: {}", path, e)))?;
+            let cfg: WorldConfig = serde_yaml::from_str(&text)
+                .map_err(|e| PyValueError::new_err(format!("yaml: {}", e)))?;
+            let game = Game::from_config(cfg).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            return Ok(GameEnv { game });
         }
+        Ok(GameEnv {
+            game: Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0)),
+        })
     }
 
-    #[pyo3(signature = (seed=None, num_airports=None, cash=None))]
-    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None)")]
-    fn reset(&mut self, seed: Option<u64>, num_airports: Option<usize>, cash: Option<f32>) {
+    #[pyo3(signature = (seed=None, num_airports=None, cash=None, config_path=None))]
+    #[pyo3(text_signature = "(/, seed=None, num_airports=None, cash=None, config_path=None)")]
+    fn reset(
+        &mut self,
+        seed: Option<u64>,
+        num_airports: Option<usize>,
+        cash: Option<f32>,
+        config_path: Option<String>,
+    ) -> PyResult<()> {
+        if let Some(path) = config_path {
+            let text = std::fs::read_to_string(&path)
+                .map_err(|e| PyValueError::new_err(format!("read {}: {}", path, e)))?;
+            let cfg: WorldConfig = serde_yaml::from_str(&text)
+                .map_err(|e| PyValueError::new_err(format!("yaml: {}", e)))?;
+            self.game = Game::from_config(cfg).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            return Ok(());
+        }
         self.game = Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0));
+        Ok(())
     }
 
     fn step(&mut self, hours: u64) {
@@ -76,6 +105,40 @@ impl GameEnv {
     // convenience: expose JSON observation of full state
     fn state_full_json(&self) -> PyResult<String> {
         self.full_state_json()
+    }
+
+    /// Return order IDs at the airport where the given plane is currently located.
+    ///
+    /// Parameters
+    /// ----------
+    /// plane_id : usize
+    ///     Game plane identifier.
+    ///
+    /// Returns
+    /// -------
+    /// Vec<usize>
+    ///     List of order IDs available at that airport (empty if none).
+    #[pyo3(text_signature = "(plane_id)")]
+    fn orders_at_plane(&self, plane_id: usize) -> Vec<usize> {
+        // find plane by id
+        if let Some(p) = self.game.airplanes.iter().find(|p| p.id == plane_id) {
+            let loc = p.location;
+            if let Some((ap, _)) = self.game.map.airports.iter().find(|(_, c)| *c == loc) {
+                return ap.orders.iter().map(|o| o.id).collect();
+            }
+        }
+        Vec::new()
+    }
+
+    /// Return all airport IDs in the current world.
+    ///
+    /// Returns
+    /// -------
+    /// Vec<usize>
+    ///     List of airport identifiers.
+    #[pyo3(text_signature = "()")]
+    fn airport_ids(&self) -> Vec<usize> {
+        self.game.map.airports.iter().map(|(a, _)| a.id).collect()
     }
 }
 
@@ -138,17 +201,30 @@ fn parse_num_airports(
 #[pymethods]
 impl VectorGameEnv {
     #[new]
-    #[pyo3(signature = (n_envs, seed=None, num_airports=None, cash=None))]
+    #[pyo3(signature = (n_envs, seed=None, num_airports=None, cash=None, config_path=None))]
     fn new(
         n_envs: usize,
         seed: Option<u64>,
         num_airports: Option<usize>,
         cash: Option<f32>,
+        config_path: Option<String>,
     ) -> Self {
         let base_seed = seed.unwrap_or(0);
         let mut envs = Vec::with_capacity(n_envs);
         let mut seeds = Vec::with_capacity(n_envs);
-        for i in 0..n_envs {
+        let paths: Vec<Option<String>> = vec![config_path; n_envs];
+        for (i, p_opt) in paths.iter().enumerate() {
+            if let Some(p) = p_opt {
+                if let Ok(text) = std::fs::read_to_string(p) {
+                    if let Ok(cfg) = serde_yaml::from_str::<WorldConfig>(&text) {
+                        if let Ok(g) = Game::from_config(cfg) {
+                            seeds.push(g.seed());
+                            envs.push(g);
+                            continue;
+                        }
+                    }
+                }
+            }
             let s = base_seed + i as u64;
             envs.push(Game::new(s, num_airports, cash.unwrap_or(1_000_000.0)));
             seeds.push(s);
@@ -335,6 +411,47 @@ impl VectorGameEnv {
 
     fn drain_logs(&mut self) -> Vec<Vec<String>> {
         self.envs.iter_mut().map(|g| g.drain_log()).collect()
+    }
+
+    /// Vectorized: for each env, returns order IDs at the airport where the plane sits.
+    ///
+    /// Parameters
+    /// ----------
+    /// plane_id : usize
+    ///     Game plane identifier to query across all environments.
+    ///
+    /// Returns
+    /// -------
+    /// Vec[List[int]]
+    ///     For each env, a list of order IDs.
+    #[pyo3(text_signature = "(plane_id)")]
+    fn orders_at_plane_all(&self, plane_id: usize) -> Vec<Vec<usize>> {
+        let mut out = Vec::with_capacity(self.envs.len());
+        for g in &self.envs {
+            if let Some(p) = g.airplanes.iter().find(|p| p.id == plane_id) {
+                let loc = p.location;
+                if let Some((ap, _)) = g.map.airports.iter().find(|(_, c)| *c == loc) {
+                    out.push(ap.orders.iter().map(|o| o.id).collect());
+                    continue;
+                }
+            }
+            out.push(Vec::new());
+        }
+        out
+    }
+
+    /// For each env, return the list of airport IDs in that world.
+    ///
+    /// Returns
+    /// -------
+    /// Vec[List[int]]
+    ///     Airport IDs per environment.
+    #[pyo3(text_signature = "()")]
+    fn airport_ids_all(&self) -> Vec<Vec<usize>> {
+        self.envs
+            .iter()
+            .map(|g| g.map.airports.iter().map(|(a, _)| a.id).collect())
+            .collect()
     }
 }
 

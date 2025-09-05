@@ -84,4 +84,14 @@ impl Map {
 
         (min_distance, start_index)
     }
+
+    /// Build a map from explicit airport configs.
+    pub fn from_airports(seed: u64, airports: Vec<(Airport, Coordinate)>) -> Self {
+        Map {
+            num_airports: airports.len(),
+            airports,
+            seed,
+            next_order_id: 0,
+        }
+    }
 }

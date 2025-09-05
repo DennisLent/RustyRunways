@@ -58,6 +58,9 @@ pub enum GameError {
     InvalidCommand {
         msg: String,
     },
+    InvalidConfig {
+        msg: String,
+    },
 }
 
 impl GameError {
@@ -163,6 +166,9 @@ impl fmt::Display for GameError {
             }
             GameError::InvalidCommand { msg } => {
                 write!(f, "{}", msg)
+            }
+            GameError::InvalidConfig { msg } => {
+                write!(f, "Invalid config: {}", msg)
             }
         }
     }
