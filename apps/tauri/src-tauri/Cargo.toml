@@ -1,0 +1,21 @@
+[package]
+name = "rusty_runways_tauri"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Tauri desktop shell
+tauri = { version = "1", features = ["shell-open"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+strum = "0.26"
+serde_yaml = "0.9"
+
+# Game core
+rusty_runways_core = { path = "../../crates/core" }
+
+[build-dependencies]
+tauri-build = { version = "1" }
+
+[package.metadata.tauri]
+config = { file = "tauri.conf.json" }

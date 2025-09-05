@@ -6,6 +6,8 @@ title: Graphical Interface (GUI)
 
 The GUI (`rusty_runways_gui`) is built with `eframe/egui` and uses the Core engine for all rules. See [Core](../core/index.md) for game mechanics.
 
+Note: A Tauri + React desktop UI scaffold also exists under `apps/tauri` and will evolve alongside the egui version.
+
 ## Layout
 
 - Top header: game title, cash, current time, fleet size, and buttons for Save/Load/Menu/Exit.
