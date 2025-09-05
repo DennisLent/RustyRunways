@@ -67,4 +67,20 @@ cargo clippy --workspace --all-targets -- -D warnings
 echo "[check] Running cargo test --workspace"
 cargo test --workspace
 
+# 3) Python dev tests (maturin develop + pytest) for crates/py
+echo "[check] Installing Python test deps and running dev tests (crates/py)"
+pip install --quiet maturin pytest gymnasium
+(
+  cd crates/py
+  maturin develop
+  python - <<'PY'
+import sys
+print("[check] Python sys.path[0]", sys.path[0])
+import rusty_runways, rusty_runways_py
+print("[check] Imported rusty_runways from:", getattr(rusty_runways, "__file__", "<pkg>"))
+print("[check] Imported rusty_runways_py:", rusty_runways_py.__name__)
+PY
+  pytest tests
+)
+
 echo "[check] All checks passed."

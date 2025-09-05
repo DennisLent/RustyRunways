@@ -35,7 +35,7 @@ gym = [
 [tool.maturin]
 module-name = "rusty_runways_py"
 python-source = "python"
-packages = ["rusty_runways"]
+python-packages = ["rusty_runways"]
 
 [tool.black]
 line-length = 100

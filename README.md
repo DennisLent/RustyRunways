@@ -32,6 +32,25 @@ Docs for CLI, GUI, and Python: https://dennislent.github.io/RustyRunways
 
 ---
 
+## Local Dev & Checks
+
+Run the full set of linters, formatters, Rust tests, and Python dev tests in one go:
+
+```bash
+scripts/check.sh
+# or auto-fix Python lint/format issues
+scripts/check.sh --fix
+```
+
+This will:
+- Lint/format Python under `crates/py` with Ruff/Black
+- Build and test all Rust crates (`cargo fmt`, `clippy`, `test`)
+- Build and install the Python package (`maturin develop`) and run Python tests (`pytest`)
+
+Gym wrappers live under the pure‑Python package `rusty_runways` and are tested if `gymnasium` is available (the check script installs it for you).
+
+---
+
 ## Quick Start (Python)
 
 Engine bindings (single + vector envs):
@@ -81,4 +100,3 @@ See Python docs for observation/action spaces, reward shaping, and vectorized st
 - Issues: https://github.com/DennisLent/RustyRunways/issues
 
 Contributions welcome! Open issues and PRs for bug fixes, features, or RL tooling.
-

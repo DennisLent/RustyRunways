@@ -22,11 +22,11 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Build and run tests
+      - name: Build and run tests (maturin develop)
+        working-directory: crates/py
         run: |
           python -m venv .venv
           source .venv/bin/activate
           pip install -U pip maturin pytest gymnasium
-          # Use the pyproject so maturin picks up pure-Python package under python/
-          maturin develop -m crates/py/pyproject.toml
-          pytest crates/py/tests
+          maturin develop
+          pytest tests

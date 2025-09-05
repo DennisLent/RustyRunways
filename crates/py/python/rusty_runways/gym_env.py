@@ -139,8 +139,8 @@ class RustyRunwaysGymEnv(gym.Env):
 
     Action
     ------
-    MultiDiscrete([6, 16, 64]) encoding (op, plane_id, selector):
-    0 ADVANCE, 1 REFUEL, 2 UNLOAD_ALL, 3 MAINTENANCE, 4 DEPART_NEAREST, 5 LOAD_ORDER.
+    MultiDiscrete([6, 16, 64, 256]) encoding (op, plane_id, selector, dest_index):
+    0 ADVANCE, 1 REFUEL, 2 UNLOAD_ALL, 3 MAINTENANCE, 4 DEPART_BY_INDEX, 5 LOAD_ORDER.
     """
 
     metadata = {"render.modes": []}
@@ -402,8 +402,8 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
 
     Spaces
     ------
-    action_space : MultiDiscrete([6, 16, 64])
-        (op, plane, selector) per env.
+    action_space : MultiDiscrete([6, 16, 64, 256])
+        (op, plane, selector, dest_index) per env.
     observation_space : Box(float32, shape=(14,))
         Same features as the single-env wrapper.
     """
@@ -437,7 +437,18 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
             [self.N_OPS, self.MAX_PLANES, self.MAX_SELECT, self.MAX_AIRPORTS]
         )
         tmp.close()
-        super().__init__(self.n_envs, obs_space, act_space)
+        # Some Gymnasium versions have a VectorEnv.__init__ signature that may not accept
+        # (num_envs, obs_space, act_space) here. To keep compatibility across versions,
+        # avoid passing args and set spaces/num_envs directly.
+        try:
+            super().__init__(self.n_envs, obs_space, act_space)  # type: ignore[misc]
+        except TypeError:
+            super().__init__()  # fallback for versions where base __init__ has no params
+            self.observation_space = obs_space
+            self.action_space = act_space
+        # Ensure attribute exists regardless of base handling
+        if not hasattr(self, "num_envs"):
+            self.num_envs = self.n_envs  # type: ignore[assignment]
 
         # create vector backend
         self._venv = VectorGameEnv(self.n_envs, **self._params)  # type: ignore[arg-type]
@@ -465,6 +476,12 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
 
     def step_async(self, actions) -> None:
         self._actions = np.asarray(actions).astype(int)
+
+    # Some Gymnasium versions require subclasses to implement `step` directly.
+    # Delegate to the async/wait pair to satisfy both styles.
+    def step(self, actions):
+        self.step_async(actions)
+        return self.step_wait()
 
     def step_wait(self):
         acts = np.asarray(self._actions).astype(int)
@@ -533,8 +550,9 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
 
     # helpers
     def _obs_from(self, s: dict) -> np.ndarray:
-        # reuse single-env feature extractor
-        return RustyRunwaysGymEnv._observe.__wrapped__(self._proxy_single(s))  # type: ignore[attr-defined]
+        # Reuse the same feature extraction as the single-env wrapper
+        # without calling its _observe (which pulls fresh state from _env).
+        return _build_obs_from_state(s)
 
     def _proxy_single(self, s: dict):
         # create a lightweight proxy for using the single-env _observe on a pre-fetched state
