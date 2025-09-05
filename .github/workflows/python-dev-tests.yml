@@ -1,6 +1,14 @@
 name: Python Dev Tests
 
-on: pull_request
+on:
+  push:
+    paths:
+      - 'crates/py/**'
+      - '.github/workflows/python-dev-tests.yml'
+  pull_request:
+    paths:
+      - 'crates/py/**'
+      - '.github/workflows/python-dev-tests.yml'
 
 jobs:
   test:
@@ -19,5 +27,6 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           pip install -U pip maturin pytest gymnasium
-          maturin develop -m crates/py/Cargo.toml
+          # Use the pyproject so maturin picks up pure-Python package under python/
+          maturin develop -m crates/py/pyproject.toml
           pytest crates/py/tests
