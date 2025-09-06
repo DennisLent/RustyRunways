@@ -11,6 +11,11 @@
     "distDir": "../ui/dist"
   },
   "tauri": {
+    "security": {
+      "dangerousRemoteDomainIpcAccess": [
+        { "domain": "localhost", "port": 5173, "protocol": "http" }
+      ]
+    },
     "allowlist": {
       "shell": {
         "all": false,

@@ -202,7 +202,7 @@ export const MainMenu = ({ onStartGame, onLoadGame, onLoadConfig }: MainMenuProp
                   <Input
                     id="configFile"
                     type="file"
-                    accept=".json,.config"
+                    accept=".yaml,.yml,.json,.config"
                     onChange={handleFileSelect}
                     className="bg-secondary/50 border-aviation-blue/20 focus:border-aviation-blue/50 file:bg-aviation-blue/20 file:text-aviation-blue file:border-0 file:rounded-md file:px-3 file:py-1"
                   />

@@ -14,20 +14,35 @@ const Index = () => {
   const [currentGame, setCurrentGame] = useState<GameConfig | null>(null);
 
   const handleStartGame = async (config: GameConfig) => {
-    await newGame(config.seed, config.airportCount, config.startingCash);
-    setCurrentGame(config);
-    setGameState('playing');
+    try {
+      await newGame(config.seed, config.airportCount, config.startingCash);
+      setCurrentGame(config);
+      setGameState('playing');
+    } catch (e) {
+      console.error('Failed to start game', e);
+      alert(`Failed to start game: ${e}`);
+    }
   };
 
   const handleLoadGame = async (saveName: string) => {
-    await loadGame(saveName);
-    setGameState('playing');
+    try {
+      await loadGame(saveName);
+      setGameState('playing');
+    } catch (e) {
+      console.error('Failed to load game', e);
+      alert(`Failed to load game: ${e}`);
+    }
   };
 
   const handleLoadConfig = async (file: File) => {
-    const text = await file.text();
-    await startFromConfigYaml(text);
-    setGameState('playing');
+    try {
+      const text = await file.text();
+      await startFromConfigYaml(text);
+      setGameState('playing');
+    } catch (e) {
+      console.error('Failed to load config', e);
+      alert(`Failed to load config: ${e}`);
+    }
   };
 
   const handleBackToMenu = () => {
