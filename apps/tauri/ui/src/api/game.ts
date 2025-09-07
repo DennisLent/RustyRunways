@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 
 export type Observation = {
   time: number
@@ -9,7 +9,14 @@ export type Observation = {
 
 export async function newGame(seed: string | undefined, airportCount: number, startingCash: number): Promise<void> {
   const parsedSeed = seed && seed.trim() !== '' ? Number(seed) : undefined
-  await invoke('new_game', { seed: parsedSeed, num_airports: airportCount, starting_cash: startingCash })
+  // Tauri v2 command expects a single `args` object (we also support snake_case via aliases on the Rust side)
+  await invoke('new_game', {
+    args: {
+      seed: parsedSeed,
+      numAirports: airportCount,
+      startingCash: startingCash,
+    },
+  })
 }
 
 export async function loadGame(name: string): Promise<void> {

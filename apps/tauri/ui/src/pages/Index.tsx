@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MainMenu } from "@/components/MainMenu";
 import { GameScreen } from "@/components/GameScreen";
 import { newGame, loadGame, startFromConfigYaml } from "@/api/game";
+import { isTauri } from "@/lib/tauri";
 
 interface GameConfig {
   seed: string;
@@ -15,6 +16,12 @@ const Index = () => {
 
   const handleStartGame = async (config: GameConfig) => {
     try {
+      if (!isTauri()) {
+        alert(
+          "This action requires the Tauri desktop app. From apps/tauri/src-tauri run: 'cargo tauri dev' (it will start the UI and inject Tauri APIs)."
+        );
+        return;
+      }
       await newGame(config.seed, config.airportCount, config.startingCash);
       setCurrentGame(config);
       setGameState('playing');
@@ -26,6 +33,12 @@ const Index = () => {
 
   const handleLoadGame = async (saveName: string) => {
     try {
+      if (!isTauri()) {
+        alert(
+          "This action requires the Tauri desktop app. From apps/tauri/src-tauri run: 'cargo tauri dev'."
+        );
+        return;
+      }
       await loadGame(saveName);
       setGameState('playing');
     } catch (e) {
@@ -36,6 +49,12 @@ const Index = () => {
 
   const handleLoadConfig = async (file: File) => {
     try {
+      if (!isTauri()) {
+        alert(
+          "This action requires the Tauri desktop app. From apps/tauri/src-tauri run: 'cargo tauri dev'."
+        );
+        return;
+      }
       const text = await file.text();
       await startFromConfigYaml(text);
       setGameState('playing');

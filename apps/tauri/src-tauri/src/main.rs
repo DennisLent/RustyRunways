@@ -3,8 +3,9 @@
 use std::sync::Mutex;
 
 use rusty_runways_core::Game;
+use rusty_runways_core::game::Observation;
 use tauri::{Manager, State};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use rusty_runways_core::utils::airplanes::models::AirplaneModel;
 use strum::IntoEnumIterator;
 use std::fs;
@@ -15,10 +16,20 @@ struct AppState {
     game: Mutex<Option<Game>>,
 }
 
+#[derive(Deserialize)]
+struct NewGameArgs {
+    #[serde(default)]
+    seed: Option<u64>,
+    #[serde(rename = "numAirports", alias = "num_airports")]
+    num_airports: Option<usize>,
+    #[serde(rename = "startingCash", alias = "starting_cash")]
+    starting_cash: f32,
+}
+
 #[tauri::command]
-fn new_game(state: State<AppState>, seed: Option<u64>, num_airports: Option<usize>, starting_cash: f32) -> Result<(), String> {
-    let seed = seed.unwrap_or(0);
-    let mut game = Game::new(seed, num_airports, starting_cash);
+fn new_game(state: State<AppState>, args: NewGameArgs) -> Result<(), String> {
+    let seed = args.seed.unwrap_or(0);
+    let mut game = Game::new(seed, args.num_airports, args.starting_cash);
     // schedule initial events as in Game::new already does
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     *guard = Some(game);
@@ -41,14 +52,14 @@ fn save_game_cmd(state: State<AppState>, name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn observe(state: State<AppState>) -> Result<rusty_runways_core::Observation, String> {
+fn observe(state: State<AppState>) -> Result<Observation, String> {
     let guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_ref().ok_or("no game running")?;
     Ok(game.observe())
 }
 
 #[tauri::command]
-fn advance(state: State<AppState>, hours: u64) -> Result<rusty_runways_core::Observation, String> {
+fn advance(state: State<AppState>, hours: u64) -> Result<Observation, String> {
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_mut().ok_or("no game running")?;
     game.advance(hours);
@@ -129,7 +140,7 @@ fn plane_info(state: State<AppState>, plane_id: usize) -> Result<PlaneInfoDto, S
     let game = guard.as_ref().ok_or("no game running")?;
 
     let plane = game
-        .airplanes()
+        .planes()
         .iter()
         .find(|p| p.id == plane_id)
         .ok_or_else(|| "plane not found".to_string())?;

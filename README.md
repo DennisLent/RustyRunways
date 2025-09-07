@@ -38,9 +38,16 @@ Docs for CLI, GUI, and Python: https://dennislent.github.io/RustyRunways
 - Tauri + React: `apps/tauri` — desktop shell (`src-tauri`) with a React UI (`ui`).
 
 Dev notes (Tauri UI):
-- Start UI: `cd apps/tauri/ui && npm install && npm run dev` (port 5173)
-- Run desktop shell: `cd apps/tauri/src-tauri && cargo tauri dev`
-- Production build: `cd apps/tauri/ui && npm run build && cd ../src-tauri && cargo tauri build`
+- Requires Tauri CLI v2: `cargo install tauri-cli --locked --version ^2`
+- Quick start (one command): `scripts/dev_tauri.sh`
+  - Starts the UI dev server on http://localhost:5173 and launches the desktop app via `cargo tauri dev`.
+  - Note: Do not open the UI in a regular browser; use the desktop window.
+- Manual (two terminals):
+  - Terminal A: `cd apps/tauri/ui && npm install && npm run dev`
+  - Terminal B: `cd apps/tauri/src-tauri && cargo tauri dev`
+- Production build:
+  - `cd apps/tauri/ui && npm run build`
+  - `cd apps/tauri/src-tauri && cargo tauri build`
 
 Both frontends can coexist; the Rust core lives in `crates/core` and is shared.
 
