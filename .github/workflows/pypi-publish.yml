@@ -15,14 +15,14 @@ jobs:
           - os: ubuntu-latest
             manylinux: manylinux2014
             args: >
-              --release -m crates/py/Cargo.toml --sdist --skip-existing
+              --profile release -m crates/py/Cargo.toml --sdist --skip-existing
           - os: macos-13
             target: universal2-apple-darwin
             args: >
-              --release -m crates/py/Cargo.toml --sdist --skip-existing
+              --profile release -m crates/py/Cargo.toml --sdist --skip-existing
           - os: windows-latest
             args: >
-              --release -m crates/py/Cargo.toml --sdist --skip-existing
+              --profile release -m crates/py/Cargo.toml --sdist --skip-existing
 
     steps:
       - uses: actions/checkout@v4
