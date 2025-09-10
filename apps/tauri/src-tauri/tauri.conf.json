@@ -4,8 +4,8 @@
   "version": "2.0.1",
   "identifier": "com.rustyrunways.app",
   "build": {
-    "beforeDevCommand": "npm run dev --prefix ui -- --host localhost --port 5173 --strictPort",
-    "beforeBuildCommand": "npm run build --prefix ui",
+    "beforeDevCommand": "npm run dev -- --host localhost --port 5173 --strictPort",
+    "beforeBuildCommand": "npm run build",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../ui/dist"
   },
