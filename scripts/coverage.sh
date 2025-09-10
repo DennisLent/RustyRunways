@@ -19,7 +19,8 @@ fi
 python3 -m venv .venv >/dev/null 2>&1 || true
 source .venv/bin/activate || true
 python -m pip install --upgrade pip >/dev/null
-pip install --quiet maturin pytest pytest-cov
+# Python deps for tests (gym wrappers rely on numpy)
+pip install --quiet maturin pytest pytest-cov numpy gymnasium
 
 mkdir -p coverage/rust coverage/python
 

@@ -69,7 +69,7 @@ cargo test --workspace
 
 # 3) Python dev tests (maturin develop + pytest) for crates/py
 echo "[check] Installing Python test deps and running dev tests (crates/py)"
-pip install --quiet maturin pytest gymnasium
+pip install --quiet maturin pytest gymnasium numpy
 (
   cd crates/py
   maturin develop

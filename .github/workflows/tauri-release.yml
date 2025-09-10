@@ -71,8 +71,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: apps/tauri
-          tauriPath: apps/tauri/src-tauri
+          projectPath: apps/tauri/src-tauri
           includeDebug: false
           args: ${{ matrix.tauriArgs }}
 
@@ -86,6 +85,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     outputs:
       release_id: ${{ steps.create.outputs.id }}
     steps:
@@ -100,6 +100,7 @@ jobs:
   build:
     name: Build (${{ matrix.runner }})
     needs: create-release
+    if: startsWith(github.ref, 'refs/tags/')
     strategy:
       fail-fast: false
       matrix:
@@ -162,8 +163,7 @@ jobs:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         with:
-          projectPath: apps/tauri
-          tauriPath: apps/tauri/src-tauri
+          projectPath: apps/tauri/src-tauri
           releaseId: ${{ needs.create-release.outputs.release_id }}
           includeDebug: false
           args: ${{ matrix.tauriArgs }}

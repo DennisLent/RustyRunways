@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RustyRunways",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "identifier": "com.rustyrunways.app",
   "build": {
-    "beforeDevCommand": "npm run dev --prefix ui -- --host localhost --port 5173 --strictPort",
-    "beforeBuildCommand": "npm run build --prefix ui",
+    "beforeDevCommand": "npm run dev --prefix ../ui -- --host localhost --port 5173 --strictPort",
+    "beforeBuildCommand": "npm run build --prefix ../ui",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../ui/dist"
   },
@@ -23,6 +23,8 @@
     ]
   },
   "bundle": {
-    "icon": ["../ui/public/rusty_runways.png"]
+    "icon": [
+      "../ui/public/rusty_runways.png"
+    ]
   }
 }
