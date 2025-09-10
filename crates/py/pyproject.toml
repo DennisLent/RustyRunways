@@ -23,13 +23,13 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-urls = { 
-    Homepage = "https://github.com/DennisLent/RustyRunways",
-    Documentation = "https://dennislent.github.io/RustyRunways",
-    Source = "https://github.com/DennisLent/RustyRunways",
-    Issues = "https://github.com/DennisLent/RustyRunways/issues"
-}
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/DennisLent/RustyRunways"
+Documentation = "https://dennislent.github.io/RustyRunways"
+Source = "https://github.com/DennisLent/RustyRunways"
+Issues = "https://github.com/DennisLent/RustyRunways/issues"
 
 [project.optional-dependencies]
 # Optional Gymnasium support for the pure-Python wrappers in `rusty_runways`.
