@@ -61,6 +61,9 @@ jobs:
       - name: Install Tauri CLI (v2)
         run: cargo install tauri-cli --locked --version ^2 || true
 
+      - name: Generate icons from docs image
+        run: npx @tauri-apps/cli@v2 icon -o apps/tauri/src-tauri/icons docs/assets/rusty_runways.png
+
       - name: macOS targets for universal build
         if: runner.os == 'macOS'
         run: |
@@ -145,6 +148,9 @@ jobs:
 
       - name: Install Tauri CLI (v2)
         run: cargo install tauri-cli --locked --version ^2 || true
+
+      - name: Generate icons from docs image
+        run: npx @tauri-apps/cli@v2 icon -o apps/tauri/src-tauri/icons docs/assets/rusty_runways.png
 
       - name: macOS targets for universal build
         if: runner.os == 'macOS'
