@@ -54,3 +54,7 @@ docs/web-demo/
 
 # Coverage
 cobertura.xml
+coverage/
+apps/tauri/ui/coverage/
+coverage.xml
+*.lcov

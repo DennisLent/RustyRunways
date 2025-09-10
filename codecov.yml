@@ -1,0 +1,43 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 1%
+        base: auto
+        # Include all flags (rust, python, frontend) in the project total
+      rust:
+        flags: rust
+        target: auto
+        informational: true
+      python:
+        flags: python
+        target: auto
+        informational: true
+      frontend:
+        flags: frontend
+        target: auto
+        informational: true
+    patch:
+      default:
+        target: 80%
+
+comment:
+  layout: "reach, diff, flags, files"
+  require_changes: false
+  require_base: false
+  require_head: false
+
+flags:
+  rust:
+    paths:
+      - crates/
+      - apps/tauri/src-tauri/
+  python:
+    paths:
+      - crates/py/
+  frontend:
+    paths:
+      - apps/tauri/ui/
+    # Show as informational so lack of tests doesn't block merges
+    carryforward: true
