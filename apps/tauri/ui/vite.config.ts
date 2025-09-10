@@ -19,12 +19,6 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  build: {
-    rollupOptions: {
-      external: [
-        // Loaded at runtime from public/rr_wasm by the web demo
-        '/rr_wasm/rusty_runways_wasm.js',
-      ],
-    },
-  },
+  // WASM glue is loaded at runtime via dynamic import with `@vite-ignore`,
+  // resolved relative to the current page. No external config needed.
 }));
