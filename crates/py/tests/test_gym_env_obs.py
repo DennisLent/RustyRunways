@@ -12,8 +12,22 @@ def test_build_obs_from_state_basic():
         "time": 5,
         "cash": 123.0,
         "airports": [
-            {"id": 0, "x": 0.0, "y": 0.0, "fuel_price": 2.0, "runway_length": 1000.0, "num_orders": 2},
-            {"id": 1, "x": 1.0, "y": 1.0, "fuel_price": 4.0, "runway_length": 1500.0, "num_orders": 3},
+            {
+                "id": 0,
+                "x": 0.0,
+                "y": 0.0,
+                "fuel_price": 2.0,
+                "runway_length": 1000.0,
+                "num_orders": 2,
+            },
+            {
+                "id": 1,
+                "x": 1.0,
+                "y": 1.0,
+                "fuel_price": 4.0,
+                "runway_length": 1500.0,
+                "num_orders": 3,
+            },
         ],
         "planes": [
             {
@@ -51,4 +65,3 @@ def test_build_obs_from_state_basic():
     assert vec[11] == 2.0  # fuel price at current airport
     assert vec[12] == 1000.0  # runway length at current airport
     assert vec[13] == 2.0  # orders at current airport
-
