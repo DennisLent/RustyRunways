@@ -1,4 +1,10 @@
 import { invoke } from '@tauri-apps/api/core'
+import { isTauri } from '@/lib/tauri'
+
+function wasmModulePath(): string {
+  // Served from public/rr_wasm by build_web_demo.sh into docs/web-demo/rr_wasm
+  return '/rr_wasm/rusty_runways_wasm.js'
+}
 
 export type Observation = {
   time: number
@@ -9,14 +15,18 @@ export type Observation = {
 
 export async function newGame(seed: string | undefined, airportCount: number, startingCash: number): Promise<void> {
   const parsedSeed = seed && seed.trim() !== '' ? Number(seed) : undefined
-  // Tauri v2 command expects a single `args` object (we also support snake_case via aliases on the Rust side)
-  await invoke('new_game', {
-    args: {
-      seed: parsedSeed,
-      numAirports: airportCount,
-      startingCash: startingCash,
-    },
-  })
+  if (isTauri()) {
+    await invoke('new_game', {
+      args: {
+        seed: parsedSeed,
+        numAirports: airportCount,
+        startingCash: startingCash,
+      },
+    })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    wasm.new_game(parsedSeed, airportCount, startingCash)
+  }
 }
 
 export async function loadGame(name: string): Promise<void> {
@@ -28,35 +38,75 @@ export async function saveGame(name: string): Promise<void> {
 }
 
 export async function observe(): Promise<Observation> {
-  return await invoke<Observation>('observe')
+  if (isTauri()) {
+    return await invoke<Observation>('observe')
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    return (await wasm.observe()) as Observation
+  }
 }
 
 export async function advance(hours = 1): Promise<Observation> {
-  return await invoke<Observation>('advance', { hours })
+  if (isTauri()) {
+    return await invoke<Observation>('advance', { hours })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    return (await wasm.advance(hours)) as Observation
+  }
 }
 
 export async function departPlane(plane: number, dest: number): Promise<void> {
-  await invoke('depart_plane', { plane, dest })
+  if (isTauri()) {
+    await invoke('depart_plane', { plane, dest })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    await wasm.depart_plane(plane, dest)
+  }
 }
 
 export async function refuelPlane(plane: number): Promise<void> {
-  await invoke('refuel_plane', { plane })
+  if (isTauri()) {
+    await invoke('refuel_plane', { plane })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    await wasm.refuel_plane(plane)
+  }
 }
 
 export async function maintenance(plane: number): Promise<void> {
-  await invoke('maintenance', { plane })
+  if (isTauri()) {
+    await invoke('maintenance', { plane })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    await wasm.maintenance(plane)
+  }
 }
 
 export async function loadOrder(order: number, plane: number): Promise<void> {
-  await invoke('load_order', { order, plane })
+  if (isTauri()) {
+    await invoke('load_order', { order, plane })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    await wasm.load_order(order, plane)
+  }
 }
 
 export async function unloadOrder(order: number, plane: number): Promise<void> {
-  await invoke('unload_order', { order, plane })
+  if (isTauri()) {
+    await invoke('unload_order', { order, plane })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    await wasm.unload_order(order, plane)
+  }
 }
 
 export async function unloadAll(plane: number): Promise<void> {
-  await invoke('unload_all', { plane })
+  if (isTauri()) {
+    await invoke('unload_all', { plane })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    await wasm.unload_all(plane)
+  }
 }
 
 export type PlaneInfo = {
@@ -83,12 +133,21 @@ export type OrderDto = {
 }
 
 export async function planeInfo(planeId: number): Promise<PlaneInfo> {
-  // Send both snake_case and camelCase to be robust with Tauri arg naming
-  return await invoke<PlaneInfo>('plane_info', { plane_id: planeId, planeId })
+  if (isTauri()) {
+    return await invoke<PlaneInfo>('plane_info', { plane_id: planeId, planeId })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    return (await wasm.plane_info(planeId)) as PlaneInfo
+  }
 }
 
 export async function airportOrders(airportId: number): Promise<OrderDto[]> {
-  return await invoke<OrderDto[]>('airport_orders', { airport_id: airportId, airportId })
+  if (isTauri()) {
+    return await invoke<OrderDto[]>('airport_orders', { airport_id: airportId, airportId })
+  } else {
+    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    return (await wasm.airport_orders(airportId)) as OrderDto[]
+  }
 }
 
 export type ModelDto = {
@@ -104,24 +163,50 @@ export type ModelDto = {
 }
 
 export async function listModels(): Promise<ModelDto[]> {
-  return await invoke<ModelDto[]>('list_models')
+  if (isTauri()) {
+    return await invoke<ModelDto[]>('list_models')
+  } else {
+    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    return (await wasm.list_models()) as ModelDto[]
+  }
 }
 
 export async function buyPlane(model: string, airportId: number): Promise<void> {
-  await invoke('buy_plane_cmd', { model, airport_id: airportId, airportId })
+  if (isTauri()) {
+    await invoke('buy_plane_cmd', { model, airport_id: airportId, airportId })
+  } else {
+    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    await wasm.buy_plane(model, airportId)
+  }
 }
 
 export async function canFly(planeId: number, destId: number): Promise<boolean> {
-  return await invoke<boolean>('plane_can_fly_to', { plane_id: planeId, dest_id: destId, planeId, destId })
+  if (isTauri()) {
+    return await invoke<boolean>('plane_can_fly_to', { plane_id: planeId, dest_id: destId, planeId, destId })
+  } else {
+    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    return await wasm.plane_can_fly_to(planeId, destId)
+  }
 }
 
 export type FeasibilityDto = { ok: boolean; reason?: string }
 export async function reachability(planeId: number, destId: number): Promise<FeasibilityDto> {
-  return await invoke<FeasibilityDto>('plane_reachability', { plane_id: planeId, dest_id: destId, planeId, destId })
+  if (isTauri()) {
+    return await invoke<FeasibilityDto>('plane_reachability', { plane_id: planeId, dest_id: destId, planeId, destId })
+  } else {
+    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    return (await wasm.plane_reachability(planeId, destId)) as FeasibilityDto
+  }
 }
 
 export async function startFromConfigYaml(yaml: string): Promise<void> {
-  await invoke('start_from_config_yaml', { yaml })
+  if (isTauri()) {
+    await invoke('start_from_config_yaml', { yaml })
+  } else {
+    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    // TODO: parse YAML in wasm; for demo start with defaults
+    wasm.new_game(undefined, 10, 100000)
+  }
 }
 
 export async function startFromConfigPath(path: string): Promise<void> {

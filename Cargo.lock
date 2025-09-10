@@ -1975,8 +1975,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "335ff9f135e4384c8150d6f27c6daed433577f86b4750418338c01a1a2528592"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi 0.11.1+wasi-snapshot-preview1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -4483,6 +4485,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusty_runways_wasm"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.2.16",
+ "once_cell",
+ "rusty_runways_core",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "strum 0.27.2",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "rustyline"
 version = "16.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4640,6 +4656,17 @@ dependencies = [
  "erased-serde",
  "serde",
  "typeid",
+]
+
+[[package]]
+name = "serde-wasm-bindgen"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
 ]
 
 [[package]]

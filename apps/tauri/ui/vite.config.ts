@@ -19,4 +19,12 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      external: [
+        // Loaded at runtime from public/rr_wasm by the web demo
+        '/rr_wasm/rusty_runways_wasm.js',
+      ],
+    },
+  },
 }));

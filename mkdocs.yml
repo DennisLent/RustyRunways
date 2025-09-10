@@ -44,6 +44,7 @@ nav:
     - Custom Worlds: core/custom_worlds.md
   - CLI: cli/index.md
   - GUI: gui/index.md
+  - Play Online: demo.md
   - Releases: releases.md
   - Development:
     - Coverage: dev/coverage.md

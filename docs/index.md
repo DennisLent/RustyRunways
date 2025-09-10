@@ -18,10 +18,14 @@ This documentation provides a high‑level overview of the project and links to 
 
 ## Quick Start
 
+[▶ Play the Web Demo](demo.md){ .md-button .md-button--primary }
+[⬇ Download Desktop App](releases.md){ .md-button }
+
 - Python (pip): `pip install rusty-runways` — see Python page for Gym wrappers and extra installs
 - Build: `cargo build --release`
 - CLI: `cargo run -p rusty_runways_cli -- --seed 1 --n 5 --c 1000000`
 - GUI (download): see [Releases](releases.md) for installers (macOS universal, Windows, Linux).
+- GUI (web demo): try it in your browser — no install — see [Play Online](demo.md). Note: save/load and YAML scenarios are only available in Python, Tauri desktop, or native Rust.
 - GUI (from source):
   - Dev: `scripts/dev_tauri.sh`
   - Build: `cd apps/tauri/src-tauri && cargo tauri build`
