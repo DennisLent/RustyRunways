@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "RustyRunways",
+  "version": "2.0.1",
+  "identifier": "com.rustyrunways.app",
+  "build": {
+    "beforeDevCommand": "npm run dev -- --host localhost --port 5173 --strictPort",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../ui/dist"
+  },
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "RustyRunways",
+        "width": 1280,
+        "height": 800,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "icon": [
+      "../../../docs/assets/rusty_runways.png"
+    ]
+  }
+}

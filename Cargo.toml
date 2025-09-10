@@ -5,5 +5,7 @@ members = [
     "crates/gui",
     "crates/commands",
     "crates/py",
+    "crates/wasm",
+    "apps/tauri/src-tauri",
 ]
 resolver = "2"

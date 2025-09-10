@@ -1,36 +1,38 @@
 name: Coverage
 
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
 
 jobs:
   coverage:
     runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin:develop-nightly
-      options: --security-opt seccomp=unconfined
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Run Tarpaulin
-        run: |
-          # run all tests, produce XML for Codecov
-          cargo tarpaulin \
-            --config tarpaulin.toml \
-            --all-features \
-            --workspace \
-            --timeout 120 \
-            --out Xml \
-            --output-dir coverage
-          ls -lah coverage
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Upload to Codecov
-        if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v3
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/cobertura.xml
-          flags: rust
-          fail_ci_if_error: true
-          verbose: true
+          python-version: '3.11'
+
+      - name: Run coverage (Rust + Python)
+        env:
+          RUST_FAIL_UNDER: '80'
+          PY_FAIL_UNDER: '0'
+        run: bash scripts/coverage.sh
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/**

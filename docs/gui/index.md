@@ -4,7 +4,13 @@ title: Graphical Interface (GUI)
 
 # GUI
 
-The GUI (`rusty_runways_gui`) is built with `eframe/egui` and uses the Core engine for all rules. See [Core](../core/index.md) for game mechanics.
+RustyRunways ships with two GUIs:
+
+- Tauri + React desktop app (recommended): a polished UI that bundles the web frontend with a native shell via Tauri. It looks nicer, supports full-screen map, and is available as installers for macOS, Windows, and Linux. See Downloads: [Releases](../releases.md).
+- Web Demo: run the same UI in your browser via WebAssembly. Great for a quick try — no install. [Play Online](../demo.md){ .md-button }
+- egui desktop app: a lightweight Rust/egui client primarily used during early development. It remains available under `crates/gui` but is not distributed as prebuilt binaries.
+
+Both UIs use the same Core engine and commands. See [Core](../core/index.md) for the game mechanics.
 
 ## Layout
 
@@ -50,3 +56,13 @@ The GUI (`rusty_runways_gui`) is built with `eframe/egui` and uses the Core engi
 - Resizable panels and windows; stable sizes for Save/Load and info windows.
 - Multi‑order selection and filters improve throughput when dispatching multiple orders.
 - Log panel spans full width and sticks to the latest message.
+
+## Getting the desktop app
+
+- Download installers from the [Releases](../releases.md) page. We publish cross‑platform builds for every tagged release. On macOS we ship a universal binary that runs on both Apple Silicon and Intel.
+- Developers can run the app from source:
+  - Dev mode: `scripts/dev_tauri.sh` (starts Vite + Tauri window)
+  - Build: `cd apps/tauri/src-tauri && cargo tauri build`
+
+Limitations in the web demo:
+- Save/load and YAML scenarios are not available in the browser. Use the Python wrappers, Tauri desktop app, or native Rust builds for those workflows.

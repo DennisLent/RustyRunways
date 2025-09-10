@@ -44,3 +44,13 @@ build/
 Thumbs.db
 .idea/
 .vscode/
+
+# Node / web
+node_modules/
+apps/tauri/ui/node_modules/
+apps/tauri/ui/dist/
+apps/tauri/ui/public/rr_wasm/
+docs/web-demo/
+
+# Coverage
+cobertura.xml

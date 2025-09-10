@@ -69,7 +69,7 @@ cargo test --workspace
 
 # 3) Python dev tests (maturin develop + pytest) for crates/py
 echo "[check] Installing Python test deps and running dev tests (crates/py)"
-pip install --quiet maturin pytest gymnasium
+pip install --quiet maturin pytest gymnasium numpy
 (
   cd crates/py
   maturin develop
@@ -81,6 +81,38 @@ print("[check] Imported rusty_runways from:", getattr(rusty_runways, "__file__",
 print("[check] Imported rusty_runways_py:", rusty_runways_py.__name__)
 PY
   pytest tests
+)
+
+# 4) React (Tauri UI) lint/typecheck/build
+echo "[check] Checking React (apps/tauri/ui)"
+(
+  cd apps/tauri/ui
+  if [[ ! -d node_modules ]]; then
+    echo "[check] Installing UI dependencies (npm ci)"
+    npm ci --silent
+  fi
+
+  if [[ "$MODE" == "fix" ]]; then
+    echo "[check] Running ESLint --fix (UI)"
+    npx eslint . --fix || true
+  else
+    echo "[check] Running ESLint (UI)"
+    npm run --silent lint
+  fi
+
+  echo "[check] Type-checking (tsc --noEmit)"
+  npx tsc --noEmit
+
+  echo "[check] Building UI (vite build)"
+  npm run --silent build
+
+  # Optional: run tests if present
+  if grep -q '"test"' package.json; then
+    echo "[check] Running UI tests"
+    npm test --silent
+  else
+    echo "[check] No UI tests found; skipping"
+  fi
 )
 
 echo "[check] All checks passed."
