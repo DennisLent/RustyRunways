@@ -81,7 +81,7 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
           const fuelPct = info.fuel_capacity > 0 ? Math.round((info.fuel_current / info.fuel_capacity) * 100) : 0;
           const cargoPct = info.payload_capacity > 0 ? Math.round((info.payload_current / info.payload_capacity) * 100) : 0;
           map[plane.id] = { fuelPct, cargoPct };
-        } catch (_) {}
+        } catch (_) { void 0 }
       }
       setPlaneInfoMap(map);
     })();
@@ -95,7 +95,7 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
         const { reachability } = await import('@/api/game');
         const info = await reachability(parseInt(selectedPlaneId, 10), parseInt(dispatchDest, 10));
         setDispatchInfo(info);
-      } catch (_) {}
+      } catch (_) { void 0 }
     })();
   }, [selectedPlaneId, dispatchDest]);
 
@@ -141,10 +141,10 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
           try {
             const ok = await (await import('@/api/game')).canFly(idNum, d);
             cache[d] = ok;
-          } catch (_) {}
+          } catch (_) { void 0 }
         }
         setCanFlyCache(cache);
-      } catch (_) {}
+      } catch (_) { void 0 }
     }
     fetchPlaneInfoAndEligibility();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -540,7 +540,7 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
                                   { (planeCapacity.capacity - planeCapacity.current) >= order.weight ? 'Fits payload' : 'Too heavy' }
                                 </Badge>
                                 <span className="mx-1" />
-                                <Badge variant="outline" className={(canFlyCache[parseInt(order.destination, 10)] ?? false) ? 'bg-aviation-blue/20 border-aviation-blue/30 text-aviation-blue' : 'bg-slate-500/20 border-slate-500/30 text-slate-300'}>
+                                <Badge variant="outline" className={(canFlyCache[parseInt(order.destination, 10)] ?? false) ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-400'}>
                                   { (canFlyCache[parseInt(order.destination, 10)] ?? false) ? 'Can reach' : 'Route blocked' }
                                 </Badge>
                               </div>

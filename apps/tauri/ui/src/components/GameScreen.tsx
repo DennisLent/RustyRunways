@@ -25,6 +25,7 @@ import {
   Users
 } from "lucide-react";
 import { observe, advance as apiAdvance, saveGame as apiSave, listSaves as apiListSaves, loadGame as apiLoadGame } from "@/api/game";
+import type { Observation } from "@/api/game";
 
 interface GameScreenProps {
   onMainMenu: () => void;
@@ -64,8 +65,10 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
   const [selectedAirportId, setSelectedAirportId] = useState<string>("");
   const [cash, setCash] = useState<number>(0);
   const [timeStr, setTimeStr] = useState<string>("0h");
-  const [airports, setAirports] = useState<any[]>([]);
-  const [planes, setPlanes] = useState<any[]>([]);
+  type ObsAirport = Observation["airports"][number];
+  type ObsPlane = Observation["planes"][number];
+  const [airports, setAirports] = useState<ObsAirport[]>([]);
+  const [planes, setPlanes] = useState<ObsPlane[]>([]);
   const timerRef = useRef<number | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
@@ -105,7 +108,8 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
 
   const handleAirplaneClick = (airplane: Airplane) => {
     setSelectedAirplaneId(airplane.id);
-    setScreenMode('airplane');
+    // Defer screen change to ensure selectedAirplaneId is committed
+    setTimeout(() => setScreenMode('airplane'), 0);
     addLog('info', `Viewing details for ${airplane.model} ${airplane.id}`);
   };
 
@@ -177,18 +181,25 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
     cash: cash,
     time: timeStr,
     planes: planes.length,
-    activeOrders: airports.reduce((a: number, b: any) => a + (b.num_orders || 0), 0),
+    activeOrders: airports.reduce((a, b) => a + (b.num_orders || 0), 0),
     completedDeliveries: 0,
     totalRevenue: 0
   };
 
   // Render different screens based on mode
   if (screenMode === 'airplane') {
+    if (!selectedAirplaneId) {
+      return (
+        <div className="min-h-screen bg-gradient-control p-4 flex items-center justify-center text-muted-foreground">
+          Loading aircraft...
+        </div>
+      );
+    }
     return (
       <AirplaneDetailScreen
         airplaneId={selectedAirplaneId}
         onBack={handleBackToMain}
-        airportsData={airports.map((a: any) => ({ id: a.id, name: a.name }))}
+        airportsData={airports.map((a) => ({ id: a.id, name: a.name }))}
       />
     );
   }
@@ -218,7 +229,7 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
           setScreenMode('main');
         }}
         playerCash={gameStats.cash}
-        airportsData={airports.map((a: any) => ({ id: a.id, name: a.name }))}
+        airportsData={airports.map((a) => ({ id: a.id, name: a.name }))}
       />
     );
   }
@@ -320,7 +331,7 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
               <WorldMap 
                 onAirportClick={handleAirportClick}
                 onAirplaneClick={handleAirplaneClick}
-                airportsData={airports.map((a: any) => ({
+                airportsData={airports.map((a) => ({
                   id: String(a.id),
                   name: a.name,
                   code: String(a.id),
@@ -329,7 +340,7 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                   hasOrders: (a.num_orders ?? 0) > 0,
                   orderCount: a.num_orders ?? 0,
                 }))}
-                airplanesData={planes.map((p: any) => ({
+                airplanesData={planes.map((p) => ({
                   id: String(p.id),
                   model: p.model,
                   x: p.x,
@@ -431,41 +442,37 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
                     <div className="space-y-2">
-                      <div className="border border-aviation-blue/20 rounded-lg p-3 bg-secondary/20">
-                        <div className="font-semibold">Boeing 737-800</div>
-                        <div className="text-muted-foreground text-xs">
-                          Location: JFK • Status: Loading • Fuel: 85%
-                        </div>
-                        <div className="flex gap-1 mt-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-xs"
-                            onClick={() => handleAirplaneClick({ id: "P001", model: "Boeing 737-800", x: 8500, y: 2000, status: "parked" })}
-                          >
-                            <Users className="w-3 h-3 mr-1" />
-                            Manage
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="border border-aviation-blue/20 rounded-lg p-3 bg-secondary/20">
-                        <div className="font-semibold">Cessna 172</div>
-                        <div className="text-muted-foreground text-xs">
-                          Location: LAX • Status: En Route to SFO • Fuel: 92%
-                        </div>
-                        <div className="flex gap-1 mt-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-xs"
-                            onClick={() => handleAirplaneClick({ id: "P002", model: "Cessna 172", x: 3000, y: 2200, status: "en-route" })}
-                          >
-                            <Users className="w-3 h-3 mr-1" />
-                            Manage
-                          </Button>
-                        </div>
-                      </div>
+                      {planes.length === 0 && (
+                        <div className="text-muted-foreground text-xs">No aircraft owned yet.</div>
+                      )}
+                      {planes.map((p) => {
+                        const fuelPct = p.fuel?.capacity > 0 ? Math.round((p.fuel.current / p.fuel.capacity) * 100) : 0;
+                        const status: 'parked' | 'en-route' | 'loading' = p.status.includes('InTransit')
+                          ? 'en-route'
+                          : (p.status.includes('Loading') ? 'loading' : 'parked');
+                        const atAirport = airports.find((a) => !p.status.includes('InTransit') && a.x === p.x && a.y === p.y);
+                        const destAirport = p.destination != null ? airports.find((a) => a.id === p.destination) : undefined;
+                        const locLabel = atAirport ? String(atAirport.name) : (destAirport ? `→ ${destAirport.name}` : '');
+                        return (
+                          <div key={p.id} className="border border-aviation-blue/20 rounded-lg p-3 bg-secondary/20">
+                            <div className="font-semibold">{p.model}</div>
+                            <div className="text-muted-foreground text-xs">
+                              {locLabel ? `Location: ${locLabel} • ` : ''}Status: {status.replace('-', ' ')} • Fuel: {fuelPct}%
+                            </div>
+                            <div className="flex gap-1 mt-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 text-xs"
+                                onClick={() => handleAirplaneClick({ id: String(p.id), model: p.model, x: p.x, y: p.y, status, destination: p.destination != null ? String(p.destination) : undefined })}
+                              >
+                                <Users className="w-3 h-3 mr-1" />
+                                Manage
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <Button 
@@ -487,39 +494,38 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                     <CardTitle className="text-aviation-blue text-sm">Airports</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                    {[
-                      { id: "JFK", name: "John F. Kennedy", orders: 5, aircraft: 2 },
-                      { id: "LAX", name: "Los Angeles Intl", orders: 3, aircraft: 1 },
-                      { id: "DFW", name: "Dallas Fort Worth", orders: 0, aircraft: 0 },
-                      { id: "MIA", name: "Miami International", orders: 2, aircraft: 0 }
-                    ].map((airport) => (
-                      <div 
-                        key={airport.id} 
-                        className="border border-aviation-blue/20 rounded-lg p-3 bg-secondary/20 hover:bg-secondary/30 transition-colors cursor-pointer"
-                        onClick={() => handleAirportClick({ 
-                          id: airport.id, 
-                          name: airport.name, 
-                          code: airport.id, 
-                          x: 0, 
-                          y: 0, 
-                          hasOrders: airport.orders > 0, 
-                          orderCount: airport.orders 
-                        })}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-semibold">{airport.id}</div>
-                            <div className="text-muted-foreground text-xs">
-                              {airport.name}
+                    {airports.length === 0 && (
+                      <div className="text-muted-foreground text-xs">No airports available.</div>
+                    )}
+                    {airports.map((a) => {
+                      const aircraft = planes.filter((p) => !p.status.includes('InTransit') && p.x === a.x && p.y === a.y).length;
+                      return (
+                        <div 
+                          key={a.id} 
+                          className="border border-aviation-blue/20 rounded-lg p-3 bg-secondary/20 hover:bg-secondary/30 transition-colors cursor-pointer"
+                          onClick={() => handleAirportClick({ 
+                            id: String(a.id), 
+                            name: a.name, 
+                            code: String(a.id), 
+                            x: a.x, 
+                            y: a.y, 
+                            hasOrders: (a.num_orders ?? 0) > 0, 
+                            orderCount: a.num_orders ?? 0 
+                          })}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-semibold">{a.name}</div>
+                              <div className="text-muted-foreground text-xs">ID: {a.id}</div>
+                            </div>
+                            <div className="text-right text-xs">
+                              <div className="text-aviation-amber">{a.num_orders ?? 0} orders</div>
+                              <div className="text-muted-foreground">{aircraft} aircraft</div>
                             </div>
                           </div>
-                          <div className="text-right text-xs">
-                            <div className="text-aviation-amber">{airport.orders} orders</div>
-                            <div className="text-muted-foreground">{airport.aircraft} aircraft</div>
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </CardContent>
                 </Card>
               </TabsContent>

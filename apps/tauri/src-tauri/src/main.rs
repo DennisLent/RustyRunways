@@ -2,14 +2,14 @@
 
 use std::sync::Mutex;
 
-use rusty_runways_core::Game;
 use rusty_runways_core::game::Observation;
-use tauri::{Manager, State};
-use serde::{Serialize, Deserialize};
 use rusty_runways_core::utils::airplanes::models::AirplaneModel;
-use strum::IntoEnumIterator;
+use rusty_runways_core::Game;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use strum::IntoEnumIterator;
+use tauri::State;
 
 #[derive(Default)]
 struct AppState {
@@ -29,7 +29,7 @@ struct NewGameArgs {
 #[tauri::command]
 fn new_game(state: State<AppState>, args: NewGameArgs) -> Result<(), String> {
     let seed = args.seed.unwrap_or(0);
-    let mut game = Game::new(seed, args.num_airports, args.starting_cash);
+    let game = Game::new(seed, args.num_airports, args.starting_cash);
     // schedule initial events as in Game::new already does
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     *guard = Some(game);
@@ -105,7 +105,8 @@ fn refuel_plane(state: State<AppState>, plane: usize) -> Result<(), String> {
 fn maintenance(state: State<AppState>, plane: usize) -> Result<(), String> {
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_mut().ok_or("no game running")?;
-    game.maintenance_on_airplane(plane).map_err(|e| e.to_string())
+    game.maintenance_on_airplane(plane)
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -135,7 +136,6 @@ struct PlaneInfoDto {
 
 #[tauri::command]
 fn plane_info(state: State<AppState>, plane_id: usize) -> Result<PlaneInfoDto, String> {
-    use rusty_runways_core::utils::airplanes::models::AirplaneStatus;
     let guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_ref().ok_or("no game running")?;
 
@@ -240,11 +240,16 @@ fn list_models() -> Vec<ModelDto> {
 fn buy_plane_cmd(state: State<AppState>, model: String, airport_id: usize) -> Result<(), String> {
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_mut().ok_or("no game running")?;
-    game.buy_plane(&model, airport_id).map_err(|e| e.to_string())
+    game.buy_plane(&model, airport_id)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn plane_can_fly_to(state: State<AppState>, plane_id: usize, dest_id: usize) -> Result<bool, String> {
+fn plane_can_fly_to(
+    state: State<AppState>,
+    plane_id: usize,
+    dest_id: usize,
+) -> Result<bool, String> {
     let guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_ref().ok_or("no game running")?;
     let plane = game
@@ -267,7 +272,11 @@ struct FeasibilityDto {
 }
 
 #[tauri::command]
-fn plane_reachability(state: State<AppState>, plane_id: usize, dest_id: usize) -> Result<FeasibilityDto, String> {
+fn plane_reachability(
+    state: State<AppState>,
+    plane_id: usize,
+    dest_id: usize,
+) -> Result<FeasibilityDto, String> {
     let guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_ref().ok_or("no game running")?;
     let plane = game
@@ -281,14 +290,21 @@ fn plane_reachability(state: State<AppState>, plane_id: usize, dest_id: usize) -
         .find(|(a, _)| a.id == dest_id)
         .ok_or("airport not found")?;
     match plane.can_fly_to(airport, coord) {
-        Ok(_) => Ok(FeasibilityDto { ok: true, reason: None }),
-        Err(e) => Ok(FeasibilityDto { ok: false, reason: Some(e.to_string()) }),
+        Ok(_) => Ok(FeasibilityDto {
+            ok: true,
+            reason: None,
+        }),
+        Err(e) => Ok(FeasibilityDto {
+            ok: false,
+            reason: Some(e.to_string()),
+        }),
     }
 }
 
 #[tauri::command]
 fn start_from_config_yaml(state: State<AppState>, yaml: String) -> Result<(), String> {
-    let cfg: rusty_runways_core::config::WorldConfig = serde_yaml::from_str(&yaml).map_err(|e| e.to_string())?;
+    let cfg: rusty_runways_core::config::WorldConfig =
+        serde_yaml::from_str(&yaml).map_err(|e| e.to_string())?;
     let game = rusty_runways_core::Game::from_config(cfg).map_err(|e| e.to_string())?;
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     *guard = Some(game);

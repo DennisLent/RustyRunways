@@ -83,11 +83,12 @@ export type OrderDto = {
 }
 
 export async function planeInfo(planeId: number): Promise<PlaneInfo> {
-  return await invoke<PlaneInfo>('plane_info', { plane_id: planeId })
+  // Send both snake_case and camelCase to be robust with Tauri arg naming
+  return await invoke<PlaneInfo>('plane_info', { plane_id: planeId, planeId })
 }
 
 export async function airportOrders(airportId: number): Promise<OrderDto[]> {
-  return await invoke<OrderDto[]>('airport_orders', { airport_id: airportId })
+  return await invoke<OrderDto[]>('airport_orders', { airport_id: airportId, airportId })
 }
 
 export type ModelDto = {
@@ -107,16 +108,16 @@ export async function listModels(): Promise<ModelDto[]> {
 }
 
 export async function buyPlane(model: string, airportId: number): Promise<void> {
-  await invoke('buy_plane_cmd', { model, airport_id: airportId })
+  await invoke('buy_plane_cmd', { model, airport_id: airportId, airportId })
 }
 
 export async function canFly(planeId: number, destId: number): Promise<boolean> {
-  return await invoke<boolean>('plane_can_fly_to', { plane_id: planeId, dest_id: destId })
+  return await invoke<boolean>('plane_can_fly_to', { plane_id: planeId, dest_id: destId, planeId, destId })
 }
 
 export type FeasibilityDto = { ok: boolean; reason?: string }
 export async function reachability(planeId: number, destId: number): Promise<FeasibilityDto> {
-  return await invoke<FeasibilityDto>('plane_reachability', { plane_id: planeId, dest_id: destId })
+  return await invoke<FeasibilityDto>('plane_reachability', { plane_id: planeId, dest_id: destId, planeId, destId })
 }
 
 export async function startFromConfigYaml(yaml: string): Promise<void> {

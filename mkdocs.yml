@@ -44,4 +44,7 @@ nav:
     - Custom Worlds: core/custom_worlds.md
   - CLI: cli/index.md
   - GUI: gui/index.md
+  - Releases: releases.md
+  - Development:
+    - Coverage: dev/coverage.md
   - Python: python/index.md

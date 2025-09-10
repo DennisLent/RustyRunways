@@ -50,12 +50,16 @@ export const AirplaneDetailScreen = ({
   onBack,
   airportsData
 }: AirplaneDetailScreenProps) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedDestination, setSelectedDestination] = useState("");
   const [filterDestination, setFilterDestination] = useState("");
   const [filterWeight, setFilterWeight] = useState("");
   const [filterValue, setFilterValue] = useState("");
   const [canFlyCache, setCanFlyCache] = useState<Record<number, boolean>>({});
   const [reachInfo, setReachInfo] = useState<{ ok: boolean; reason?: string } | null>(null);
+  // Reachability for all airports (for destination selector)
+  const [airportReachCache, setAirportReachCache] = useState<Record<number, boolean>>({});
 
   // Live data
   const [airplane, setAirplane] = useState({
@@ -73,53 +77,101 @@ export const AirplaneDetailScreen = ({
 
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
 
+  // Keep filteredOrders defined before effects that reference it
+  const filteredOrders = availableOrders.filter(order => {
+    const maxW = filterWeight ? parseInt(filterWeight, 10) : Infinity;
+    const minV = filterValue ? parseInt(filterValue, 10) : 0;
+    return (
+      (!filterDestination || order.destination.toLowerCase().includes(filterDestination.toLowerCase())) &&
+      order.weight <= maxW &&
+      order.value >= minV
+    );
+  });
+
   const availableAirports: Airport[] = airportsData
-    ? airportsData.map(a => ({ id: String(a.id), name: a.name, code: String(a.id), canReach: true, distance: 0, fuelRequired: 0 }))
+    ? airportsData.map(a => ({
+        id: String(a.id),
+        name: a.name,
+        code: String(a.id),
+        canReach: airportReachCache[a.id] ?? true,
+        distance: 0,
+        fuelRequired: 0,
+      }))
     : [
       { id: "1", name: "Los Angeles Intl", code: "1", canReach: true, distance: 0, fuelRequired: 0 },
     ];
 
   async function refresh() {
-    const idNum = parseInt(airplaneId, 10);
-    const info = await apiPlaneInfo(idNum);
-    setAirplane(prev => ({
-      ...prev,
-      id: String(info.id),
-      model: info.model,
-      location: info.current_airport_id != null ? String(info.current_airport_id) : "",
-      status: info.status,
-      fuel: Math.round((info.fuel_current / info.fuel_capacity) * 100),
-      maxFuel: 100,
-      cargoCapacity: info.payload_capacity,
-      currentCargo: info.payload_current,
-      loadedOrders: info.manifest.map(o => ({
-        id: String(o.id),
-        cargoType: (o as any).cargo_type || "",
-        weight: o.weight,
-        destination: String(o.destination_id),
-        deadline: String(o.deadline),
-        value: o.value,
-      }))
-    }));
+    setLoading(true);
+    setError(null);
+    try {
+      const idNum = parseInt(airplaneId, 10);
+      if (!Number.isFinite(idNum)) {
+        throw new Error("Invalid airplane id");
+      }
+      const info = await apiPlaneInfo(idNum);
+      const fuelPct = info.fuel_capacity > 0 ? Math.round((info.fuel_current / info.fuel_capacity) * 100) : 0;
+      setAirplane(prev => ({
+        ...prev,
+        id: String(info.id),
+        model: info.model,
+        location: info.current_airport_id != null ? String(info.current_airport_id) : "",
+        status: info.status,
+        fuel: fuelPct,
+        maxFuel: 100,
+        cargoCapacity: info.payload_capacity,
+        currentCargo: info.payload_current,
+        loadedOrders: info.manifest.map(o => ({
+          id: String(o.id),
+          cargoType: o.cargo_type || "",
+          weight: o.weight,
+          destination: String(o.destination_id),
+          deadline: String(o.deadline),
+          value: o.value,
+        }))
+      }));
 
-    if (info.current_airport_id != null) {
-      const orders = await apiAirportOrders(info.current_airport_id);
-      setAvailableOrders(orders.map(o => ({
-        id: String(o.id),
-        cargoType: o.cargo_type || "",
-        weight: o.weight,
-        destination: String(o.destination_id),
-        deadline: String(o.deadline),
-        value: o.value,
-      })));
-    } else {
-      setAvailableOrders([]);
+      if (info.current_airport_id != null) {
+        const orders = await apiAirportOrders(info.current_airport_id);
+        setAvailableOrders(orders.map(o => ({
+          id: String(o.id),
+          cargoType: o.cargo_type || "",
+          weight: o.weight,
+          destination: String(o.destination_id),
+          deadline: String(o.deadline),
+          value: o.value,
+        })));
+      } else {
+        setAvailableOrders([]);
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [airplaneId]);
+
+  // Compute canFly for all airports to gray out unreachable destinations
+  useEffect(() => {
+    (async () => {
+      if (!airportsData || airportsData.length === 0) return;
+      const pid = parseInt(airplane.id, 10);
+      if (!Number.isFinite(pid)) return;
+      const next: Record<number, boolean> = {};
+      for (const a of airportsData) {
+        try {
+          next[a.id] = await apiCanFly(pid, a.id);
+        } catch (_) { void 0 }
+      }
+      setAirportReachCache(next);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [airplane.id, airportsData && airportsData.length]);
 
   useEffect(() => {
     // compute reachability per destination for order list
@@ -129,7 +181,7 @@ export const AirplaneDetailScreen = ({
       for (const d of dests) {
         try {
           cache[d] = await apiCanFly(parseInt(airplane.id, 10), d);
-        } catch (_) {}
+        } catch (_) { void 0 }
       }
       setCanFlyCache(cache);
     })();
@@ -146,13 +198,7 @@ export const AirplaneDetailScreen = ({
     })();
   }, [selectedDestination, airplane.id]);
 
-  const filteredOrders = availableOrders.filter(order => {
-    return (
-      (!filterDestination || order.destination.toLowerCase().includes(filterDestination.toLowerCase())) &&
-      (!filterWeight || order.weight <= parseInt(filterWeight) || 0) &&
-      (!filterValue || order.value >= parseInt(filterValue) || 0)
-    );
-  });
+  // filteredOrders defined earlier
 
   async function handleMaintenance() {
     await apiMaint(parseInt(airplane.id, 10));
@@ -183,6 +229,12 @@ export const AirplaneDetailScreen = ({
   return (
     <div className="min-h-screen bg-gradient-control p-4">
       <div className="max-w-7xl mx-auto space-y-4">
+        {loading && (
+          <div className="text-muted-foreground">Loading aircraft details...</div>
+        )}
+        {error && (
+          <div className="text-red-400">{error}</div>
+        )}
         
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -249,12 +301,12 @@ export const AirplaneDetailScreen = ({
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Cargo Load</span>
-                      <span>{Math.round((airplane.currentCargo / airplane.cargoCapacity) * 100)}%</span>
+                      <span>{airplane.cargoCapacity > 0 ? Math.round((airplane.currentCargo / airplane.cargoCapacity) * 100) : 0}%</span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2">
                       <div 
                         className="bg-aviation-blue h-2 rounded-full transition-all"
-                        style={{ width: `${(airplane.currentCargo / airplane.cargoCapacity) * 100}%` }}
+                        style={{ width: `${airplane.cargoCapacity > 0 ? (airplane.currentCargo / airplane.cargoCapacity) * 100 : 0}%` }}
                       />
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -470,7 +522,7 @@ export const AirplaneDetailScreen = ({
                                     {(airplane.cargoCapacity - airplane.currentCargo) >= order.weight ? 'Fits payload' : 'Too heavy'}
                                   </Badge>
                                   <span className="mx-1" />
-                                  <Badge variant="outline" className={(canFlyCache[parseInt(order.destination, 10)] ?? false) ? 'bg-aviation-blue/20 border-aviation-blue/30 text-aviation-blue' : 'bg-slate-500/20 border-slate-500/30 text-slate-300'}>
+                                  <Badge variant="outline" className={(canFlyCache[parseInt(order.destination, 10)] ?? false) ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-400'}>
                                     {(canFlyCache[parseInt(order.destination, 10)] ?? false) ? 'Can reach' : 'Route blocked'}
                                   </Badge>
                                 </div>
