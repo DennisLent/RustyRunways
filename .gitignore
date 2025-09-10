@@ -49,3 +49,6 @@ Thumbs.db
 node_modules/
 apps/tauri/ui/node_modules/
 apps/tauri/ui/dist/
+
+# Coverage
+cobertura.xml
