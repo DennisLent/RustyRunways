@@ -71,7 +71,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: apps/tauri/src-tauri
+          projectPath: apps/tauri
+          iconPath: ../../docs/assets/rusty_runways.png
           includeDebug: false
           args: ${{ matrix.tauriArgs }}
 
@@ -163,7 +164,8 @@ jobs:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         with:
-          projectPath: apps/tauri/src-tauri
+          projectPath: apps/tauri
+          iconPath: ../../docs/assets/rusty_runways.png
           releaseId: ${{ needs.create-release.outputs.release_id }}
           includeDebug: false
           args: ${{ matrix.tauriArgs }}
