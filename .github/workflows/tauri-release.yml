@@ -83,8 +83,16 @@ jobs:
         with:
           name: rusty-runways-${{ matrix.artifactSuffix }}
           path: |
-            target/**/bundle/**
-            apps/tauri/src-tauri/target/**/bundle/**
+            target/**/bundle/deb/*.deb
+            target/**/bundle/rpm/*.rpm
+            target/**/bundle/appimage/*.AppImage
+            target/**/bundle/appimage/*.AppImage.tar.gz
+            target/**/bundle/appimage/*.AppImage.tar.gz.sig
+            target/**/bundle/nsis/*.exe
+            target/**/bundle/msi/*.msi
+            target/**/bundle/msi/*.msix
+            target/**/bundle/macos/*.dmg
+            target/**/bundle/macos/*.app.tar.gz
 
   create-release:
     name: Create GitHub Release
@@ -157,7 +165,7 @@ jobs:
         run: |
           rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
-      - name: Build app
+      - name: Build app and upload to release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -171,13 +179,7 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         with:
           projectPath: apps/tauri
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           includeDebug: false
+          retryAttempts: 2
           args: ${{ matrix.tauriArgs }}
-
-      - name: Upload bundles to release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            target/**/bundle/**
-            apps/tauri/src-tauri/target/**/bundle/**
-          tag_name: ${{ github.ref_name }}
