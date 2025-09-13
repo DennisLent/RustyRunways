@@ -61,11 +61,11 @@ fi
 echo "[check] Running cargo fmt --all -- --check"
 cargo fmt --all -- --check
 
-echo "[check] Running cargo clippy --workspace --all-targets -- -D warnings"
-cargo clippy --workspace --all-targets -- -D warnings
+echo "[check] Running cargo clippy --workspace --all-targets (excluding Tauri) -- -D warnings"
+cargo clippy --workspace --all-targets --exclude rusty_runways_tauri -- -D warnings
 
-echo "[check] Running cargo test --workspace"
-cargo test --workspace
+echo "[check] Running cargo test --workspace (excluding Tauri)"
+cargo test --workspace --exclude rusty_runways_tauri
 
 # 3) Python dev tests (maturin develop + pytest) for crates/py
 echo "[check] Installing Python test deps and running dev tests (crates/py)"

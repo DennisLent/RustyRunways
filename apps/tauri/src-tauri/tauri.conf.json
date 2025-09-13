@@ -25,7 +25,9 @@
   "bundle": {
     "active": true,
     "icon": [
-      "../../../docs/assets/rusty_runways.png"
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
     ]
   }
 }
