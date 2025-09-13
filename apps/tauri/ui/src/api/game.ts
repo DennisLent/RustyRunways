@@ -1,9 +1,18 @@
 import { invoke } from '@tauri-apps/api/core'
 import { isTauri } from '@/lib/tauri'
 
+// Compute a URL that works in both dev (vite, base "/") and
+// on GitHub Pages where the site is served under a subpath, e.g. 
+// /RustyRunways/web-demo/.
 function wasmModulePath(): string {
   // Served from public/rr_wasm by build_web_demo.sh into docs/web-demo/rr_wasm
-  return '/rr_wasm/rusty_runways_wasm.js'
+  // Resolve relative to the current page directory to avoid root-absolute paths.
+  if (typeof window === 'undefined') {
+    return '/rr_wasm/rusty_runways_wasm.js'
+  }
+  const pathname = window.location.pathname
+  const baseDir = pathname.endsWith('/') ? pathname : pathname.replace(/[^/]*$/, '')
+  return `${baseDir}rr_wasm/rusty_runways_wasm.js`
 }
 
 export type Observation = {
@@ -145,7 +154,7 @@ export async function airportOrders(airportId: number): Promise<OrderDto[]> {
   if (isTauri()) {
     return await invoke<OrderDto[]>('airport_orders', { airport_id: airportId, airportId })
   } else {
-    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
     return (await wasm.airport_orders(airportId)) as OrderDto[]
   }
 }
@@ -166,7 +175,7 @@ export async function listModels(): Promise<ModelDto[]> {
   if (isTauri()) {
     return await invoke<ModelDto[]>('list_models')
   } else {
-    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
     return (await wasm.list_models()) as ModelDto[]
   }
 }
@@ -175,7 +184,7 @@ export async function buyPlane(model: string, airportId: number): Promise<void> 
   if (isTauri()) {
     await invoke('buy_plane_cmd', { model, airport_id: airportId, airportId })
   } else {
-    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
     await wasm.buy_plane(model, airportId)
   }
 }
@@ -184,7 +193,7 @@ export async function canFly(planeId: number, destId: number): Promise<boolean> 
   if (isTauri()) {
     return await invoke<boolean>('plane_can_fly_to', { plane_id: planeId, dest_id: destId, planeId, destId })
   } else {
-    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
     return await wasm.plane_can_fly_to(planeId, destId)
   }
 }
@@ -194,7 +203,7 @@ export async function reachability(planeId: number, destId: number): Promise<Fea
   if (isTauri()) {
     return await invoke<FeasibilityDto>('plane_reachability', { plane_id: planeId, dest_id: destId, planeId, destId })
   } else {
-    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
     return (await wasm.plane_reachability(planeId, destId)) as FeasibilityDto
   }
 }
@@ -203,7 +212,7 @@ export async function startFromConfigYaml(yaml: string): Promise<void> {
   if (isTauri()) {
     await invoke('start_from_config_yaml', { yaml })
   } else {
-    const wasm = await import('/rr_wasm/rusty_runways_wasm.js')
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
     // TODO: parse YAML in wasm; for demo start with defaults
     wasm.new_game(undefined, 10, 100000)
   }
