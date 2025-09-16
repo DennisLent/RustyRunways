@@ -16,8 +16,8 @@
               "id": 0,
               "name": "RubberDucks",
               "weight": 211.90208,
-              "value": 36614.0,
-              "deadline": 12,
+              "value": 9875.0,
+              "deadline": 9,
               "origin_id": 0,
               "destination_id": 1
             },
@@ -25,8 +25,8 @@
               "id": 1,
               "name": "SingingFish",
               "weight": 151.8775,
-              "value": 28632.0,
-              "deadline": 9,
+              "value": 7820.0,
+              "deadline": 7,
               "origin_id": 0,
               "destination_id": 1
             },
@@ -34,8 +34,8 @@
               "id": 2,
               "name": "PaperGoods",
               "weight": 380.99985,
-              "value": 65833.0,
-              "deadline": 12,
+              "value": 17755.0,
+              "deadline": 9,
               "origin_id": 0,
               "destination_id": 1
             },
@@ -43,8 +43,8 @@
               "id": 3,
               "name": "NitroFuel",
               "weight": 118.15358,
-              "value": 119460.0,
-              "deadline": 11,
+              "value": 33037.0,
+              "deadline": 9,
               "origin_id": 0,
               "destination_id": 1
             },
@@ -52,8 +52,8 @@
               "id": 4,
               "name": "GiantBalloons",
               "weight": 299.83356,
-              "value": 51808.0,
-              "deadline": 12,
+              "value": 13973.0,
+              "deadline": 9,
               "origin_id": 0,
               "destination_id": 1
             },
@@ -61,8 +61,8 @@
               "id": 5,
               "name": "Machines",
               "weight": 121.037285,
-              "value": 190147.0,
-              "deadline": 9,
+              "value": 51937.0,
+              "deadline": 7,
               "origin_id": 0,
               "destination_id": 1
             },
@@ -70,8 +70,8 @@
               "id": 6,
               "name": "Pharmaceuticals",
               "weight": 137.8241,
-              "value": 232247.0,
-              "deadline": 11,
+              "value": 64229.0,
+              "deadline": 9,
               "origin_id": 0,
               "destination_id": 1
             }
@@ -79,8 +79,8 @@
           "fuel_sold": 0.0
         },
         {
-          "x": 1334.0975,
-          "y": 5265.5737
+          "x": 6834.3496,
+          "y": 8049.375
         }
       ],
       [
@@ -96,8 +96,8 @@
               "id": 7,
               "name": "SingingFish",
               "weight": 2887.3264,
-              "value": 7096134.0,
-              "deadline": 42,
+              "value": 5577635.0,
+              "deadline": 36,
               "origin_id": 1,
               "destination_id": 3
             },
@@ -105,26 +105,26 @@
               "id": 8,
               "name": "Pharmaceuticals",
               "weight": 128.65778,
-              "value": 218889.0,
-              "deadline": 15,
+              "value": 58858.0,
+              "deadline": 12,
               "origin_id": 1,
               "destination_id": 0
             },
             {
               "id": 9,
               "name": "Machines",
-              "weight": 716.9834,
+              "weight": 5415.3164,
               "value": 8000000.0,
-              "deadline": 33,
+              "deadline": 32,
               "origin_id": 1,
-              "destination_id": 2
+              "destination_id": 3
             },
             {
               "id": 10,
               "name": "Chemicals",
               "weight": 180.45782,
-              "value": 184211.0,
-              "deadline": 15,
+              "value": 49533.0,
+              "deadline": 12,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -132,8 +132,8 @@
               "id": 11,
               "name": "RubberDucks",
               "weight": 138.6695,
-              "value": 22531.0,
-              "deadline": 13,
+              "value": 6170.0,
+              "deadline": 11,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -141,8 +141,8 @@
               "id": 12,
               "name": "SingingFish",
               "weight": 100.51121,
-              "value": 19598.0,
-              "deadline": 13,
+              "value": 5367.0,
+              "deadline": 11,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -150,8 +150,8 @@
               "id": 13,
               "name": "Machines",
               "weight": 403.49237,
-              "value": 686473.0,
-              "deadline": 15,
+              "value": 184589.0,
+              "deadline": 12,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -160,7 +160,7 @@
               "name": "Pharmaceuticals",
               "weight": 13179.078,
               "value": 8000000.0,
-              "deadline": 31,
+              "deadline": 26,
               "origin_id": 1,
               "destination_id": 3
             },
@@ -168,8 +168,8 @@
               "id": 15,
               "name": "QuantumWidgets",
               "weight": 124.04309,
-              "value": 221319.0,
-              "deadline": 18,
+              "value": 60165.0,
+              "deadline": 15,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -178,16 +178,16 @@
               "name": "Clothing",
               "weight": 18434.049,
               "value": 8000000.0,
-              "deadline": 42,
+              "deadline": 40,
               "origin_id": 1,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 17,
               "name": "Automotive",
               "weight": 667.5121,
-              "value": 283914.0,
-              "deadline": 15,
+              "value": 78112.0,
+              "deadline": 13,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -195,26 +195,26 @@
               "id": 18,
               "name": "GiantBalloons",
               "weight": 764.65155,
-              "value": 124242.0,
-              "deadline": 13,
+              "value": 34023.0,
+              "deadline": 11,
               "origin_id": 1,
               "destination_id": 0
             },
             {
               "id": 19,
               "name": "RubberDucks",
-              "weight": 1929.805,
-              "value": 3263127.0,
-              "deadline": 36,
+              "weight": 9834.996,
+              "value": 8000000.0,
+              "deadline": 35,
               "origin_id": 1,
-              "destination_id": 2
+              "destination_id": 3
             },
             {
               "id": 20,
               "name": "RubberDucks",
               "weight": 200.02086,
-              "value": 35688.0,
-              "deadline": 18,
+              "value": 9702.0,
+              "deadline": 15,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -222,8 +222,8 @@
               "id": 21,
               "name": "Furniture",
               "weight": 387.13156,
-              "value": 68129.0,
-              "deadline": 17,
+              "value": 18472.0,
+              "deadline": 14,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -232,36 +232,36 @@
               "name": "Food",
               "weight": 8828.443,
               "value": 8000000.0,
-              "deadline": 35,
+              "deadline": 32,
               "origin_id": 1,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 23,
               "name": "PaperGoods",
               "weight": 240.47267,
-              "value": 41660.0,
-              "deadline": 16,
+              "value": 11256.0,
+              "deadline": 13,
               "origin_id": 1,
               "destination_id": 0
             },
             {
               "id": 24,
               "name": "NitroFuel",
-              "weight": 362.25397,
-              "value": 362067.0,
-              "deadline": 14,
+              "weight": 3635.7966,
+              "value": 8000000.0,
+              "deadline": 30,
               "origin_id": 1,
-              "destination_id": 0
+              "destination_id": 2
             },
             {
               "id": 25,
               "name": "SingingFish",
               "weight": 16226.999,
               "value": 8000000.0,
-              "deadline": 45,
+              "deadline": 42,
               "origin_id": 1,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 26,
@@ -276,8 +276,8 @@
               "id": 27,
               "name": "Chemicals",
               "weight": 101.51076,
-              "value": 108670.0,
-              "deadline": 18,
+              "value": 29542.0,
+              "deadline": 15,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -285,8 +285,8 @@
               "id": 28,
               "name": "Clothing",
               "weight": 403.9916,
-              "value": 177739.0,
-              "deadline": 17,
+              "value": 48192.0,
+              "deadline": 14,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -294,8 +294,8 @@
               "id": 29,
               "name": "Clothing",
               "weight": 579.2981,
-              "value": 235314.0,
-              "deadline": 13,
+              "value": 62263.0,
+              "deadline": 10,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -303,8 +303,8 @@
               "id": 30,
               "name": "Clothing",
               "weight": 244.06177,
-              "value": 99139.0,
-              "deadline": 13,
+              "value": 27149.0,
+              "deadline": 11,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -312,8 +312,8 @@
               "id": 31,
               "name": "PaperGoods",
               "weight": 1338.8474,
-              "value": 2247039.0,
-              "deadline": 35,
+              "value": 2158658.0,
+              "deadline": 34,
               "origin_id": 1,
               "destination_id": 2
             },
@@ -321,8 +321,8 @@
               "id": 32,
               "name": "NitroFuel",
               "weight": 120.21939,
-              "value": 128698.0,
-              "deadline": 18,
+              "value": 34986.0,
+              "deadline": 15,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -330,8 +330,8 @@
               "id": 33,
               "name": "NitroFuel",
               "weight": 257.9863,
-              "value": 263352.0,
-              "deadline": 15,
+              "value": 70814.0,
+              "deadline": 12,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -339,8 +339,8 @@
               "id": 34,
               "name": "TimeMachines",
               "weight": 232.34392,
-              "value": 408887.0,
-              "deadline": 17,
+              "value": 110865.0,
+              "deadline": 14,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -349,7 +349,7 @@
               "name": "Clothing",
               "weight": 10908.505,
               "value": 8000000.0,
-              "deadline": 46,
+              "deadline": 39,
               "origin_id": 1,
               "destination_id": 4
             },
@@ -357,8 +357,8 @@
               "id": 36,
               "name": "SingingFish",
               "weight": 3481.918,
-              "value": 8000000.0,
-              "deadline": 40,
+              "value": 6628209.0,
+              "deadline": 34,
               "origin_id": 1,
               "destination_id": 3
             },
@@ -366,8 +366,8 @@
               "id": 37,
               "name": "RubberDucks",
               "weight": 547.8618,
-              "value": 93209.0,
-              "deadline": 15,
+              "value": 25644.0,
+              "deadline": 13,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -375,8 +375,8 @@
               "id": 38,
               "name": "Pharmaceuticals",
               "weight": 647.8037,
-              "value": 1169947.0,
-              "deadline": 19,
+              "value": 318670.0,
+              "deadline": 16,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -385,7 +385,7 @@
               "name": "Clothing",
               "weight": 1982.2838,
               "value": 8000000.0,
-              "deadline": 37,
+              "deadline": 36,
               "origin_id": 1,
               "destination_id": 2
             },
@@ -393,8 +393,8 @@
               "id": 40,
               "name": "Clothing",
               "weight": 344.1241,
-              "value": 153497.0,
-              "deadline": 18,
+              "value": 41728.0,
+              "deadline": 15,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -402,8 +402,8 @@
               "id": 41,
               "name": "HauntedMirrors",
               "weight": 108.93358,
-              "value": 194360.0,
-              "deadline": 18,
+              "value": 52837.0,
+              "deadline": 15,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -411,8 +411,8 @@
               "id": 42,
               "name": "Machines",
               "weight": 1119.8469,
-              "value": 1970744.0,
-              "deadline": 17,
+              "value": 534347.0,
+              "deadline": 14,
               "origin_id": 1,
               "destination_id": 0
             },
@@ -420,8 +420,8 @@
               "id": 43,
               "name": "Electronics",
               "weight": 1643.9454,
-              "value": 7169938.0,
-              "deadline": 41,
+              "value": 6856364.0,
+              "deadline": 39,
               "origin_id": 1,
               "destination_id": 2
             }
@@ -429,8 +429,8 @@
           "fuel_sold": 0.0
         },
         {
-          "x": 2487.383,
-          "y": 5427.2524
+          "x": 7054.449,
+          "y": 8368.431
         }
       ],
       [
@@ -446,8 +446,8 @@
               "id": 44,
               "name": "DiscoBalls",
               "weight": 1065.1226,
-              "value": 560278.0,
-              "deadline": 20,
+              "value": 68221.0,
+              "deadline": 12,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -455,8 +455,8 @@
               "id": 45,
               "name": "Electronics",
               "weight": 3918.8818,
-              "value": 4818963.0,
-              "deadline": 16,
+              "value": 595147.0,
+              "deadline": 10,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -464,17 +464,17 @@
               "id": 46,
               "name": "Automotive",
               "weight": 946.786,
-              "value": 1260473.0,
-              "deadline": 21,
+              "value": 510383.0,
+              "deadline": 16,
               "origin_id": 2,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 47,
               "name": "Furniture",
               "weight": 1072.1338,
-              "value": 515147.0,
-              "deadline": 15,
+              "value": 62767.0,
+              "deadline": 9,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -482,8 +482,8 @@
               "id": 48,
               "name": "RubberDucks",
               "weight": 1349.7634,
-              "value": 689519.0,
-              "deadline": 18,
+              "value": 84426.0,
+              "deadline": 11,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -491,8 +491,8 @@
               "id": 49,
               "name": "GiantBalloons",
               "weight": 2502.4797,
-              "value": 1202410.0,
-              "deadline": 15,
+              "value": 146506.0,
+              "deadline": 9,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -500,17 +500,17 @@
               "id": 50,
               "name": "HauntedMirrors",
               "weight": 2054.837,
-              "value": 8000000.0,
-              "deadline": 15,
+              "value": 4071076.0,
+              "deadline": 12,
               "origin_id": 2,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 51,
               "name": "TimeMachines",
               "weight": 896.362,
-              "value": 4498981.0,
-              "deadline": 17,
+              "value": 560661.0,
+              "deadline": 11,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -518,26 +518,26 @@
               "id": 52,
               "name": "LiveAlpacas",
               "weight": 575.5741,
-              "value": 352834.0,
-              "deadline": 18,
+              "value": 143750.0,
+              "deadline": 14,
               "origin_id": 2,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 53,
               "name": "GiantBalloons",
               "weight": 496.2042,
-              "value": 264242.0,
-              "deadline": 21,
+              "value": 106995.0,
+              "deadline": 16,
               "origin_id": 2,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 54,
               "name": "Food",
               "weight": 1998.5447,
-              "value": 1203721.0,
-              "deadline": 17,
+              "value": 145686.0,
+              "deadline": 10,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -545,17 +545,17 @@
               "id": 55,
               "name": "GiantBalloons",
               "weight": 3459.559,
-              "value": 1736407.0,
-              "deadline": 17,
+              "value": 704048.0,
+              "deadline": 13,
               "origin_id": 2,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 56,
               "name": "GiantBalloons",
               "weight": 4980.3784,
-              "value": 2449705.0,
-              "deadline": 16,
+              "value": 302541.0,
+              "deadline": 10,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -563,8 +563,8 @@
               "id": 57,
               "name": "HauntedMirrors",
               "weight": 1984.9803,
-              "value": 8000000.0,
-              "deadline": 15,
+              "value": 1162094.0,
+              "deadline": 9,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -572,26 +572,26 @@
               "id": 58,
               "name": "GiantBalloons",
               "weight": 228.24577,
-              "value": 112268.0,
-              "deadline": 16,
+              "value": 46450.0,
+              "deadline": 13,
               "origin_id": 2,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 59,
               "name": "Pharmaceuticals",
               "weight": 1069.4949,
-              "value": 5138788.0,
-              "deadline": 15,
+              "value": 2118901.0,
+              "deadline": 12,
               "origin_id": 2,
-              "destination_id": 3
+              "destination_id": 4
             },
             {
               "id": 60,
               "name": "HauntedMirrors",
               "weight": 4601.664,
-              "value": 8000000.0,
-              "deadline": 18,
+              "value": 2878272.0,
+              "deadline": 11,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -599,8 +599,8 @@
               "id": 61,
               "name": "SingingFish",
               "weight": 261.78732,
-              "value": 167291.0,
-              "deadline": 21,
+              "value": 20520.0,
+              "deadline": 13,
               "origin_id": 2,
               "destination_id": 3
             },
@@ -608,8 +608,8 @@
               "id": 62,
               "name": "RubberDucks",
               "weight": 559.8318,
-              "value": 280988.0,
-              "deadline": 17,
+              "value": 34008.0,
+              "deadline": 10,
               "origin_id": 2,
               "destination_id": 3
             }
@@ -617,8 +617,8 @@
           "fuel_sold": 0.0
         },
         {
-          "x": 8684.267,
-          "y": 6364.6514
+          "x": 1107.4634,
+          "y": 7398.4116
         }
       ],
       [
@@ -634,8 +634,8 @@
               "id": 63,
               "name": "Furniture",
               "weight": 805.6318,
-              "value": 412790.0,
-              "deadline": 20,
+              "value": 50568.0,
+              "deadline": 13,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -643,8 +643,8 @@
               "id": 64,
               "name": "Automotive",
               "weight": 8966.174,
-              "value": 8000000.0,
-              "deadline": 23,
+              "value": 3444751.0,
+              "deadline": 14,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -652,8 +652,8 @@
               "id": 65,
               "name": "GiantBalloons",
               "weight": 208.8305,
-              "value": 111093.0,
-              "deadline": 23,
+              "value": 13604.0,
+              "deadline": 15,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -662,7 +662,7 @@
               "name": "Pharmaceuticals",
               "weight": 3826.205,
               "value": 8000000.0,
-              "deadline": 32,
+              "deadline": 27,
               "origin_id": 3,
               "destination_id": 1
             },
@@ -670,8 +670,8 @@
               "id": 67,
               "name": "Clothing",
               "weight": 2063.735,
-              "value": 4718669.0,
-              "deadline": 28,
+              "value": 836582.0,
+              "deadline": 17,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -679,8 +679,8 @@
               "id": 68,
               "name": "Electronics",
               "weight": 12177.223,
-              "value": 8000000.0,
-              "deadline": 24,
+              "value": 4775843.0,
+              "deadline": 15,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -689,7 +689,7 @@
               "name": "Machines",
               "weight": 7594.161,
               "value": 8000000.0,
-              "deadline": 26,
+              "deadline": 16,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -697,8 +697,8 @@
               "id": 70,
               "name": "LiveAlpacas",
               "weight": 6722.576,
-              "value": 7165668.0,
-              "deadline": 25,
+              "value": 1265549.0,
+              "deadline": 15,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -706,8 +706,8 @@
               "id": 71,
               "name": "NitroFuel",
               "weight": 589.04736,
-              "value": 1751895.0,
-              "deadline": 18,
+              "value": 210405.0,
+              "deadline": 11,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -715,8 +715,8 @@
               "id": 72,
               "name": "SingingFish",
               "weight": 217.83197,
-              "value": 142999.0,
-              "deadline": 26,
+              "value": 17280.0,
+              "deadline": 16,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -724,8 +724,8 @@
               "id": 73,
               "name": "Automotive",
               "weight": 6125.536,
-              "value": 8000000.0,
-              "deadline": 23,
+              "value": 2353395.0,
+              "deadline": 14,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -733,8 +733,8 @@
               "id": 74,
               "name": "HauntedMirrors",
               "weight": 3706.3408,
-              "value": 8000000.0,
-              "deadline": 21,
+              "value": 2373542.0,
+              "deadline": 14,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -742,8 +742,8 @@
               "id": 75,
               "name": "Food",
               "weight": 744.57745,
-              "value": 457808.0,
-              "deadline": 20,
+              "value": 56083.0,
+              "deadline": 13,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -751,8 +751,8 @@
               "id": 76,
               "name": "Furniture",
               "weight": 212.24806,
-              "value": 107073.0,
-              "deadline": 19,
+              "value": 13008.0,
+              "deadline": 12,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -760,8 +760,8 @@
               "id": 77,
               "name": "QuantumWidgets",
               "weight": 100.5236,
-              "value": 2394370.0,
-              "deadline": 49,
+              "value": 1552240.0,
+              "deadline": 36,
               "origin_id": 3,
               "destination_id": 0
             },
@@ -769,8 +769,8 @@
               "id": 78,
               "name": "Machines",
               "weight": 4271.073,
-              "value": 8000000.0,
-              "deadline": 21,
+              "value": 6405967.0,
+              "deadline": 13,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -778,8 +778,8 @@
               "id": 79,
               "name": "RubberDucks",
               "weight": 1836.319,
-              "value": 976880.0,
-              "deadline": 23,
+              "value": 119621.0,
+              "deadline": 15,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -787,8 +787,8 @@
               "id": 80,
               "name": "NitroFuel",
               "weight": 3406.528,
-              "value": 8000000.0,
-              "deadline": 19,
+              "value": 1252625.0,
+              "deadline": 12,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -796,35 +796,35 @@
               "id": 81,
               "name": "LiveAlpacas",
               "weight": 1508.2749,
-              "value": 952093.0,
-              "deadline": 22,
+              "value": 115908.0,
+              "deadline": 14,
               "origin_id": 3,
               "destination_id": 2
             },
             {
               "id": 82,
               "name": "Food",
-              "weight": 5492.734,
-              "value": 3424399.0,
-              "deadline": 21,
+              "weight": 18902.299,
+              "value": 3621942.0,
+              "deadline": 16,
               "origin_id": 3,
-              "destination_id": 2
+              "destination_id": 4
             },
             {
               "id": 83,
               "name": "Machines",
-              "weight": 2699.3672,
+              "weight": 12090.761,
               "value": 8000000.0,
-              "deadline": 25,
+              "deadline": 19,
               "origin_id": 3,
-              "destination_id": 2
+              "destination_id": 4
             },
             {
               "id": 84,
               "name": "RubberDucks",
               "weight": 1919.5656,
-              "value": 951502.0,
-              "deadline": 18,
+              "value": 114277.0,
+              "deadline": 11,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -832,8 +832,8 @@
               "id": 85,
               "name": "SingingFish",
               "weight": 4394.0303,
-              "value": 2860142.0,
-              "deadline": 25,
+              "value": 348566.0,
+              "deadline": 16,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -841,8 +841,8 @@
               "id": 86,
               "name": "RubberDucks",
               "weight": 1242.209,
-              "value": 615745.0,
-              "deadline": 18,
+              "value": 76129.0,
+              "deadline": 12,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -851,25 +851,25 @@
               "name": "RubberDucks",
               "weight": 18390.107,
               "value": 8000000.0,
-              "deadline": 34,
+              "deadline": 29,
               "origin_id": 3,
               "destination_id": 1
             },
             {
               "id": 88,
               "name": "Pharmaceuticals",
-              "weight": 2656.2983,
+              "weight": 11970.892,
               "value": 8000000.0,
-              "deadline": 18,
+              "deadline": 13,
               "origin_id": 3,
-              "destination_id": 2
+              "destination_id": 4
             },
             {
               "id": 89,
               "name": "SingingFish",
               "weight": 2958.8188,
-              "value": 3077967.0,
-              "deadline": 23,
+              "value": 545645.0,
+              "deadline": 14,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -878,7 +878,7 @@
               "name": "Pharmaceuticals",
               "weight": 8189.7095,
               "value": 8000000.0,
-              "deadline": 27,
+              "deadline": 17,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -886,8 +886,8 @@
               "id": 91,
               "name": "NitroFuel",
               "weight": 3485.7222,
-              "value": 8000000.0,
-              "deadline": 19,
+              "value": 1281745.0,
+              "deadline": 12,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -895,8 +895,8 @@
               "id": 92,
               "name": "DiscoBalls",
               "weight": 15456.353,
-              "value": 8000000.0,
-              "deadline": 27,
+              "value": 2506233.0,
+              "deadline": 17,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -904,8 +904,8 @@
               "id": 93,
               "name": "NitroFuel",
               "weight": 446.2103,
-              "value": 1390930.0,
-              "deadline": 21,
+              "value": 171452.0,
+              "deadline": 14,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -913,26 +913,26 @@
               "id": 94,
               "name": "GiantBalloons",
               "weight": 9760.772,
-              "value": 8000000.0,
-              "deadline": 27,
+              "value": 1582700.0,
+              "deadline": 17,
               "origin_id": 3,
               "destination_id": 4
             },
             {
               "id": 95,
               "name": "GiantBalloons",
-              "weight": 546.1759,
-              "value": 270732.0,
-              "deadline": 18,
+              "weight": 4592.2827,
+              "value": 688773.0,
+              "deadline": 13,
               "origin_id": 3,
-              "destination_id": 2
+              "destination_id": 4
             },
             {
               "id": 96,
               "name": "Machines",
               "weight": 18580.768,
               "value": 8000000.0,
-              "deadline": 26,
+              "deadline": 16,
               "origin_id": 3,
               "destination_id": 4
             },
@@ -940,8 +940,8 @@
               "id": 97,
               "name": "SingingFish",
               "weight": 296.77762,
-              "value": 191393.0,
-              "deadline": 24,
+              "value": 23199.0,
+              "deadline": 15,
               "origin_id": 3,
               "destination_id": 2
             },
@@ -950,34 +950,34 @@
               "name": "HauntedMirrors",
               "weight": 10052.021,
               "value": 8000000.0,
-              "deadline": 21,
+              "deadline": 13,
               "origin_id": 3,
               "destination_id": 4
             },
             {
               "id": 99,
               "name": "HauntedMirrors",
-              "weight": 464.75867,
-              "value": 2444811.0,
-              "deadline": 22,
+              "weight": 4155.8833,
+              "value": 6636040.0,
+              "deadline": 16,
               "origin_id": 3,
-              "destination_id": 2
+              "destination_id": 4
             },
             {
               "id": 100,
               "name": "TimeMachines",
-              "weight": 4860.1455,
+              "weight": 17486.041,
               "value": 8000000.0,
-              "deadline": 24,
+              "deadline": 18,
               "origin_id": 3,
-              "destination_id": 2
+              "destination_id": 4
             },
             {
               "id": 101,
               "name": "GiantBalloons",
               "weight": 2058.183,
-              "value": 1882390.0,
-              "deadline": 28,
+              "value": 338253.0,
+              "deadline": 18,
               "origin_id": 3,
               "destination_id": 4
             }
@@ -985,8 +985,8 @@
           "fuel_sold": 0.0
         },
         {
-          "x": 9900.848,
-          "y": 4059.017
+          "x": 1322.0249,
+          "y": 6939.2793
         }
       ],
       [
@@ -1002,8 +1002,8 @@
               "id": 102,
               "name": "Pharmaceuticals",
               "weight": 2075.944,
-              "value": 8000000.0,
-              "deadline": 29,
+              "value": 4250822.0,
+              "deadline": 15,
               "origin_id": 4,
               "destination_id": 2
             },
@@ -1012,25 +1012,25 @@
               "name": "Automotive",
               "weight": 16138.99,
               "value": 8000000.0,
-              "deadline": 53,
+              "deadline": 44,
               "origin_id": 4,
               "destination_id": 1
             },
             {
               "id": 104,
               "name": "TimeMachines",
-              "weight": 3670.2556,
-              "value": 8000000.0,
-              "deadline": 27,
+              "weight": 382.65222,
+              "value": 823962.0,
+              "deadline": 18,
               "origin_id": 4,
-              "destination_id": 3
+              "destination_id": 2
             },
             {
               "id": 105,
               "name": "LiveAlpacas",
               "weight": 12618.895,
-              "value": 8000000.0,
-              "deadline": 29,
+              "value": 2488628.0,
+              "deadline": 18,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1038,8 +1038,8 @@
               "id": 106,
               "name": "GiantBalloons",
               "weight": 2318.4678,
-              "value": 3713713.0,
-              "deadline": 32,
+              "value": 483927.0,
+              "deadline": 16,
               "origin_id": 4,
               "destination_id": 2
             },
@@ -1047,8 +1047,8 @@
               "id": 107,
               "name": "LiveAlpacas",
               "weight": 15392.529,
-              "value": 8000000.0,
-              "deadline": 25,
+              "value": 2897698.0,
+              "deadline": 15,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1056,8 +1056,8 @@
               "id": 108,
               "name": "HauntedMirrors",
               "weight": 208.831,
-              "value": 3429855.0,
-              "deadline": 35,
+              "value": 443186.0,
+              "deadline": 17,
               "origin_id": 4,
               "destination_id": 2
             },
@@ -1065,8 +1065,8 @@
               "id": 109,
               "name": "NitroFuel",
               "weight": 2947.2969,
-              "value": 8000000.0,
-              "deadline": 37,
+              "value": 3807834.0,
+              "deadline": 18,
               "origin_id": 4,
               "destination_id": 2
             },
@@ -1074,44 +1074,44 @@
               "id": 110,
               "name": "LiveAlpacas",
               "weight": 10834.523,
-              "value": 8000000.0,
-              "deadline": 28,
+              "value": 2108169.0,
+              "deadline": 17,
               "origin_id": 4,
               "destination_id": 3
             },
             {
               "id": 111,
               "name": "DiscoBalls",
-              "weight": 17116.652,
-              "value": 8000000.0,
-              "deadline": 26,
+              "weight": 4699.3413,
+              "value": 997305.0,
+              "deadline": 17,
               "origin_id": 4,
-              "destination_id": 3
+              "destination_id": 2
             },
             {
               "id": 112,
               "name": "PaperGoods",
               "weight": 18126.102,
-              "value": 8000000.0,
-              "deadline": 26,
+              "value": 2894344.0,
+              "deadline": 16,
               "origin_id": 4,
               "destination_id": 3
             },
             {
               "id": 113,
               "name": "TimeMachines",
-              "weight": 6137.646,
-              "value": 8000000.0,
-              "deadline": 30,
+              "weight": 883.39667,
+              "value": 1948869.0,
+              "deadline": 20,
               "origin_id": 4,
-              "destination_id": 3
+              "destination_id": 2
             },
             {
               "id": 114,
               "name": "Electronics",
               "weight": 9870.789,
-              "value": 8000000.0,
-              "deadline": 22,
+              "value": 3792298.0,
+              "deadline": 14,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1119,8 +1119,8 @@
               "id": 115,
               "name": "Automotive",
               "weight": 5209.546,
-              "value": 8000000.0,
-              "deadline": 29,
+              "value": 2140411.0,
+              "deadline": 18,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1129,7 +1129,7 @@
               "name": "QuantumWidgets",
               "weight": 4591.958,
               "value": 8000000.0,
-              "deadline": 35,
+              "deadline": 17,
               "origin_id": 4,
               "destination_id": 2
             },
@@ -1137,8 +1137,8 @@
               "id": 117,
               "name": "RubberDucks",
               "weight": 215.54774,
-              "value": 326352.0,
-              "deadline": 27,
+              "value": 42035.0,
+              "deadline": 13,
               "origin_id": 4,
               "destination_id": 2
             },
@@ -1147,7 +1147,7 @@
               "name": "Clothing",
               "weight": 19970.59,
               "value": 8000000.0,
-              "deadline": 30,
+              "deadline": 19,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1155,8 +1155,8 @@
               "id": 119,
               "name": "Automotive",
               "weight": 9125.771,
-              "value": 8000000.0,
-              "deadline": 30,
+              "value": 3794277.0,
+              "deadline": 19,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1164,8 +1164,8 @@
               "id": 120,
               "name": "Furniture",
               "weight": 7094.9873,
-              "value": 6488992.0,
-              "deadline": 28,
+              "value": 1166028.0,
+              "deadline": 18,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1173,8 +1173,8 @@
               "id": 121,
               "name": "Furniture",
               "weight": 504.1154,
-              "value": 1324801.0,
-              "deadline": 50,
+              "value": 895773.0,
+              "deadline": 38,
               "origin_id": 4,
               "destination_id": 0
             },
@@ -1182,8 +1182,8 @@
               "id": 122,
               "name": "Chemicals",
               "weight": 6280.591,
-              "value": 8000000.0,
-              "deadline": 20,
+              "value": 5651965.0,
+              "deadline": 13,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1191,8 +1191,8 @@
               "id": 123,
               "name": "Automotive",
               "weight": 2313.2822,
-              "value": 4943191.0,
-              "deadline": 22,
+              "value": 888749.0,
+              "deadline": 14,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1201,7 +1201,7 @@
               "name": "NitroFuel",
               "weight": 16409.547,
               "value": 8000000.0,
-              "deadline": 35,
+              "deadline": 29,
               "origin_id": 4,
               "destination_id": 1
             },
@@ -1209,53 +1209,53 @@
               "id": 125,
               "name": "GiantBalloons",
               "weight": 19627.633,
-              "value": 8000000.0,
-              "deadline": 20,
+              "value": 2943849.0,
+              "deadline": 13,
               "origin_id": 4,
               "destination_id": 3
             },
             {
               "id": 126,
               "name": "Food",
-              "weight": 8221.912,
-              "value": 8000000.0,
-              "deadline": 41,
+              "weight": 1437.0165,
+              "value": 359933.0,
+              "deadline": 16,
               "origin_id": 4,
-              "destination_id": 1
+              "destination_id": 2
             },
             {
               "id": 127,
               "name": "QuantumWidgets",
               "weight": 1150.4429,
-              "value": 8000000.0,
-              "deadline": 36,
+              "value": 2477239.0,
+              "deadline": 18,
               "origin_id": 4,
               "destination_id": 2
             },
             {
               "id": 128,
               "name": "DiscoBalls",
-              "weight": 12208.233,
-              "value": 8000000.0,
-              "deadline": 30,
+              "weight": 2741.801,
+              "value": 604871.0,
+              "deadline": 20,
               "origin_id": 4,
-              "destination_id": 3
+              "destination_id": 2
             },
             {
               "id": 129,
               "name": "LiveAlpacas",
-              "weight": 8877.612,
-              "value": 8000000.0,
-              "deadline": 21,
+              "weight": 1631.0945,
+              "value": 391929.0,
+              "deadline": 14,
               "origin_id": 4,
-              "destination_id": 3
+              "destination_id": 2
             },
             {
               "id": 130,
               "name": "Clothing",
               "weight": 9887.064,
-              "value": 8000000.0,
-              "deadline": 23,
+              "value": 3798551.0,
+              "deadline": 14,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1263,26 +1263,26 @@
               "id": 131,
               "name": "NitroFuel",
               "weight": 1411.9565,
-              "value": 8000000.0,
-              "deadline": 40,
+              "value": 1868958.0,
+              "deadline": 20,
               "origin_id": 4,
               "destination_id": 2
             },
             {
               "id": 132,
               "name": "GiantBalloons",
-              "weight": 6127.706,
-              "value": 5554533.0,
-              "deadline": 27,
+              "weight": 881.00995,
+              "value": 189707.0,
+              "deadline": 18,
               "origin_id": 4,
-              "destination_id": 3
+              "destination_id": 2
             },
             {
               "id": 133,
               "name": "Automotive",
               "weight": 2559.8733,
-              "value": 5853074.0,
-              "deadline": 28,
+              "value": 1037702.0,
+              "deadline": 17,
               "origin_id": 4,
               "destination_id": 3
             },
@@ -1290,8 +1290,8 @@
               "id": 134,
               "name": "GiantBalloons",
               "weight": 1293.0488,
-              "value": 2007825.0,
-              "deadline": 29,
+              "value": 258918.0,
+              "deadline": 14,
               "origin_id": 4,
               "destination_id": 2
             },
@@ -1299,8 +1299,8 @@
               "id": 135,
               "name": "LiveAlpacas",
               "weight": 2368.0127,
-              "value": 4793339.0,
-              "deadline": 39,
+              "value": 619782.0,
+              "deadline": 19,
               "origin_id": 4,
               "destination_id": 2
             },
@@ -1308,8 +1308,8 @@
               "id": 136,
               "name": "Furniture",
               "weight": 4208.1855,
-              "value": 6676340.0,
-              "deadline": 31,
+              "value": 861692.0,
+              "deadline": 15,
               "origin_id": 4,
               "destination_id": 2
             }
@@ -1317,8 +1317,8 @@
           "fuel_sold": 0.0
         },
         {
-          "x": 9690.189,
-          "y": 343.4277
+          "x": 571.562,
+          "y": 6151.228
         }
       ]
     ],
@@ -1348,8 +1348,8 @@
       },
       "status": "Parked",
       "location": {
-        "x": 1334.0975,
-        "y": 5265.5737
+        "x": 6834.3496,
+        "y": 8049.375
       },
       "current_fuel": 200.0,
       "current_payload": 0.0,
@@ -1380,8 +1380,8 @@
         },
         "status": "Parked",
         "location": {
-          "x": 1334.0975,
-          "y": 5265.5737
+          "x": 6834.3496,
+          "y": 8049.375
         },
         "current_fuel": 200.0,
         "current_payload": 0.0,

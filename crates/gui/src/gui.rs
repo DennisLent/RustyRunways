@@ -338,17 +338,32 @@ impl RustyRunwaysGui {
                         ui.separator();
                         ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
                             for a in &cfg.airports {
+                                let location_text = if let Some(loc) = a.location {
+                                    format!("({:.1}, {:.1})", loc.x, loc.y)
+                                } else {
+                                    "(auto)".to_string()
+                                };
+                                let runway_text = a
+                                    .runway_length_m
+                                    .map(|v| format!("{:.0}m", v))
+                                    .unwrap_or_else(|| "auto".into());
+                                let fuel_text = a
+                                    .fuel_price_per_l
+                                    .map(|v| format!("${:.2}/L", v))
+                                    .unwrap_or_else(|| "auto".into());
+                                let landing_text = a
+                                    .landing_fee_per_ton
+                                    .map(|v| format!("${:.2}/t", v))
+                                    .unwrap_or_else(|| "auto".into());
+                                let parking_text = a
+                                    .parking_fee_per_hour
+                                    .map(|v| format!("${:.2}/h", v))
+                                    .unwrap_or_else(|| "auto".into());
                                 ui.group(|ui| {
+                                    ui.label(format!("[{}] {} @ {}", a.id, a.name, location_text));
                                     ui.label(format!(
-                                        "[{}] {} @ ({:.1}, {:.1})",
-                                        a.id, a.name, a.location.x, a.location.y
-                                    ));
-                                    ui.label(format!(
-                                        "Runway: {:.0}m | Fuel: ${:.2}/L | Landing: ${:.2}/t | Parking: ${:.2}/h",
-                                        a.runway_length_m,
-                                        a.fuel_price_per_l,
-                                        a.landing_fee_per_ton,
-                                        a.parking_fee_per_hour
+                                        "Runway: {} | Fuel: {} | Landing: {} | Parking: {}",
+                                        runway_text, fuel_text, landing_text, parking_text
                                     ));
                                 });
                                 ui.add_space(6.0);

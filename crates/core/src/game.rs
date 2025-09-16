@@ -234,26 +234,62 @@ impl Game {
 
             let mut airports_vec = Vec::with_capacity(cfg.airports.len());
             let mut next_order_id = 0usize;
-            for a in &cfg.airports {
-                if a.runway_length_m <= 0.0 {
-                    return Err(GameError::InvalidConfig {
-                        msg: format!("airport {} runway_length must be > 0", a.id),
-                    });
+            let missing_coords: Vec<usize> = cfg
+                .airports
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, a)| {
+                    if a.location.is_some() {
+                        None
+                    } else {
+                        Some(idx)
+                    }
+                })
+                .collect();
+            let generated_coords = if missing_coords.is_empty() {
+                Vec::new()
+            } else {
+                Map::generate_clustered_coordinates(seed.wrapping_add(13), missing_coords.len())
+            };
+
+            for (idx, a) in cfg.airports.iter().enumerate() {
+                if let Some(len) = a.runway_length_m {
+                    if len <= 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} runway_length must be > 0", a.id),
+                        });
+                    }
                 }
-                if a.fuel_price_per_l <= 0.0 {
-                    return Err(GameError::InvalidConfig {
-                        msg: format!("airport {} fuel_price_per_l must be > 0", a.id),
-                    });
+                if let Some(price) = a.fuel_price_per_l {
+                    if price <= 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} fuel_price_per_l must be > 0", a.id),
+                        });
+                    }
                 }
-                if !(0.0..=10000.0).contains(&a.location.x)
-                    || !(0.0..=10000.0).contains(&a.location.y)
-                {
-                    return Err(GameError::InvalidConfig {
-                        msg: format!(
-                            "airport {} location ({:.2},{:.2}) out of bounds [0,10000]",
-                            a.id, a.location.x, a.location.y
-                        ),
-                    });
+                if let Some(fee) = a.landing_fee_per_ton {
+                    if fee < 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} landing_fee_per_ton must be >= 0", a.id),
+                        });
+                    }
+                }
+                if let Some(fee) = a.parking_fee_per_hour {
+                    if fee < 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} parking_fee_per_hour must be >= 0", a.id),
+                        });
+                    }
+                }
+                if let Some(loc) = a.location {
+                    if !(0.0..=10000.0).contains(&loc.x) || !(0.0..=10000.0).contains(&loc.y) {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!(
+                                "airport {} location ({:.2},{:.2}) out of bounds [0,10000]",
+                                a.id, loc.x, loc.y
+                            ),
+                        });
+                    }
                 }
                 if !regenerate_orders && a.orders.is_empty() {
                     return Err(GameError::InvalidConfig {
@@ -263,6 +299,24 @@ impl Game {
                         ),
                     });
                 }
+
+                let default_airport = Airport::generate_random(seed, a.id);
+                let coord = if let Some(loc) = a.location {
+                    Coordinate::new(loc.x, loc.y)
+                } else {
+                    let generated_idx = missing_coords
+                        .iter()
+                        .position(|i| *i == idx)
+                        .expect("generated coordinate index must exist");
+                    generated_coords[generated_idx]
+                };
+
+                let runway_length = a.runway_length_m.unwrap_or(default_airport.runway_length);
+                let fuel_price = a.fuel_price_per_l.unwrap_or(default_airport.fuel_price);
+                let landing_fee = a.landing_fee_per_ton.unwrap_or(default_airport.landing_fee);
+                let parking_fee = a
+                    .parking_fee_per_hour
+                    .unwrap_or(default_airport.parking_fee);
 
                 let mut manual_orders = Vec::with_capacity(a.orders.len());
                 for order_cfg in &a.orders {
@@ -310,14 +364,13 @@ impl Game {
                 let ap = Airport {
                     id: a.id,
                     name: a.name.clone(),
-                    runway_length: a.runway_length_m,
-                    fuel_price: a.fuel_price_per_l,
-                    landing_fee: a.landing_fee_per_ton,
-                    parking_fee: a.parking_fee_per_hour,
+                    runway_length,
+                    fuel_price,
+                    landing_fee,
+                    parking_fee,
                     orders: manual_orders,
                     fuel_sold: 0.0,
                 };
-                let coord = Coordinate::new(a.location.x, a.location.y);
                 airports_vec.push((ap, coord));
             }
 

@@ -4,7 +4,7 @@ title: Custom Worlds (YAML)
 
 # Custom Worlds (YAML)
 
-RustyRunways can load fully custom worlds from a YAML file. This allows you to define airports, fees, initial orders, and gameplay pacing deterministically while still supporting randomly generated content.
+RustyRunways can load fully custom worlds from a YAML file. This allows you to define airports, fees, initial orders, and gameplay pacing deterministically while still supporting randomly generated content. When airports are generated, they are placed in deterministic clusters so each map starts with local routes for small aircraft and longer hops for bigger planes.
 
 ## Schema
 
@@ -13,19 +13,19 @@ Top‑level keys:
 - `version` (int): schema version; currently `1`.
 - `seed` (int, optional): base seed for determinism (used for generated elements).
 - `starting_cash` (float, optional, default `1_000_000.0`).
-- `airports` (list, optional): explicit airport definitions. If omitted, you **must** set `num_airports`.
-- `num_airports` (int, optional): number of airports to generate randomly when `airports` is empty.
+- `num_airports` (int, optional): number of airports to generate automatically when `airports` is omitted.
+- `airports` (list, optional): explicit or partially specified airport definitions.
 - `gameplay` (object, optional): tuning knobs for restocking cadence, order behaviour, and order value scaling.
 
-Airport fields:
+Airport fields (everything except `id`/`name` optional):
 
-- `id` (int, required when `airports` is provided): unique across all airports.
-- `name` (string, required): must be unique (case‑insensitive).
-- `location` (object): `{ x: float, y: float }` — bounds `[0, 10000]` each.
-- `runway_length_m` (float > 0): runway length in meters.
-- `fuel_price_per_l` (float > 0): $/L.
-- `landing_fee_per_ton` (float >= 0): $ per ton MTOW.
-- `parking_fee_per_hour` (float >= 0): $ per hour.
+- `id` (int): unique across all airports.
+- `name` (string): must be unique (case‑insensitive).
+- `location` (object, optional): `{ x: float, y: float }` — bounds `[0, 10000]` each. When omitted a location is generated based on the seed (airports are laid out in clusters to guarantee local routes).
+- `runway_length_m` (float > 0, optional): runway length in meters (generated deterministically when missing).
+- `fuel_price_per_l` (float > 0, optional): $/L (generated when missing).
+- `landing_fee_per_ton` (float >= 0, optional): $ per ton MTOW (generated when missing).
+- `parking_fee_per_hour` (float >= 0, optional): $ per hour (generated when missing).
 - `orders` (list, optional): static orders to seed the airport with. Required when order regeneration is disabled.
 
 Manual order fields:
@@ -99,6 +99,21 @@ gameplay:
     generate_initial: false
 ```
 
+Minimal airport definitions (locations and fees generated from the seed):
+
+```yaml
+version: 1
+seed: 12
+starting_cash: 600000.0
+airports:
+  - id: 0
+    name: GATEWAY
+  - id: 1
+    name: SPOKE
+    fuel_price_per_l: 1.6
+    runway_length_m: 2400.0
+```
+
 Static manual orders (no regeneration):
 
 ```yaml
@@ -154,7 +169,7 @@ gameplay:
 
 ## Validation & Errors
 
-- Provide either explicit `airports` or `num_airports` (but not both).
+- Provide either explicit `airports` or `num_airports` (minimal airport entries are allowed; missing fields are generated).
 - Duplicate airport IDs → error.
 - Duplicate airport names (case‑insensitive) → error.
 - Invalid coordinates (outside `[0, 10000]`) → error.

@@ -32,6 +32,25 @@ def test_custom_reward_fn_is_used():
     assert reward == -1.0
 
 
+def test_reset_with_options_and_all_ops():
+    env = RustyRunwaysGymEnv(seed=4, num_airports=6, max_hours=4)
+    try:
+        env.reset(seed=5, options={"num_airports": 5, "cash": 750000.0})
+        # Exercise each operation branch
+        env.step(np.array([0, 0, 0, 0]))  # advance
+        env.step(np.array([1, 0, 0, 0]))  # refuel
+        env.step(np.array([2, 0, 0, 0]))  # unload all
+        env.step(np.array([3, 0, 0, 0]))  # maintenance
+        env.step(np.array([4, 0, 0, 0]))  # depart
+        env.step(np.array([5, 0, 0, 0]))  # load order
+        assert env._nearest_other_airport_for_plane0() is not None
+        env.step(0)  # scalar branch
+        env.step(np.array([1, 0, 0]))  # three-element branch
+        env.render()
+    finally:
+        env.close()
+
+
 def test_vector_env_truncation_and_shapes():
     venv = RustyRunwaysGymVectorEnv(3, seed=1, num_airports=5, max_hours=2)
     obs, info = venv.reset()
@@ -45,6 +64,24 @@ def test_vector_env_truncation_and_shapes():
     _, _, _, trunc2, _ = venv.step(acts)
     assert trunc2.dtype == bool
     assert trunc2.tolist() == [True, True, True]
+
+
+def test_vector_env_complex_actions():
+    venv = RustyRunwaysGymVectorEnv(2, seed=3, num_airports=6, max_hours=3)
+    try:
+        venv.reset()
+        venv.reset(seed=11)
+        acts = np.array([[4, 0, 0, 0], [5, 0, 1, 0]], dtype=int)
+        obs, rewards, _, _, _ = venv.step(acts)
+        assert obs.shape == (2, 14)
+        assert rewards.shape == (2,)
+        # cover 1-D action path and helper utilities
+        obs2, _, _, _, _ = venv.step(np.array([0, 0, 0, 0, 1, 0, 0, 0]))
+        assert obs2.shape == (2, 14)
+        proxy = venv._proxy_single(venv._last_states[0])
+        assert hasattr(proxy, "_state_cache")
+    finally:
+        venv.close()
 
 
 def test_make_sb3_envs_thunks():

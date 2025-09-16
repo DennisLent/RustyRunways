@@ -9,27 +9,27 @@ fn base_airports() -> Vec<AirportConfig> {
         AirportConfig {
             id: 0,
             name: "AAA".into(),
-            location: Location {
+            location: Some(Location {
                 x: 1000.0,
                 y: 1000.0,
-            },
-            runway_length_m: 3000.0,
-            fuel_price_per_l: 1.2,
-            landing_fee_per_ton: 5.0,
-            parking_fee_per_hour: 20.0,
+            }),
+            runway_length_m: Some(3000.0),
+            fuel_price_per_l: Some(1.2),
+            landing_fee_per_ton: Some(5.0),
+            parking_fee_per_hour: Some(20.0),
             orders: Vec::new(),
         },
         AirportConfig {
             id: 1,
             name: "AAB".into(),
-            location: Location {
+            location: Some(Location {
                 x: 2000.0,
                 y: 1500.0,
-            },
-            runway_length_m: 2500.0,
-            fuel_price_per_l: 1.8,
-            landing_fee_per_ton: 4.5,
-            parking_fee_per_hour: 15.0,
+            }),
+            runway_length_m: Some(2500.0),
+            fuel_price_per_l: Some(1.8),
+            landing_fee_per_ton: Some(4.5),
+            parking_fee_per_hour: Some(15.0),
             orders: Vec::new(),
         },
     ]
@@ -105,7 +105,10 @@ fn from_config_duplicate_names_is_error() {
 #[test]
 fn from_config_location_bounds_enforced() {
     let mut airports = base_airports();
-    airports[1].location.x = 20000.0; // out of bounds
+    airports[1].location = Some(Location {
+        x: 20_000.0,
+        y: 1_500.0,
+    });
     let cfg = WorldConfig {
         seed: None,
         starting_cash: 1_000_000.0,
@@ -120,7 +123,7 @@ fn from_config_location_bounds_enforced() {
 #[test]
 fn from_config_positive_values_required() {
     let mut airports = base_airports();
-    airports[0].runway_length_m = 0.0;
+    airports[0].runway_length_m = Some(0.0);
     let cfg = WorldConfig {
         seed: None,
         starting_cash: 1_000_000.0,
@@ -281,4 +284,50 @@ fn from_config_uses_manual_orders_when_regeneration_disabled() {
         .flat_map(|(a, _)| a.orders.iter().map(|o| o.id))
         .collect();
     assert_eq!(ids, vec![0, 1]);
+}
+
+#[test]
+fn from_config_generates_missing_fields_and_locations() {
+    let airports = vec![
+        AirportConfig {
+            id: 0,
+            name: "Hub".into(),
+            location: None,
+            runway_length_m: None,
+            fuel_price_per_l: None,
+            landing_fee_per_ton: None,
+            parking_fee_per_hour: None,
+            orders: Vec::new(),
+        },
+        AirportConfig {
+            id: 1,
+            name: "Spoke".into(),
+            location: None,
+            runway_length_m: Some(2_400.0),
+            fuel_price_per_l: Some(1.6),
+            landing_fee_per_ton: None,
+            parking_fee_per_hour: None,
+            orders: Vec::new(),
+        },
+    ];
+    let cfg = WorldConfig {
+        seed: Some(88),
+        starting_cash: 750_000.0,
+        airports,
+        num_airports: None,
+        gameplay: GameplayConfig::default(),
+    };
+
+    let game = Game::from_config(cfg).expect("should build");
+    assert_eq!(game.map.airports.len(), 2);
+
+    let (first, coord0) = &game.map.airports[0];
+    assert!(coord0.x >= 0.0 && coord0.x <= 10_000.0);
+    assert!(coord0.y >= 0.0 && coord0.y <= 10_000.0);
+    assert!(first.runway_length > 0.0);
+    assert!(first.fuel_price > 0.0);
+
+    let (second, _) = &game.map.airports[1];
+    assert_eq!(second.fuel_price, 1.6);
+    assert_eq!(second.runway_length, 2_400.0);
 }

@@ -108,21 +108,26 @@ impl From<&OrderTuning> for OrderGenerationParams {
 pub struct AirportConfig {
     pub id: usize,
     pub name: String,
-    pub location: Location,
+    #[serde(default)]
+    pub location: Option<Location>,
     /// meters
-    pub runway_length_m: f32,
+    #[serde(default)]
+    pub runway_length_m: Option<f32>,
     /// $/L
-    pub fuel_price_per_l: f32,
+    #[serde(default)]
+    pub fuel_price_per_l: Option<f32>,
     /// $ per ton of MTOW
-    pub landing_fee_per_ton: f32,
+    #[serde(default)]
+    pub landing_fee_per_ton: Option<f32>,
     /// $ per hour
-    pub parking_fee_per_hour: f32,
+    #[serde(default)]
+    pub parking_fee_per_hour: Option<f32>,
     /// Static orders that should exist at the start of the game
     #[serde(default)]
     pub orders: Vec<ManualOrderConfig>,
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Default)]
 pub struct Location {
     pub x: f32,
     pub y: f32,

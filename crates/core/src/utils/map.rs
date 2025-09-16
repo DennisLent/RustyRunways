@@ -3,8 +3,9 @@ use crate::utils::{
     coordinate::Coordinate,
     orders::order::{OrderAirportInfo, OrderGenerationParams},
 };
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{Rng, SeedableRng, rngs::StdRng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
+use std::f32::consts::TAU;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Map {
@@ -17,6 +18,60 @@ pub struct Map {
 }
 
 impl Map {
+    fn clustered_coordinates(seed: u64, count: usize) -> Vec<Coordinate> {
+        if count == 0 {
+            return Vec::new();
+        }
+
+        let mut rng = StdRng::seed_from_u64(seed.wrapping_mul(31).wrapping_add(17));
+        let cluster_count = count.clamp(1, (count as f32 / 4.0).ceil() as usize).max(1);
+        let cluster_count = cluster_count.min(count);
+
+        let mut centers: Vec<Coordinate> = Vec::with_capacity(cluster_count);
+        let min_separation = 2_000.0_f32;
+        for _ in 0..cluster_count {
+            let mut attempts = 0;
+            loop {
+                attempts += 1;
+                let x = rng.gen_range(800.0..=9_200.0);
+                let y = rng.gen_range(800.0..=9_200.0);
+                let candidate = Coordinate::new(x, y);
+                if centers
+                    .iter()
+                    .all(|c| ((c.x - x).powi(2) + (c.y - y).powi(2)).sqrt() >= min_separation)
+                    || attempts > 20
+                {
+                    centers.push(candidate);
+                    break;
+                }
+            }
+        }
+
+        let mut assignments: Vec<usize> = (0..count)
+            .map(|_| rng.gen_range(0..cluster_count))
+            .collect();
+        assignments.shuffle(&mut rng);
+
+        let mut coords = Vec::with_capacity(count);
+        for cluster_idx in assignments {
+            let center = centers[cluster_idx];
+            let radius = rng.gen_range(350.0..=1_200.0);
+            let angle = rng.gen_range(0.0..TAU);
+            let distance = radius * rng.gen_range(0.0_f32..=1.0_f32).sqrt();
+            let mut x = center.x + distance * angle.cos();
+            let mut y = center.y + distance * angle.sin();
+            x = x.clamp(0.0, 10_000.0);
+            y = y.clamp(0.0, 10_000.0);
+            coords.push(Coordinate::new(x, y));
+        }
+
+        coords
+    }
+
+    pub fn generate_clustered_coordinates(seed: u64, count: usize) -> Vec<Coordinate> {
+        Self::clustered_coordinates(seed, count)
+    }
+
     /// Airports from a random seed.
     /// Allows you to input a specific amount of airports or not.
     /// Airports are already stocked with orders.
@@ -25,16 +80,12 @@ impl Map {
 
         let num_airports = num_airports.unwrap_or_else(|| rng.gen_range(4..=10));
 
+        let coordinates = Self::clustered_coordinates(seed, num_airports);
         let mut airport_list = Vec::with_capacity(num_airports);
 
-        for i in 0..num_airports {
-            let x: f32 = rng.gen_range(0.0..=10000.0);
-            let y: f32 = rng.gen_range(0.0..=10000.0);
-            let coordinates = Coordinate::new(x, y);
-
+        for (i, coordinate) in coordinates.into_iter().enumerate() {
             let airport = Airport::generate_random(seed, i);
-
-            airport_list.push((airport, coordinates));
+            airport_list.push((airport, coordinate));
         }
 
         let mut map = Map {

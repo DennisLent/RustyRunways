@@ -4421,7 +4421,7 @@ checksum = "8a0d197bd2c9dc6e53b84da9556a69ba4cdfab8619eb41a8bd1cc2027a0f6b1d"
 
 [[package]]
 name = "rusty_runways_cli"
-version = "2.0.4"
+version = "2.1.0"
 dependencies = [
  "clap",
  "rand 0.8.5",
@@ -4433,11 +4433,11 @@ dependencies = [
 
 [[package]]
 name = "rusty_runways_commands"
-version = "2.0.4"
+version = "2.1.0"
 
 [[package]]
 name = "rusty_runways_core"
-version = "2.0.4"
+version = "2.1.0"
 dependencies = [
  "rand 0.8.5",
  "rusty_runways_commands",
@@ -4450,7 +4450,7 @@ dependencies = [
 
 [[package]]
 name = "rusty_runways_gui"
-version = "2.0.4"
+version = "2.1.0"
 dependencies = [
  "eframe",
  "rand 0.8.5",
@@ -4461,7 +4461,7 @@ dependencies = [
 
 [[package]]
 name = "rusty_runways_py"
-version = "2.0.4"
+version = "2.1.0"
 dependencies = [
  "pyo3",
  "rayon",
@@ -4473,7 +4473,7 @@ dependencies = [
 
 [[package]]
 name = "rusty_runways_tauri"
-version = "2.0.4"
+version = "2.1.0"
 dependencies = [
  "rusty_runways_core",
  "serde",
@@ -4486,7 +4486,7 @@ dependencies = [
 
 [[package]]
 name = "rusty_runways_wasm"
-version = "2.0.4"
+version = "2.1.0"
 dependencies = [
  "getrandom 0.2.16",
  "once_cell",
