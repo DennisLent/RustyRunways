@@ -6,6 +6,8 @@ title: Python Bindings
 
 Python bindings expose the Rust Core engine to Python for scripting, analysis, and RL/ML workflows. For game rules, see Core.
 
+As part of the balancing process we routinely let heuristic agents play through procedurally generated worlds so we can observe cash curves, order feasibility, and upgrade cadence in the same way a casual player might experience them. The tooling used for that process lives in the `benchmarks/` directory and is described near the end of this document.
+
 ## Installation
 
 - PyPI (recommended):
@@ -193,3 +195,24 @@ Dependency note
 - Same rules/constraints as the Rust Core engine.
 - Seeds control determinism; vectors default to `base_seed + index` when provided a scalar seed.
 - Parallel stepping releases the GIL and uses Rayon internally.
+
+## Benchmark Agents
+
+The repository contains a small benchmarking harness (see `benchmarks/run_benchmarks.py`) that exercises the Python bindings using a greedy hauling agent. This script evaluates multiple seeds in one go, records cash/fleet/delivery timelines, and renders plots summarizing the progression. To experiment with it locally:
+
+1. Initialise the virtual environment and build the bindings from source:
+
+   ```bash
+   ./benchmarks/setup.sh
+   source benchmarks/.venv/bin/activate
+   ```
+
+2. Run the benchmarking driver:
+
+   ```bash
+   python benchmarks/run_benchmarks.py --seeds 0 1 2 --hours 168 --airports 8
+   ```
+
+   The script prints per-seed statistics (order feasibility, margin-per-hour, upgrade timing). It also emits CSV timelines and PNG plots under `benchmarks/outputs/` so you can inspect cash/fleet/delivery curves by seed.
+
+Feel free to adapt the harness for richer experiments (e.g., alternative agents, different reward functions, or automated regression checks). Because it builds against the local branch, the outputs always reflect the current balance knobs.
