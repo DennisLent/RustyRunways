@@ -1,4 +1,6 @@
-use crate::config::WorldConfig;
+use crate::config::{
+    DEFAULT_FUEL_INTERVAL_HOURS, DEFAULT_RESTOCK_CYCLE_HOURS, GameplayConfig, WorldConfig,
+};
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::statistics::DailyStats;
@@ -8,7 +10,7 @@ use crate::utils::airport::Airport;
 use crate::utils::coordinate::Coordinate;
 use crate::utils::errors::GameError;
 use crate::utils::map::Map;
-use crate::utils::orders::order::MAX_DEADLINE;
+use crate::utils::orders::order::OrderGenerationParams;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use rusty_runways_commands::Command::*;
 use rusty_runways_commands::{Command, parse_command};
@@ -17,12 +19,47 @@ use std::collections::BinaryHeap;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-const RESTOCK_CYCLE: u64 = MAX_DEADLINE * 24;
 const REPORT_INTERVAL: u64 = 24;
-const FUEL_INTERVAL: u64 = 6;
+const DEFAULT_RESTOCK_CYCLE: u64 = DEFAULT_RESTOCK_CYCLE_HOURS;
+const DEFAULT_FUEL_INTERVAL: u64 = DEFAULT_FUEL_INTERVAL_HOURS;
 
 fn default_rng() -> StdRng {
     StdRng::seed_from_u64(0)
+}
+
+fn default_restock_cycle() -> GameTime {
+    DEFAULT_RESTOCK_CYCLE
+}
+
+fn default_fuel_interval() -> GameTime {
+    DEFAULT_FUEL_INTERVAL
+}
+
+fn gameplay_settings(
+    cfg: &GameplayConfig,
+) -> Result<(OrderGenerationParams, GameTime, GameTime), String> {
+    if cfg.orders.max_deadline_hours == 0 {
+        return Err("orders.max_deadline_hours must be at least 1".into());
+    }
+    if cfg.orders.min_weight <= 0.0 {
+        return Err("orders.min_weight must be greater than 0".into());
+    }
+    if cfg.orders.max_weight < cfg.orders.min_weight {
+        return Err("orders.max_weight must be >= orders.min_weight".into());
+    }
+    if cfg.restock_cycle_hours == 0 {
+        return Err("restock_cycle_hours must be at least 1".into());
+    }
+    if cfg.fuel_interval_hours == 0 {
+        return Err("fuel_interval_hours must be at least 1".into());
+    }
+
+    let order_params = OrderGenerationParams::from(cfg.orders.clone());
+    Ok((
+        order_params,
+        cfg.restock_cycle_hours,
+        cfg.fuel_interval_hours,
+    ))
 }
 
 /// Holds all mutable world state and drives the simulation via scheduled events.
@@ -48,6 +85,12 @@ pub struct Game {
     pub stats: Vec<DailyStats>,
     /// Seed used to create the RNG for deterministic behaviour
     pub seed: u64,
+    /// Frequency (in hours) for restocking airports
+    #[serde(default = "default_restock_cycle")]
+    pub restock_cycle: GameTime,
+    /// Frequency (in hours) for dynamic fuel price adjustments
+    #[serde(default = "default_fuel_interval")]
+    pub fuel_interval: GameTime,
     /// Game-local random number generator to avoid global RNG usage
     #[serde(skip, default = "default_rng")]
     rng: StdRng,
@@ -121,13 +164,15 @@ impl Game {
             daily_expenses: 0.0,
             stats: Vec::new(),
             seed,
+            restock_cycle: DEFAULT_RESTOCK_CYCLE,
+            fuel_interval: DEFAULT_FUEL_INTERVAL,
             rng: StdRng::seed_from_u64(seed),
             log: Vec::new(),
         };
 
-        game.schedule(RESTOCK_CYCLE, Event::Restock);
+        game.schedule(game.restock_cycle, Event::Restock);
         game.schedule(REPORT_INTERVAL, Event::DailyStats);
-        game.schedule(FUEL_INTERVAL, Event::DynamicPricing);
+        game.schedule(game.fuel_interval, Event::DynamicPricing);
         game.schedule_world_event();
         game.schedule(1, Event::MaintenanceCheck);
 
@@ -198,7 +243,10 @@ impl Game {
         }
 
         let seed = cfg.seed.unwrap_or(0);
-        let mut map = Map::from_airports(seed, airports_vec);
+        let (order_params, restock_cycle, fuel_interval) =
+            gameplay_settings(&cfg.gameplay).map_err(|msg| GameError::InvalidConfig { msg })?;
+
+        let mut map = Map::from_airports(seed, airports_vec, order_params.clone());
         if cfg.generate_orders {
             map.restock_airports();
         }
@@ -219,13 +267,15 @@ impl Game {
             daily_expenses: 0.0,
             stats: Vec::new(),
             seed,
+            restock_cycle,
+            fuel_interval,
             rng: StdRng::seed_from_u64(seed),
             log: Vec::new(),
         };
 
-        game.schedule(RESTOCK_CYCLE, Event::Restock);
+        game.schedule(game.restock_cycle, Event::Restock);
         game.schedule(REPORT_INTERVAL, Event::DailyStats);
-        game.schedule(FUEL_INTERVAL, Event::DynamicPricing);
+        game.schedule(game.fuel_interval, Event::DynamicPricing);
         game.schedule_world_event();
         game.schedule(1, Event::MaintenanceCheck);
 
@@ -398,7 +448,7 @@ impl Game {
                 // Restock every 14 days
                 Event::Restock => {
                     self.map.restock_airports();
-                    self.schedule(self.time + RESTOCK_CYCLE, Event::Restock);
+                    self.schedule(self.time + self.restock_cycle, Event::Restock);
                 }
 
                 // Finished loading, therefore we need to update the status
@@ -495,7 +545,7 @@ impl Game {
                     }
 
                     // Schedule next
-                    self.schedule(self.time + FUEL_INTERVAL, Event::DynamicPricing);
+                    self.schedule(self.time + self.fuel_interval, Event::DynamicPricing);
                 }
 
                 Event::WorldEvent {

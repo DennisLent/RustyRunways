@@ -3,7 +3,10 @@ use rusty_runways_core::utils::{
     orders::{
         Order,
         cargo::CargoType,
-        order::{ALPHA, BETA, MAX_DEADLINE},
+        order::{
+            DEFAULT_ALPHA, DEFAULT_BETA, DEFAULT_MAX_DEADLINE_HOURS, DEFAULT_MAX_WEIGHT,
+            DEFAULT_MIN_WEIGHT, OrderGenerationParams,
+        },
     },
 };
 use strum::IntoEnumIterator;
@@ -56,8 +59,9 @@ fn new_order_is_deterministic() {
         Coordinate::new(1000.0, 0.0),
         Coordinate::new(0.0, 1000.0),
     ];
-    let o1 = Order::new(42, 7, 0, &coords, coords.len());
-    let o2 = Order::new(42, 7, 0, &coords, coords.len());
+    let params = OrderGenerationParams::default();
+    let o1 = Order::new(42, 7, 0, &coords, coords.len(), &params);
+    let o2 = Order::new(42, 7, 0, &coords, coords.len(), &params);
     // same seed & order_id => same everything
     assert_eq!(o1.id, o2.id);
     assert_eq!(o1.name, o2.name);
@@ -72,7 +76,8 @@ fn new_order_is_deterministic() {
 fn cannot_arrive_at_origin() {
     let coords = vec![Coordinate::new(0.0, 0.0), Coordinate::new(1.0, 1.0)];
     let origin = 1;
-    let order = Order::new(7, 3, origin, &coords, coords.len());
+    let params = OrderGenerationParams::default();
+    let order = Order::new(7, 3, origin, &coords, coords.len(), &params);
     assert_ne!(order.destination_id, origin);
     assert!(order.destination_id < coords.len());
 }
@@ -81,13 +86,14 @@ fn cannot_arrive_at_origin() {
 fn deadline_weight_check() {
     let coords = vec![Coordinate::new(0., 0.), Coordinate::new(10., 10.)];
     for seed in 0..5 {
-        let o = Order::new(seed, seed as usize, 0, &coords, coords.len());
+        let params = OrderGenerationParams::default();
+        let o = Order::new(seed, seed as usize, 0, &coords, coords.len(), &params);
 
-        // deadline in [1, 30]
-        assert!((1..=MAX_DEADLINE * 24).contains(&o.deadline));
+        // deadline in [1, max_deadline]
+        assert!((1..=DEFAULT_MAX_DEADLINE_HOURS).contains(&o.deadline));
 
-        // weight in [100, 20000]
-        assert!(o.weight >= 100.0 && o.weight <= 20_000.0);
+        // weight in [min_weight, max_weight]
+        assert!(o.weight >= DEFAULT_MIN_WEIGHT && o.weight <= DEFAULT_MAX_WEIGHT);
     }
 }
 
@@ -97,7 +103,8 @@ fn value_of_order_check() {
 
     let coords = vec![Coordinate::new(0., 0.), Coordinate::new(10., 10.)];
     let seed = 123;
-    let o = Order::new(seed, 1, 0, &coords, coords.len());
+    let params = OrderGenerationParams::default();
+    let o = Order::new(seed, 1, 0, &coords, coords.len(), &params);
     let (min_p, max_p) = o.name.price_range();
 
     // base = weight * price_per_kg
@@ -106,11 +113,11 @@ fn value_of_order_check() {
 
     // distance factor = 1 + 0.5*(distance/10000)
     let dist = (10.0f32).hypot(10.0);
-    let dist_factor = 1.0 + ALPHA * (dist / 10000.0);
+    let dist_factor = 1.0 + DEFAULT_ALPHA * (dist / 10000.0);
 
-    // time factor = 1 + 0.7*((d0-deadline)/d0)
-    let time_factor = 1.0
-        + BETA * (((MAX_DEADLINE * 24) as f32 - (o.deadline as f32)) / (MAX_DEADLINE * 24) as f32);
+    // time factor = 1 + beta*((d0-deadline)/d0)
+    let max_deadline = DEFAULT_MAX_DEADLINE_HOURS as f32;
+    let time_factor = 1.0 + DEFAULT_BETA * ((max_deadline - (o.deadline as f32)) / max_deadline);
 
     // overall value needs to be in [base_min, base_max] * dist_factor * time_factor
     let lower = (base_min * dist_factor * time_factor).floor();

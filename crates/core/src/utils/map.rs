@@ -1,4 +1,6 @@
-use crate::utils::{airport::Airport, coordinate::Coordinate};
+use crate::utils::{
+    airport::Airport, coordinate::Coordinate, orders::order::OrderGenerationParams,
+};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +10,8 @@ pub struct Map {
     pub airports: Vec<(Airport, Coordinate)>,
     pub seed: u64,
     next_order_id: usize,
+    #[serde(default)]
+    pub order_params: OrderGenerationParams,
 }
 
 impl Map {
@@ -36,6 +40,7 @@ impl Map {
             airports: airport_list,
             seed,
             next_order_id: 0,
+            order_params: OrderGenerationParams::default(),
         };
 
         map.restock_airports();
@@ -57,6 +62,7 @@ impl Map {
                 &airport_coordinates,
                 self.num_airports,
                 &mut self.next_order_id,
+                &self.order_params,
             );
         }
     }
@@ -86,12 +92,17 @@ impl Map {
     }
 
     /// Build a map from explicit airport configs.
-    pub fn from_airports(seed: u64, airports: Vec<(Airport, Coordinate)>) -> Self {
+    pub fn from_airports(
+        seed: u64,
+        airports: Vec<(Airport, Coordinate)>,
+        order_params: OrderGenerationParams,
+    ) -> Self {
         Map {
             num_airports: airports.len(),
             airports,
             seed,
             next_order_id: 0,
+            order_params,
         }
     }
 }

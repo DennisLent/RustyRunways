@@ -6,7 +6,7 @@ use rusty_runways_core::utils::{
     airport::Airport,
     coordinate::Coordinate,
     errors::GameError,
-    orders::Order,
+    orders::{Order, order::OrderGenerationParams},
 };
 
 fn approx_eq(a: f32, b: f32, tol: f32) -> bool {
@@ -72,7 +72,13 @@ fn generate_orders_counts_and_ids() {
     ap.runway_length = 1000.0;
     let coords = vec![Coordinate::new(0., 0.), Coordinate::new(10., 10.)];
     let mut next_id = 0;
-    ap.generate_orders(0, &coords, coords.len(), &mut next_id);
+    ap.generate_orders(
+        0,
+        &coords,
+        coords.len(),
+        &mut next_id,
+        &OrderGenerationParams::default(),
+    );
 
     assert!(ap.orders.len() >= 5 && ap.orders.len() <= 8);
 
@@ -91,11 +97,20 @@ fn load_order_and_errors() {
     let mut ap = Airport::generate_random(0, 0);
     let coords = vec![Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
     let mut next_id = 0;
-    ap.generate_orders(0, &coords, coords.len(), &mut next_id);
+    ap.generate_orders(
+        0,
+        &coords,
+        coords.len(),
+        &mut next_id,
+        &OrderGenerationParams::default(),
+    );
 
     let order = ap.orders[0].clone();
     let home = Coordinate::new(0., 0.);
     let mut plane = Airplane::new(0, AirplaneModel::Atlas, home);
+    if plane.specs.payload_capacity <= order.weight {
+        plane.specs.payload_capacity = order.weight + 1.0;
+    }
 
     // load should succeed
     ap.load_order(order.id, &mut plane).unwrap();
@@ -117,8 +132,8 @@ fn load_orders_stops_on_error() {
     let coords = vec![Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
 
     // these are both going to be the same
-    let order1 = Order::new(1, 0, 0, &coords, 2);
-    let order2 = Order::new(1, 1, 0, &coords, 2);
+    let order1 = Order::new(1, 0, 0, &coords, 2, &OrderGenerationParams::default());
+    let order2 = Order::new(1, 1, 0, &coords, 2, &OrderGenerationParams::default());
 
     ap.orders = vec![order1, order2];
 

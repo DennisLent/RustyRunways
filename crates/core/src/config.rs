@@ -1,4 +1,11 @@
+use crate::utils::orders::order::{
+    DEFAULT_ALPHA, DEFAULT_BETA, DEFAULT_MAX_DEADLINE_HOURS, DEFAULT_MAX_WEIGHT,
+    DEFAULT_MIN_WEIGHT, OrderGenerationParams,
+};
 use serde::{Deserialize, Serialize};
+
+pub const DEFAULT_RESTOCK_CYCLE_HOURS: u64 = DEFAULT_MAX_DEADLINE_HOURS;
+pub const DEFAULT_FUEL_INTERVAL_HOURS: u64 = 6;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldConfig {
@@ -13,6 +20,9 @@ pub struct WorldConfig {
     pub generate_orders: bool,
     /// Explicit airports to load into the map
     pub airports: Vec<AirportConfig>,
+    /// Optional gameplay tuning parameters
+    #[serde(default)]
+    pub gameplay: GameplayConfig,
 }
 
 fn default_cash() -> f32 {
@@ -20,6 +30,58 @@ fn default_cash() -> f32 {
 }
 fn default_generate_orders() -> bool {
     true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GameplayConfig {
+    pub restock_cycle_hours: u64,
+    pub fuel_interval_hours: u64,
+    pub orders: OrderTuning,
+}
+
+impl Default for GameplayConfig {
+    fn default() -> Self {
+        GameplayConfig {
+            restock_cycle_hours: DEFAULT_RESTOCK_CYCLE_HOURS,
+            fuel_interval_hours: DEFAULT_FUEL_INTERVAL_HOURS,
+            orders: OrderTuning::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct OrderTuning {
+    pub max_deadline_hours: u64,
+    pub min_weight: f32,
+    pub max_weight: f32,
+    pub alpha: f32,
+    pub beta: f32,
+}
+
+impl Default for OrderTuning {
+    fn default() -> Self {
+        OrderTuning {
+            max_deadline_hours: DEFAULT_MAX_DEADLINE_HOURS,
+            min_weight: DEFAULT_MIN_WEIGHT,
+            max_weight: DEFAULT_MAX_WEIGHT,
+            alpha: DEFAULT_ALPHA,
+            beta: DEFAULT_BETA,
+        }
+    }
+}
+
+impl From<OrderTuning> for OrderGenerationParams {
+    fn from(value: OrderTuning) -> Self {
+        OrderGenerationParams {
+            max_deadline_hours: value.max_deadline_hours,
+            min_weight: value.min_weight,
+            max_weight: value.max_weight,
+            alpha: value.alpha,
+            beta: value.beta,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -14,6 +14,7 @@ Top‑level keys:
 - `seed` (int, optional): base seed for determinism (used for generated elements).
 - `starting_cash` (float, optional, default `1_000_000.0`).
 - `generate_orders` (bool, optional, default `true`): if true, airports are auto‑stocked with orders.
+- `gameplay` (object, optional): tuning knobs for restocking cadence and order generation.
 - `airports` (list, required): list of airport definitions.
 
 Airport fields:
@@ -25,6 +26,20 @@ Airport fields:
 - `fuel_price_per_l` (float > 0): $/L.
 - `landing_fee_per_ton` (float >= 0): $ per ton MTOW.
 - `parking_fee_per_hour` (float >= 0): $ per hour.
+
+Gameplay tuning:
+
+- `restock_cycle_hours` (int, optional, default `336`): how often airports restock orders.
+- `fuel_interval_hours` (int, optional, default `6`): cadence for dynamic fuel price adjustments.
+- `orders` (object, optional): order generation parameters.
+
+`orders` fields:
+
+- `max_deadline_hours` (int, optional, default `336`): maximum delivery deadline assigned to generated orders.
+- `min_weight` (float, optional, default `100.0`): minimum cargo weight in kilograms.
+- `max_weight` (float, optional, default `20000.0`): maximum cargo weight in kilograms.
+- `alpha` (float, optional, default `0.5`): distance multiplier when valuing orders.
+- `beta` (float, optional, default `0.7`): urgency multiplier when valuing orders.
 
 ## Examples
 
@@ -50,6 +65,16 @@ airports:
     fuel_price_per_l: 1.7
     landing_fee_per_ton: 4.5
     parking_fee_per_hour: 15.0
+
+gameplay:
+  restock_cycle_hours: 168
+  fuel_interval_hours: 4
+  orders:
+    max_deadline_hours: 120
+    min_weight: 250.0
+    max_weight: 1000.0
+    alpha: 0.4
+    beta: 0.9
 ```
 
 No initial orders:

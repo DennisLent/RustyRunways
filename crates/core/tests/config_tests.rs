@@ -1,5 +1,5 @@
 use rusty_runways_core::Game;
-use rusty_runways_core::config::{AirportConfig, Location, WorldConfig};
+use rusty_runways_core::config::{AirportConfig, GameplayConfig, Location, WorldConfig};
 
 fn base_airports() -> Vec<AirportConfig> {
     vec![
@@ -37,6 +37,7 @@ fn from_config_generates_orders_when_enabled() {
         starting_cash: 1_000_000.0,
         generate_orders: true,
         airports: base_airports(),
+        gameplay: GameplayConfig::default(),
     };
     let game = Game::from_config(cfg).expect("should build");
     // both airports should have non-empty orders generally
@@ -51,6 +52,7 @@ fn from_config_no_orders_when_disabled() {
         starting_cash: 1_000_000.0,
         generate_orders: false,
         airports: base_airports(),
+        gameplay: GameplayConfig::default(),
     };
     let game = Game::from_config(cfg).expect("should build");
     assert!(game.map.airports.iter().all(|(a, _)| a.orders.is_empty()));
@@ -65,6 +67,7 @@ fn from_config_duplicate_ids_is_error() {
         starting_cash: 1_000_000.0,
         generate_orders: false,
         airports,
+        gameplay: GameplayConfig::default(),
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(
@@ -83,6 +86,7 @@ fn from_config_duplicate_names_is_error() {
         starting_cash: 1_000_000.0,
         generate_orders: false,
         airports,
+        gameplay: GameplayConfig::default(),
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(
@@ -101,6 +105,7 @@ fn from_config_location_bounds_enforced() {
         starting_cash: 1_000_000.0,
         generate_orders: false,
         airports,
+        gameplay: GameplayConfig::default(),
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(format!("{}", err).to_lowercase().contains("out of bounds"));
@@ -115,7 +120,61 @@ fn from_config_positive_values_required() {
         starting_cash: 1_000_000.0,
         generate_orders: false,
         airports,
+        gameplay: GameplayConfig::default(),
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(format!("{}", err).to_lowercase().contains("runway_length"));
+}
+
+#[test]
+fn from_config_applies_gameplay_tuning() {
+    let mut cfg = WorldConfig {
+        seed: Some(123),
+        starting_cash: 1_000_000.0,
+        generate_orders: true,
+        airports: base_airports(),
+        gameplay: GameplayConfig::default(),
+    };
+
+    cfg.gameplay.restock_cycle_hours = 72;
+    cfg.gameplay.fuel_interval_hours = 8;
+    cfg.gameplay.orders.max_deadline_hours = 36;
+    cfg.gameplay.orders.min_weight = 500.0;
+    cfg.gameplay.orders.max_weight = 750.0;
+    cfg.gameplay.orders.alpha = 0.3;
+    cfg.gameplay.orders.beta = 0.6;
+
+    let game = Game::from_config(cfg).expect("should build");
+    assert_eq!(game.restock_cycle, 72);
+    assert_eq!(game.fuel_interval, 8);
+    assert_eq!(game.map.order_params.max_deadline_hours, 36);
+    assert!((game.map.order_params.min_weight - 500.0).abs() < f32::EPSILON);
+    assert!((game.map.order_params.max_weight - 750.0).abs() < f32::EPSILON);
+    assert!((game.map.order_params.alpha - 0.3).abs() < f32::EPSILON);
+    assert!((game.map.order_params.beta - 0.6).abs() < f32::EPSILON);
+
+    for (airport, _) in &game.map.airports {
+        for order in &airport.orders {
+            assert!(order.deadline <= 36);
+            assert!(order.weight >= 500.0 && order.weight <= 750.0);
+        }
+    }
+}
+
+#[test]
+fn from_config_rejects_invalid_gameplay() {
+    let mut cfg = WorldConfig {
+        seed: None,
+        starting_cash: 1_000_000.0,
+        generate_orders: false,
+        airports: base_airports(),
+        gameplay: GameplayConfig::default(),
+    };
+    cfg.gameplay.orders.min_weight = 1_000.0;
+    cfg.gameplay.orders.max_weight = 100.0; // invalid
+
+    let err = Game::from_config(cfg).unwrap_err();
+    let msg = format!("{}", err);
+    assert!(msg.contains("Invalid config"));
+    assert!(msg.contains("orders.max_weight"));
 }
