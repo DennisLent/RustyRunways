@@ -6,7 +6,10 @@ use rusty_runways_core::utils::{
     airport::Airport,
     coordinate::Coordinate,
     errors::GameError,
-    orders::{Order, order::OrderGenerationParams},
+    orders::{
+        Order,
+        order::{OrderAirportInfo, OrderGenerationParams},
+    },
 };
 
 fn approx_eq(a: f32, b: f32, tol: f32) -> bool {
@@ -70,12 +73,23 @@ fn generate_orders_counts_and_ids() {
     // with 1000 number_orders is in [15, 24]
     let mut ap = Airport::generate_random(0, 0);
     ap.runway_length = 1000.0;
-    let coords = vec![Coordinate::new(0., 0.), Coordinate::new(10., 10.)];
+    let coords = [Coordinate::new(0., 0.), Coordinate::new(10., 10.)];
+    let airport_infos = vec![
+        OrderAirportInfo {
+            id: 0,
+            runway_length: ap.runway_length,
+            coordinate: coords[0],
+        },
+        OrderAirportInfo {
+            id: 1,
+            runway_length: 2_400.0,
+            coordinate: coords[1],
+        },
+    ];
     let mut next_id = 0;
     ap.generate_orders(
         0,
-        &coords,
-        coords.len(),
+        &airport_infos,
         &mut next_id,
         &OrderGenerationParams::default(),
     );
@@ -95,12 +109,23 @@ fn generate_orders_counts_and_ids() {
 fn load_order_and_errors() {
     // set up airport with one order
     let mut ap = Airport::generate_random(0, 0);
-    let coords = vec![Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
+    let coords = [Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
+    let airport_infos = vec![
+        OrderAirportInfo {
+            id: 0,
+            runway_length: ap.runway_length,
+            coordinate: coords[0],
+        },
+        OrderAirportInfo {
+            id: 1,
+            runway_length: 2_000.0,
+            coordinate: coords[1],
+        },
+    ];
     let mut next_id = 0;
     ap.generate_orders(
         0,
-        &coords,
-        coords.len(),
+        &airport_infos,
         &mut next_id,
         &OrderGenerationParams::default(),
     );
@@ -129,11 +154,23 @@ fn load_order_and_errors() {
 fn load_orders_stops_on_error() {
     // set up airport with two orders
     let mut ap = Airport::generate_random(0, 0);
-    let coords = vec![Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
+    let coords = [Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
+    let airport_infos = vec![
+        OrderAirportInfo {
+            id: 0,
+            runway_length: ap.runway_length,
+            coordinate: coords[0],
+        },
+        OrderAirportInfo {
+            id: 1,
+            runway_length: 2_500.0,
+            coordinate: coords[1],
+        },
+    ];
 
     // these are both going to be the same
-    let order1 = Order::new(1, 0, 0, &coords, 2, &OrderGenerationParams::default());
-    let order2 = Order::new(1, 1, 0, &coords, 2, &OrderGenerationParams::default());
+    let order1 = Order::new(1, 0, 0, &airport_infos, &OrderGenerationParams::default());
+    let order2 = Order::new(1, 1, 0, &airport_infos, &OrderGenerationParams::default());
 
     ap.orders = vec![order1, order2];
 

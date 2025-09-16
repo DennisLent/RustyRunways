@@ -1,5 +1,7 @@
 use crate::utils::{
-    airport::Airport, coordinate::Coordinate, orders::order::OrderGenerationParams,
+    airport::Airport,
+    coordinate::Coordinate,
+    orders::order::{OrderAirportInfo, OrderGenerationParams},
 };
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
@@ -50,17 +52,20 @@ impl Map {
 
     /// Restock the orders in the airport
     pub fn restock_airports(&mut self) {
-        let airport_coordinates: Vec<Coordinate> = self
+        let airport_infos: Vec<OrderAirportInfo> = self
             .airports
             .iter()
-            .map(|(_airport, coord)| *coord)
+            .map(|(airport, coord)| OrderAirportInfo {
+                id: airport.id,
+                runway_length: airport.runway_length,
+                coordinate: *coord,
+            })
             .collect();
 
         for (airport, _) in self.airports.iter_mut() {
             airport.generate_orders(
                 self.seed,
-                &airport_coordinates,
-                self.num_airports,
+                &airport_infos,
                 &mut self.next_order_id,
                 &self.order_params,
             );

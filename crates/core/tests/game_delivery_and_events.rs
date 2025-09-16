@@ -15,29 +15,22 @@ fn deliver_and_store_paths_and_world_events() {
         .unwrap();
 
     // pick first order the plane can carry and reach
-    let mut chosen: Option<usize> = None;
+    let mut chosen: Option<(usize, usize)> = None;
     for o in &game.map.airports[origin_idx].0.orders {
         let (a, c) = &game.airports()[o.destination_id];
         if game.planes()[plane_id].can_fly_to(a, c).is_ok()
             && (game.planes()[plane_id].current_payload + o.weight)
                 <= game.planes()[plane_id].specs.payload_capacity
         {
-            chosen = Some(o.id);
+            chosen = Some((o.id, o.destination_id));
             break;
         }
     }
 
-    if let Some(order_id) = chosen {
+    if let Some((order_id, dest_id)) = chosen {
         // load then depart to destination
         game.load_order(order_id, plane_id).unwrap();
         game.advance(1);
-        let dest_id = game.map.airports[origin_idx]
-            .0
-            .orders
-            .iter()
-            .find(|o| o.id == order_id)
-            .map(|o| o.destination_id)
-            .unwrap();
         game.depart_plane(plane_id, dest_id).unwrap();
 
         // flight progress: advance until arrival

@@ -1,8 +1,10 @@
 use crate::utils::{
     airplanes::airplane::Airplane,
-    coordinate::Coordinate,
     errors::GameError,
-    orders::{Order, order::OrderGenerationParams},
+    orders::{
+        Order,
+        order::{OrderAirportInfo, OrderGenerationParams},
+    },
 };
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
@@ -80,8 +82,7 @@ impl Airport {
     pub fn generate_orders(
         &mut self,
         seed: u64,
-        airport_coordinates: &[Coordinate],
-        num_airports: usize,
+        airports: &[OrderAirportInfo],
         next_order_id: &mut usize,
         params: &OrderGenerationParams,
     ) {
@@ -105,14 +106,8 @@ impl Airport {
             let order_seed = seed
                 .wrapping_add(self.id as u64)
                 .wrapping_add(order_id as u64);
-            self.orders.push(Order::new(
-                order_seed,
-                order_id,
-                self.id,
-                airport_coordinates,
-                num_airports,
-                params,
-            ));
+            self.orders
+                .push(Order::new(order_seed, order_id, self.id, airports, params));
         }
     }
 
