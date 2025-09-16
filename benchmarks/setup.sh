@@ -15,6 +15,6 @@ source "$VENV_DIR/bin/activate"
 
 pip install --upgrade pip
 pip install -e "$ROOT_DIR/crates/py"
-pip install tabulate tqdm matplotlib
+pip install tabulate tqdm matplotlib pyyaml
 
 echo "[benchmarks] Environment ready. Activate with 'source benchmarks/.venv/bin/activate'"

@@ -1,0 +1,99 @@
+# Example configuration for benchmarks/run_benchmarks.py
+# Feel free to copy and adapt.
+
+defaults:
+  hours: 240
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  cash: 800000.0
+  num_airports: 8
+  gameplay:
+    restock_cycle_hours: 168
+    fuel_interval_hours: 4
+    orders:
+      regenerate: true
+      generate_initial: true
+      max_deadline_hours: 120
+      min_weight: 250.0
+      max_weight: 1000.0
+      alpha: 0.4
+      beta: 0.9
+
+scenarios:
+  - name: baseline
+
+  - name: restock-sweep
+    metadata:
+      description: Explore restock cadence impact
+    sweep:
+      parameter: gameplay.restock_cycle_hours
+      label: restock
+      values: [96, 120, 168, 240]
+
+  - name: starting-cash-sweep
+    sweep:
+      parameter: cash
+      label: cash
+      values: [100000.0, 200000.0, 300000.0, 400000.0, 500000.0, 600000.0, 800000.0, 1000000.0]
+
+  - name: airport-count-sweep
+    sweep:
+      parameter: num_airports
+      label: airports
+      values: [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20]
+
+  - name: min-weight-sweep
+    sweep:
+      parameter: gameplay.orders.min_weight
+      label: min-weight
+      values: [100.0, 150.0, 200.0, 250.0, 300.0]
+
+  - name: max-weight-sweep
+    sweep:
+      parameter: gameplay.orders.max_weight
+      label: max-weight
+      values: [800.0, 900.0, 1000.0, 1200.0, 1400.0, 1600.0, 1800.0, 2000.0]
+
+  - name: alpha-sweep
+    sweep:
+      parameter: gameplay.orders.alpha
+      label: alpha
+      values: [0.3, 0.4, 0.5, 0.6]
+
+  - name: beta-sweep
+    sweep:
+      parameter: gameplay.orders.beta
+      label: beta
+      values: [0.7, 0.9, 1.1]
+
+  - name: order-weight-combos
+    variants:
+      - label: light-cargo
+        overrides:
+          gameplay:
+            orders:
+              min_weight: 150.0
+              max_weight: 650.0
+        metadata:
+          parameter_value: "min=150,max=650"
+      - label: balanced-cargo
+        overrides:
+          gameplay:
+            orders:
+              min_weight: 250.0
+              max_weight: 1000.0
+        metadata:
+          parameter_value: "min=250,max=1000"
+      - label: heavy-cargo
+        overrides:
+          gameplay:
+            orders:
+              min_weight: 400.0
+              max_weight: 1400.0
+        metadata:
+          parameter_value: "min=400,max=1400"
+
+  - name: sample-world
+    include_base: false
+    variants:
+      - label: reference-config
+        config_path: examples/sample_world.yaml

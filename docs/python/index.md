@@ -215,4 +215,50 @@ The repository contains a small benchmarking harness (see `benchmarks/run_benchm
 
    The script prints per-seed statistics (order feasibility, margin-per-hour, upgrade timing). It also emits CSV timelines and PNG plots under `benchmarks/outputs/` so you can inspect cash/fleet/delivery curves by seed.
 
+For exploratory analysis you can now describe arbitrarily rich batches in YAML and pass them via `--scenario-config`. Each scenario may define:
+
+- the world knobs (`num_airports`, `starting_cash`, `gameplay.orders.*`, etc.); the runner creates temporary YAML configs and cleans them up afterwards;
+- sweeps over a single parameter (e.g., vary only `gameplay.restock_cycle_hours`) or named variants with bespoke overrides;
+- the seed list and duration for each variant.
+
+All runs end up under `benchmarks/outputs/<scenario>/` alongside a CSV timeline per seed. The driver also produces a `scenario_summary.csv` plus aggregate line/bar charts in `benchmarks/outputs/summary/`, letting you isolate the impact of the swept parameter (restock cadence, order weights, fuel intervals, and so on).
+
+An abridged configuration example:
+
+```yaml
+defaults:
+  hours: 240
+  seeds: [0, 1, 2]
+  cash: 800000.0
+  num_airports: 8
+  gameplay:
+    restock_cycle_hours: 168
+    fuel_interval_hours: 4
+    orders:
+      regenerate: true
+      generate_initial: true
+      max_deadline_hours: 120
+      min_weight: 250.0
+      max_weight: 1000.0
+      alpha: 0.4
+      beta: 0.9
+
+scenarios:
+  - name: baseline
+  - name: restock-sweep
+    sweep:
+      parameter: gameplay.restock_cycle_hours
+      values: [96, 120, 168, 240]
+  - name: order-weight-variants
+    variants:
+      - label: light-cargo
+        overrides:
+          gameplay:
+            orders:
+              min_weight: 150.0
+              max_weight: 600.0
+```
+
+See `benchmarks/scenarios.example.yaml` for a more complete walkthrough including external `config_path` worlds.
+
 Feel free to adapt the harness for richer experiments (e.g., alternative agents, different reward functions, or automated regression checks). Because it builds against the local branch, the outputs always reflect the current balance knobs.
