@@ -1,6 +1,9 @@
-use crate::utils::orders::order::{
-    DEFAULT_ALPHA, DEFAULT_BETA, DEFAULT_MAX_DEADLINE_HOURS, DEFAULT_MAX_WEIGHT,
-    DEFAULT_MIN_WEIGHT, OrderGenerationParams,
+use crate::utils::orders::{
+    cargo::CargoType,
+    order::{
+        DEFAULT_ALPHA, DEFAULT_BETA, DEFAULT_MAX_DEADLINE_HOURS, DEFAULT_MAX_WEIGHT,
+        DEFAULT_MIN_WEIGHT, OrderGenerationParams,
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -15,11 +18,12 @@ pub struct WorldConfig {
     /// Starting cash for the player
     #[serde(default = "default_cash")]
     pub starting_cash: f32,
-    /// Whether to auto-generate orders based on airports and seed
-    #[serde(default = "default_generate_orders")]
-    pub generate_orders: bool,
     /// Explicit airports to load into the map
+    #[serde(default)]
     pub airports: Vec<AirportConfig>,
+    /// Number of airports to generate randomly when `airports` is empty
+    #[serde(default)]
+    pub num_airports: Option<usize>,
     /// Optional gameplay tuning parameters
     #[serde(default)]
     pub gameplay: GameplayConfig,
@@ -28,16 +32,13 @@ pub struct WorldConfig {
 fn default_cash() -> f32 {
     1_000_000.0
 }
-fn default_generate_orders() -> bool {
-    true
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GameplayConfig {
     pub restock_cycle_hours: u64,
     pub fuel_interval_hours: u64,
-    pub orders: OrderTuning,
+    pub orders: OrdersGameplay,
 }
 
 impl Default for GameplayConfig {
@@ -45,7 +46,26 @@ impl Default for GameplayConfig {
         GameplayConfig {
             restock_cycle_hours: DEFAULT_RESTOCK_CYCLE_HOURS,
             fuel_interval_hours: DEFAULT_FUEL_INTERVAL_HOURS,
-            orders: OrderTuning::default(),
+            orders: OrdersGameplay::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct OrdersGameplay {
+    pub regenerate: bool,
+    pub generate_initial: bool,
+    #[serde(flatten)]
+    pub tuning: OrderTuning,
+}
+
+impl Default for OrdersGameplay {
+    fn default() -> Self {
+        OrdersGameplay {
+            regenerate: true,
+            generate_initial: true,
+            tuning: OrderTuning::default(),
         }
     }
 }
@@ -72,8 +92,8 @@ impl Default for OrderTuning {
     }
 }
 
-impl From<OrderTuning> for OrderGenerationParams {
-    fn from(value: OrderTuning) -> Self {
+impl From<&OrderTuning> for OrderGenerationParams {
+    fn from(value: &OrderTuning) -> Self {
         OrderGenerationParams {
             max_deadline_hours: value.max_deadline_hours,
             min_weight: value.min_weight,
@@ -97,10 +117,22 @@ pub struct AirportConfig {
     pub landing_fee_per_ton: f32,
     /// $ per hour
     pub parking_fee_per_hour: f32,
+    /// Static orders that should exist at the start of the game
+    #[serde(default)]
+    pub orders: Vec<ManualOrderConfig>,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Location {
     pub x: f32,
     pub y: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ManualOrderConfig {
+    pub cargo: CargoType,
+    pub weight: f32,
+    pub value: f32,
+    pub deadline_hours: u64,
+    pub destination_id: usize,
 }

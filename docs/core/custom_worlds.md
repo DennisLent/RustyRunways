@@ -4,7 +4,7 @@ title: Custom Worlds (YAML)
 
 # Custom Worlds (YAML)
 
-RustyRunways can load fully custom worlds from a YAML file. This allows you to define airports, fees, and initial conditions deterministically, while still choosing whether to auto‑generate cargo orders.
+RustyRunways can load fully custom worlds from a YAML file. This allows you to define airports, fees, initial orders, and gameplay pacing deterministically while still supporting randomly generated content.
 
 ## Schema
 
@@ -13,43 +13,50 @@ Top‑level keys:
 - `version` (int): schema version; currently `1`.
 - `seed` (int, optional): base seed for determinism (used for generated elements).
 - `starting_cash` (float, optional, default `1_000_000.0`).
-- `generate_orders` (bool, optional, default `true`): if true, airports are auto‑stocked with orders.
-- `gameplay` (object, optional): tuning knobs for restocking cadence and order generation.
-- `airports` (list, required): list of airport definitions.
+- `airports` (list, optional): explicit airport definitions. If omitted, you **must** set `num_airports`.
+- `num_airports` (int, optional): number of airports to generate randomly when `airports` is empty.
+- `gameplay` (object, optional): tuning knobs for restocking cadence, order behaviour, and order value scaling.
 
 Airport fields:
 
-- `id` (int, required): unique across all airports.
+- `id` (int, required when `airports` is provided): unique across all airports.
 - `name` (string, required): must be unique (case‑insensitive).
 - `location` (object): `{ x: float, y: float }` — bounds `[0, 10000]` each.
 - `runway_length_m` (float > 0): runway length in meters.
 - `fuel_price_per_l` (float > 0): $/L.
 - `landing_fee_per_ton` (float >= 0): $ per ton MTOW.
 - `parking_fee_per_hour` (float >= 0): $ per hour.
+- `orders` (list, optional): static orders to seed the airport with. Required when order regeneration is disabled.
 
-Gameplay tuning:
+Manual order fields:
 
-- `restock_cycle_hours` (int, optional, default `336`): how often airports restock orders.
-- `fuel_interval_hours` (int, optional, default `6`): cadence for dynamic fuel price adjustments.
-- `orders` (object, optional): order generation parameters.
+- `cargo` (string): any `CargoType` variant (e.g., `Food`, `Electronics`).
+- `weight` (float > 0): weight in kilograms.
+- `value` (float >= 0): payout in dollars.
+- `deadline_hours` (int > 0): deadline window in hours.
+- `destination_id` (int): airport id the cargo must reach (must exist and differ from the origin).
 
-`orders` fields:
+Gameplay tuning (defaults shown):
 
-- `max_deadline_hours` (int, optional, default `336`): maximum delivery deadline assigned to generated orders.
-- `min_weight` (float, optional, default `100.0`): minimum cargo weight in kilograms.
-- `max_weight` (float, optional, default `20000.0`): maximum cargo weight in kilograms.
-- `alpha` (float, optional, default `0.5`): distance multiplier when valuing orders.
-- `beta` (float, optional, default `0.7`): urgency multiplier when valuing orders.
+- `restock_cycle_hours` (int, default `336`): cadence for regeneration cycles.
+- `fuel_interval_hours` (int, default `6`): cadence for dynamic fuel price adjustments.
+- `orders` (object):
+  - `regenerate` (bool, default `true`): whether airports restock after the initial load.
+  - `generate_initial` (bool, default `true`): whether random orders are generated at time 0.
+  - `max_deadline_hours` (int, default `336`): maximum deadline assigned to generated orders.
+  - `min_weight` (float, default `100.0`): minimum cargo weight (kg) for generated orders.
+  - `max_weight` (float, default `20000.0`): maximum cargo weight (kg) for generated orders.
+  - `alpha` (float, default `0.5`): distance multiplier in the value calculation.
+  - `beta` (float, default `0.7`): urgency multiplier in the value calculation.
 
 ## Examples
 
-Generate orders (default):
+Tuned restocking with explicit airports:
 
 ```yaml
 version: 1
 seed: 42
 starting_cash: 1000000.0
-generate_orders: true
 airports:
   - id: 0
     name: HUB
@@ -70,6 +77,8 @@ gameplay:
   restock_cycle_hours: 168
   fuel_interval_hours: 4
   orders:
+    regenerate: true
+    generate_initial: true
     max_deadline_hours: 120
     min_weight: 250.0
     max_weight: 1000.0
@@ -77,28 +86,57 @@ gameplay:
     beta: 0.9
 ```
 
-No initial orders:
+Random airports with delayed restock:
 
 ```yaml
 version: 1
-seed: 7
-starting_cash: 1500000.0
-generate_orders: false
+seed: 99
+starting_cash: 750000.0
+num_airports: 5
+gameplay:
+  orders:
+    regenerate: true
+    generate_initial: false
+```
+
+Static manual orders (no regeneration):
+
+```yaml
+version: 1
+seed: 3
+starting_cash: 800000.0
 airports:
   - id: 0
-    name: AAA
-    location: { x: 500.0, y: 2500.0 }
-    runway_length_m: 3000.0
-    fuel_price_per_l: 1.0
-    landing_fee_per_ton: 4.0
+    name: HUB
+    location: { x: 1200.0, y: 900.0 }
+    runway_length_m: 3200.0
+    fuel_price_per_l: 1.5
+    landing_fee_per_ton: 4.5
     parking_fee_per_hour: 18.0
+    orders:
+      - cargo: Food
+        weight: 550.0
+        value: 2700.0
+        deadline_hours: 48
+        destination_id: 1
   - id: 1
-    name: AAB
-    location: { x: 4500.0, y: 1500.0 }
+    name: AAX
+    location: { x: 3400.0, y: 2100.0 }
     runway_length_m: 2400.0
-    fuel_price_per_l: 1.9
-    landing_fee_per_ton: 6.0
-    parking_fee_per_hour: 25.0
+    fuel_price_per_l: 1.8
+    landing_fee_per_ton: 4.0
+    parking_fee_per_hour: 16.0
+    orders:
+      - cargo: Electronics
+        weight: 300.0
+        value: 4200.0
+        deadline_hours: 36
+        destination_id: 0
+
+gameplay:
+  orders:
+    regenerate: false
+    generate_initial: false
 ```
 
 ## Using Configs
@@ -116,10 +154,12 @@ airports:
 
 ## Validation & Errors
 
+- Provide either explicit `airports` or `num_airports` (but not both).
 - Duplicate airport IDs → error.
 - Duplicate airport names (case‑insensitive) → error.
 - Invalid coordinates (outside `[0, 10000]`) → error.
 - Non‑positive runway length or fuel price → error.
+- `orders.regenerate: false` requires every listed airport to provide at least one manual order.
 
 Common issues:
 
@@ -128,4 +168,4 @@ Common issues:
 
 ## Constraints and Future Extensions
 
-This first version expects all airports to be explicit. A future mode will allow constraints to be specified (e.g., number of airports, fee ranges) and auto‑fill missing airports using the seed.
+Future schema versions may allow blending generated and explicit airports, richer economic tuning, and batch configurations for automated telemetry runs.

@@ -1,7 +1,6 @@
 version: 1
 seed: 42
 starting_cash: 1000000.0
-generate_orders: true
 airports:
   - id: 0
     name: HUB
@@ -17,3 +16,15 @@ airports:
     fuel_price_per_l: 1.7
     landing_fee_per_ton: 4.5
     parking_fee_per_hour: 15.0
+
+gameplay:
+  restock_cycle_hours: 168
+  fuel_interval_hours: 4
+  orders:
+    regenerate: true
+    generate_initial: true
+    max_deadline_hours: 120
+    min_weight: 250.0
+    max_weight: 1000.0
+    alpha: 0.4
+    beta: 0.9

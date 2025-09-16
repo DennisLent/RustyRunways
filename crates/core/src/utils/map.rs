@@ -67,6 +67,14 @@ impl Map {
         }
     }
 
+    /// Remove all orders from every airport and reset the order id counter.
+    pub fn clear_orders(&mut self) {
+        for (airport, _) in self.airports.iter_mut() {
+            airport.orders.clear();
+        }
+        self.next_order_id = 0;
+    }
+
     /// Find the minimum distance between two airports.
     /// Helps us determine the starting airplane for a given map.
     pub fn min_distance(&self) -> (f32, usize) {
@@ -96,12 +104,13 @@ impl Map {
         seed: u64,
         airports: Vec<(Airport, Coordinate)>,
         order_params: OrderGenerationParams,
+        next_order_id: usize,
     ) -> Self {
         Map {
             num_airports: airports.len(),
             airports,
             seed,
-            next_order_id: 0,
+            next_order_id,
             order_params,
         }
     }

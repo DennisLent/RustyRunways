@@ -10,7 +10,7 @@ use crate::utils::airport::Airport;
 use crate::utils::coordinate::Coordinate;
 use crate::utils::errors::GameError;
 use crate::utils::map::Map;
-use crate::utils::orders::order::OrderGenerationParams;
+use crate::utils::orders::order::{Order, OrderGenerationParams};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use rusty_runways_commands::Command::*;
 use rusty_runways_commands::{Command, parse_command};
@@ -35,16 +35,21 @@ fn default_fuel_interval() -> GameTime {
     DEFAULT_FUEL_INTERVAL
 }
 
+fn default_regenerate_orders() -> bool {
+    true
+}
+
 fn gameplay_settings(
     cfg: &GameplayConfig,
-) -> Result<(OrderGenerationParams, GameTime, GameTime), String> {
-    if cfg.orders.max_deadline_hours == 0 {
+) -> Result<(OrderGenerationParams, GameTime, GameTime, bool, bool), String> {
+    let tuning = &cfg.orders.tuning;
+    if tuning.max_deadline_hours == 0 {
         return Err("orders.max_deadline_hours must be at least 1".into());
     }
-    if cfg.orders.min_weight <= 0.0 {
+    if tuning.min_weight <= 0.0 {
         return Err("orders.min_weight must be greater than 0".into());
     }
-    if cfg.orders.max_weight < cfg.orders.min_weight {
+    if tuning.max_weight < tuning.min_weight {
         return Err("orders.max_weight must be >= orders.min_weight".into());
     }
     if cfg.restock_cycle_hours == 0 {
@@ -54,11 +59,13 @@ fn gameplay_settings(
         return Err("fuel_interval_hours must be at least 1".into());
     }
 
-    let order_params = OrderGenerationParams::from(cfg.orders.clone());
+    let order_params = OrderGenerationParams::from(tuning);
     Ok((
         order_params,
         cfg.restock_cycle_hours,
         cfg.fuel_interval_hours,
+        cfg.orders.regenerate,
+        cfg.orders.generate_initial,
     ))
 }
 
@@ -91,6 +98,9 @@ pub struct Game {
     /// Frequency (in hours) for dynamic fuel price adjustments
     #[serde(default = "default_fuel_interval")]
     pub fuel_interval: GameTime,
+    /// Whether dynamic restocking is enabled for this save
+    #[serde(default = "default_regenerate_orders")]
+    pub regenerate_orders: bool,
     /// Game-local random number generator to avoid global RNG usage
     #[serde(skip, default = "default_rng")]
     rng: StdRng,
@@ -166,6 +176,7 @@ impl Game {
             seed,
             restock_cycle: DEFAULT_RESTOCK_CYCLE,
             fuel_interval: DEFAULT_FUEL_INTERVAL,
+            regenerate_orders: true,
             rng: StdRng::seed_from_u64(seed),
             log: Vec::new(),
         };
@@ -181,15 +192,30 @@ impl Game {
 
     /// Initialize a game from a configuration (airports explicitly provided).
     pub fn from_config(cfg: WorldConfig) -> Result<Self, GameError> {
-        if cfg.airports.is_empty() {
+        let seed = cfg.seed.unwrap_or(0);
+        let (
+            order_params,
+            restock_cycle,
+            fuel_interval,
+            regenerate_orders,
+            generate_initial_orders,
+        ) = gameplay_settings(&cfg.gameplay).map_err(|msg| GameError::InvalidConfig { msg })?;
+
+        let have_explicit_airports = !cfg.airports.is_empty();
+        if have_explicit_airports && cfg.num_airports.is_some() {
             return Err(GameError::InvalidConfig {
-                msg: "no airports provided".into(),
+                msg: "num_airports cannot be provided when airports are explicitly listed".into(),
+            });
+        }
+        if !have_explicit_airports && cfg.num_airports.is_none() {
+            return Err(GameError::InvalidConfig {
+                msg: "num_airports must be provided when airports list is empty".into(),
             });
         }
 
-        // validate unique ids and duplicate names
-        {
+        let map = if have_explicit_airports {
             use std::collections::HashSet;
+
             let mut ids = HashSet::new();
             let mut names = HashSet::new();
             for a in &cfg.airports {
@@ -205,51 +231,124 @@ impl Game {
                     });
                 }
             }
-        }
 
-        let mut airports_vec = Vec::with_capacity(cfg.airports.len());
-        for a in &cfg.airports {
-            if a.runway_length_m <= 0.0 {
+            let mut airports_vec = Vec::with_capacity(cfg.airports.len());
+            let mut next_order_id = 0usize;
+            for a in &cfg.airports {
+                if a.runway_length_m <= 0.0 {
+                    return Err(GameError::InvalidConfig {
+                        msg: format!("airport {} runway_length must be > 0", a.id),
+                    });
+                }
+                if a.fuel_price_per_l <= 0.0 {
+                    return Err(GameError::InvalidConfig {
+                        msg: format!("airport {} fuel_price_per_l must be > 0", a.id),
+                    });
+                }
+                if !(0.0..=10000.0).contains(&a.location.x)
+                    || !(0.0..=10000.0).contains(&a.location.y)
+                {
+                    return Err(GameError::InvalidConfig {
+                        msg: format!(
+                            "airport {} location ({:.2},{:.2}) out of bounds [0,10000]",
+                            a.id, a.location.x, a.location.y
+                        ),
+                    });
+                }
+                if !regenerate_orders && a.orders.is_empty() {
+                    return Err(GameError::InvalidConfig {
+                        msg: format!(
+                            "airport {} must define at least one order when regeneration is disabled",
+                            a.id
+                        ),
+                    });
+                }
+
+                let mut manual_orders = Vec::with_capacity(a.orders.len());
+                for order_cfg in &a.orders {
+                    if order_cfg.deadline_hours == 0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} has order with deadline_hours == 0", a.id),
+                        });
+                    }
+                    if order_cfg.weight <= 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} has order with non-positive weight", a.id),
+                        });
+                    }
+                    if order_cfg.value < 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} has order with negative value", a.id),
+                        });
+                    }
+                    if order_cfg.destination_id == a.id {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} has order pointing to itself", a.id),
+                        });
+                    }
+                    if !ids.contains(&order_cfg.destination_id) {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!(
+                                "airport {} has order with unknown destination {}",
+                                a.id, order_cfg.destination_id
+                            ),
+                        });
+                    }
+
+                    manual_orders.push(Order {
+                        id: next_order_id,
+                        name: order_cfg.cargo,
+                        weight: order_cfg.weight,
+                        value: order_cfg.value,
+                        deadline: order_cfg.deadline_hours,
+                        origin_id: a.id,
+                        destination_id: order_cfg.destination_id,
+                    });
+                    next_order_id += 1;
+                }
+
+                let ap = Airport {
+                    id: a.id,
+                    name: a.name.clone(),
+                    runway_length: a.runway_length_m,
+                    fuel_price: a.fuel_price_per_l,
+                    landing_fee: a.landing_fee_per_ton,
+                    parking_fee: a.parking_fee_per_hour,
+                    orders: manual_orders,
+                    fuel_sold: 0.0,
+                };
+                let coord = Coordinate::new(a.location.x, a.location.y);
+                airports_vec.push((ap, coord));
+            }
+
+            let mut built =
+                Map::from_airports(seed, airports_vec, order_params.clone(), next_order_id);
+            if regenerate_orders && generate_initial_orders {
+                built.restock_airports();
+            }
+            built
+        } else {
+            let num_airports = cfg.num_airports.unwrap();
+            if num_airports == 0 {
                 return Err(GameError::InvalidConfig {
-                    msg: format!("airport {} runway_length must be > 0", a.id),
+                    msg: "num_airports must be greater than 0".into(),
                 });
             }
-            if a.fuel_price_per_l <= 0.0 {
+            if !regenerate_orders {
                 return Err(GameError::InvalidConfig {
-                    msg: format!("airport {} fuel_price_per_l must be > 0", a.id),
+                    msg: "orders.regenerate=false requires explicit airports with manual orders"
+                        .into(),
                 });
             }
-            if !(0.0..=10000.0).contains(&a.location.x) || !(0.0..=10000.0).contains(&a.location.y)
-            {
-                return Err(GameError::InvalidConfig {
-                    msg: format!(
-                        "airport {} location ({:.2},{:.2}) out of bounds [0,10000]",
-                        a.id, a.location.x, a.location.y
-                    ),
-                });
+
+            let mut generated = Map::generate_from_seed(seed, Some(num_airports));
+            generated.order_params = order_params.clone();
+            generated.clear_orders();
+            if generate_initial_orders {
+                generated.restock_airports();
             }
-            let ap = Airport {
-                id: a.id,
-                name: a.name.clone(),
-                runway_length: a.runway_length_m,
-                fuel_price: a.fuel_price_per_l,
-                landing_fee: a.landing_fee_per_ton,
-                parking_fee: a.parking_fee_per_hour,
-                orders: Vec::new(),
-                fuel_sold: 0.0,
-            };
-            let coord = Coordinate::new(a.location.x, a.location.y);
-            airports_vec.push((ap, coord));
-        }
-
-        let seed = cfg.seed.unwrap_or(0);
-        let (order_params, restock_cycle, fuel_interval) =
-            gameplay_settings(&cfg.gameplay).map_err(|msg| GameError::InvalidConfig { msg })?;
-
-        let mut map = Map::from_airports(seed, airports_vec, order_params.clone());
-        if cfg.generate_orders {
-            map.restock_airports();
-        }
+            generated
+        };
 
         let player = Player::new(cfg.starting_cash, &map);
         let airplanes = player.fleet.clone();
@@ -269,17 +368,18 @@ impl Game {
             seed,
             restock_cycle,
             fuel_interval,
+            regenerate_orders,
             rng: StdRng::seed_from_u64(seed),
             log: Vec::new(),
         };
 
-        game.schedule(game.restock_cycle, Event::Restock);
+        if game.regenerate_orders {
+            game.schedule(game.restock_cycle, Event::Restock);
+        }
         game.schedule(REPORT_INTERVAL, Event::DailyStats);
         game.schedule(game.fuel_interval, Event::DynamicPricing);
         game.schedule_world_event();
         game.schedule(1, Event::MaintenanceCheck);
-
-        // (no duplicate-name warnings; duplicate names are treated as errors in validation)
 
         Ok(game)
     }
@@ -447,8 +547,10 @@ impl Game {
             match scheduled.event {
                 // Restock every 14 days
                 Event::Restock => {
-                    self.map.restock_airports();
-                    self.schedule(self.time + self.restock_cycle, Event::Restock);
+                    if self.regenerate_orders {
+                        self.map.restock_airports();
+                        self.schedule(self.time + self.restock_cycle, Event::Restock);
+                    }
                 }
 
                 // Finished loading, therefore we need to update the status

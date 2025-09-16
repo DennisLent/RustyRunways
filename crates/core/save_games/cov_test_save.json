@@ -1425,5 +1425,6 @@
   "stats": [],
   "seed": 42,
   "restock_cycle": 336,
-  "fuel_interval": 6
+  "fuel_interval": 6,
+  "regenerate_orders": true
 }

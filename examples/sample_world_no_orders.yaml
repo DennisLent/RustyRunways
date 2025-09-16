@@ -1,7 +1,6 @@
 version: 1
 seed: 7
 starting_cash: 1500000.0
-generate_orders: false
 airports:
   - id: 0
     name: AAA
@@ -17,3 +16,10 @@ airports:
     fuel_price_per_l: 1.9
     landing_fee_per_ton: 6.0
     parking_fee_per_hour: 25.0
+
+gameplay:
+  restock_cycle_hours: 336
+  fuel_interval_hours: 6
+  orders:
+    regenerate: true
+    generate_initial: false

@@ -319,9 +319,21 @@ impl RustyRunwaysGui {
                 .default_size(Vec2::new(640.0, 420.0))
                 .show(ctx, |ui| {
                     if let Some(cfg) = &self.preview_cfg {
+                        let airport_summary = if cfg.airports.is_empty() {
+                            match cfg.num_airports {
+                                Some(count) => format!("Random x{}", count),
+                                None => "Random".to_string(),
+                            }
+                        } else {
+                            format!("{} listed", cfg.airports.len())
+                        };
                         ui.label(format!(
-                            "Seed: {:?} | Starting Cash: ${:.0} | Generate Orders: {}",
-                            cfg.seed, cfg.starting_cash, cfg.generate_orders
+                            "Seed: {:?} | Starting Cash: ${:.0} | Airports: {} | Regenerate: {} | Initial Orders: {}",
+                            cfg.seed,
+                            cfg.starting_cash,
+                            airport_summary,
+                            cfg.gameplay.orders.regenerate,
+                            cfg.gameplay.orders.generate_initial
                         ));
                         ui.separator();
                         ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
