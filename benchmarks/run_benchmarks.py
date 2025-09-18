@@ -16,6 +16,8 @@ import os
 import re
 import statistics
 import tempfile
+from bisect import bisect_right
+from collections import Counter
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -34,13 +36,29 @@ except ImportError as exc:  # pragma: no cover
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
-PLANE_UPGRADES = [
-    {
-        "model": "SparrowLight",
+PHASES = [
+    ("early", 0, 720),
+    ("mid", 721, 3600),
+    ("late", 3601, float("inf")),
+]
+
+PLANE_CATALOG = {
+    "SparrowLight": {
         "price": 200_000.0,
         "min_runway": 407.5,
+        "cash_buffer": 1.15,
     },
-]
+    "CometRegional": {
+        "price": 10_000_000.0,
+        "min_runway": 3_194.83,
+        "cash_buffer": 1.1,
+    },
+    "Atlas": {
+        "price": 30_000_000.0,
+        "min_runway": 3_667.53,
+        "cash_buffer": 1.1,
+    },
+}
 
 
 class FlightLog:
@@ -54,18 +72,22 @@ class FlightLog:
 
     def __init__(self):
         self.distances = []
+        self.departure_times = []
 
-    def record(self, distance):
+    def record(self, distance, time):
         """Append a traversed route to the log.
 
         Parameters
         ----------
         distance : float
             Route length in kilometres.
+        time : float
+            Simulation hour when the departure occurred.
         """
 
         if distance > 0.0:
             self.distances.append(distance)
+            self.departure_times.append(float(time))
 
     def average(self):
         """Return the mean route distance."""
@@ -80,7 +102,7 @@ class HeuristicAgent:
         self.flight_log = FlightLog()
         self.first_upgrade_hour = None
         self.last_purchase_hour = None
-        self.max_fleet = 2
+        self.fleet_limit = 6
 
     def act(self, env, horizon):
         """Advance the environment by applying a heuristic policy."""
@@ -168,7 +190,7 @@ class HeuristicAgent:
 
         _safe_execute(env, f"LOAD ORDER {order['id']} ON {plane_id}")
         env.step(1)
-        self.flight_log.record(distance)
+        self.flight_log.record(distance, env.time())
         _safe_execute(env, f"DEPART PLANE {plane_id} {order['destination_id']}")
         return True
 
@@ -195,7 +217,8 @@ class HeuristicAgent:
         return False
 
     def _maybe_buy_plane(self, env, state):
-        if len(state.get("airplanes", [])) >= self.max_fleet:
+        fleet = state.get("airplanes", [])
+        if len(fleet) >= self.fleet_limit:
             return False
 
         player = state.get("player", {})
@@ -204,7 +227,7 @@ class HeuristicAgent:
         if self.last_purchase_hour is not None and time_now - self.last_purchase_hour < 6:
             return False
 
-        base_plane = state.get("airplanes", [{}])[0]
+        base_plane = fleet[0] if fleet else {}
         base_status = str(base_plane.get("status", "")).lower()
         if base_status != "parked":
             return False
@@ -213,23 +236,71 @@ class HeuristicAgent:
         if airport is None:
             return False
 
+        airport_id = airport.get("id")
         runway_length = float(
             airport.get("runway_length")
             or airport.get("runway_length_m")
             or airport.get("runway_length_meters")
             or 0.0
         )
-        airport_id = airport.get("id")
-        if airport_id is None:
-            return False
 
-        for option in PLANE_UPGRADES:
-            if runway_length >= option["min_runway"] and cash >= option["price"] * 1.1:
-                _safe_execute(env, f"BUY PLANE {option['model']} {airport_id}")
-                self.last_purchase_hour = time_now
-                return True
+        weeks_elapsed = time_now / 168.0 if time_now else 0.0
+        counts = Counter(str(p.get("model", "")) for p in fleet)
+
+        desired_small = max(1, min(3, 1 + int(weeks_elapsed)))
+        desired_long = 1 if weeks_elapsed >= 8.0 else 0
+        desired_heavy = 1 if weeks_elapsed >= 16.0 else 0
+
+        desired_counts = {"SparrowLight": desired_small}
+        if desired_long:
+            desired_counts["CometRegional"] = desired_long
+        if desired_heavy:
+            desired_counts["Atlas"] = desired_heavy
+
+        purchase_order = ["Atlas", "CometRegional", "SparrowLight"]
+        for model in purchase_order:
+            target = desired_counts.get(model, 0)
+            if target <= 0 or counts.get(model, 0) >= target:
+                continue
+            info = PLANE_CATALOG.get(model)
+            if info is None:
+                continue
+            price = info["price"]
+            if cash < price * info.get("cash_buffer", 1.1):
+                continue
+            min_runway = info["min_runway"]
+            candidate_airport_id = None
+            if runway_length >= min_runway and airport_id is not None:
+                candidate_airport_id = airport_id
+            else:
+                candidate_airport_id = self._best_airport_for_runway(state, min_runway)
+            if candidate_airport_id is None:
+                continue
+            _safe_execute(env, f"BUY PLANE {model} {candidate_airport_id}")
+            self.last_purchase_hour = time_now
+            return True
 
         return False
+
+    @staticmethod
+    def _best_airport_for_runway(state, min_runway):
+        airports = state.get("map", {}).get("airports", [])
+        candidates = []
+        for airport, _coord in airports:
+            runway = float(
+                airport.get("runway_length")
+                or airport.get("runway_length_m")
+                or airport.get("runway_length_meters")
+                or 0.0
+            )
+            if runway >= min_runway:
+                fuel_price = float(airport.get("fuel_price", 0.0))
+                candidates.append((runway, fuel_price, airport.get("id")))
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: (-item[0], item[1]))
+        chosen = candidates[0][2]
+        return int(chosen) if chosen is not None else None
 
 
 def _safe_execute(env, command):
@@ -308,6 +379,92 @@ def initial_feasibility(state):
         if weight <= payload_cap and distance <= max_range:
             feasible += 1
     return feasible, len(orders)
+
+
+def _build_time_index(timeline):
+    index = {}
+    for entry in timeline:
+        time = int(entry.get("time", 0))
+        index[time] = entry
+    times = sorted(index.keys())
+    return index, times
+
+
+def _state_at_time(time, index, times):
+    if not times:
+        return None
+    pos = bisect_right(times, int(time))
+    if pos == 0:
+        return index[times[0]]
+    return index[times[pos - 1]]
+
+
+def _values_during_phase(timeline, flights, total_hours):
+    index, times = _build_time_index(timeline)
+    results = {}
+    flights_by_time = list(zip(flights.distances, flights.departure_times))
+
+    for phase_name, start, end in PHASES:
+        phase_end = min(end, total_hours)
+        baseline_time = max(0, (start - 1) if start > 0 else 0)
+        if phase_end <= baseline_time:
+            results[phase_name] = {
+                "hours": 0.0,
+                "cash_gain": 0.0,
+                "margin_per_hour": 0.0,
+                "distance": 0.0,
+                "deliveries": 0.0,
+                "fleet_end": 0.0,
+                "avg_fleet": 0.0,
+            }
+            continue
+
+        start_state = _state_at_time(baseline_time, index, times)
+        end_state = _state_at_time(phase_end, index, times)
+
+        if start_state is None or end_state is None:
+            results[phase_name] = {
+                "hours": 0.0,
+                "cash_gain": 0.0,
+                "margin_per_hour": 0.0,
+                "distance": 0.0,
+                "deliveries": 0.0,
+                "fleet_end": 0.0,
+                "avg_fleet": 0.0,
+            }
+            continue
+
+        duration = max(1.0, float(phase_end) - float(baseline_time))
+        cash_gain = float(end_state.get("cash", 0.0)) - float(start_state.get("cash", 0.0))
+        deliveries_delta = float(end_state.get("deliveries", 0.0)) - float(
+            start_state.get("deliveries", 0.0)
+        )
+        fleet_end = float(end_state.get("fleet_size", start_state.get("fleet_size", 0.0)))
+
+        distance = sum(
+            float(distance)
+            for distance, depart_time in flights_by_time
+            if baseline_time < depart_time <= phase_end
+        )
+
+        fleet_samples = [
+            float(entry.get("fleet_size", fleet_end))
+            for entry in timeline
+            if baseline_time < float(entry.get("time", 0.0)) <= phase_end
+        ]
+        avg_fleet = statistics.mean(fleet_samples) if fleet_samples else fleet_end
+
+        results[phase_name] = {
+            "hours": duration,
+            "cash_gain": cash_gain,
+            "margin_per_hour": cash_gain / duration if duration else 0.0,
+            "distance": distance,
+            "deliveries": deliveries_delta,
+            "fleet_end": fleet_end,
+            "avg_fleet": avg_fleet,
+        }
+
+    return results
 
 
 def build_config_dict(seed, world_params):
@@ -392,6 +549,9 @@ def run_seed(seed, hours, scenario_params):
         cash_gain = total_cash - initial_cash
         total_hours = max(env.time(), 1)
         avg_route = agent.flight_log.average()
+        total_distance = float(sum(agent.flight_log.distances))
+        deliveries_total = int(state_final["player"].get("orders_delivered", 0))
+        final_fleet = int(state_final["player"].get("fleet_size", len(state_final.get("airplanes", []))))
         metrics = {
             "seed": seed,
             "hours": total_hours,
@@ -403,7 +563,23 @@ def run_seed(seed, hours, scenario_params):
             "first_upgrade_hour": agent.first_upgrade_hour,
             "avg_route_len": avg_route,
             "num_routes": len(agent.flight_log.distances),
+            "total_distance": total_distance,
+            "deliveries_total": deliveries_total,
+            "final_cash": total_cash,
+            "final_fleet_size": final_fleet,
         }
+
+        phase_stats = _values_during_phase(timeline, agent.flight_log, total_hours)
+        metrics["phases"] = phase_stats
+        for phase_name, stats in phase_stats.items():
+            prefix = f"phase_{phase_name}_"
+            metrics[f"{prefix}hours"] = stats["hours"]
+            metrics[f"{prefix}cash_gain"] = stats["cash_gain"]
+            metrics[f"{prefix}margin_per_hour"] = stats["margin_per_hour"]
+            metrics[f"{prefix}distance"] = stats["distance"]
+            metrics[f"{prefix}deliveries"] = stats["deliveries"]
+            metrics[f"{prefix}fleet_end"] = stats["fleet_end"]
+            metrics[f"{prefix}avg_fleet"] = stats["avg_fleet"]
         return metrics, timeline
     finally:
         del env
@@ -435,6 +611,10 @@ def summarize(results):
                 f"{res['feasible_ratio']*100:5.1f}% ({res['orders_feasible']}/{res['orders_visible']})",
                 f"{res['margin_per_hour']:7.1f}",
                 f"{res['cash_gain']:8.1f}",
+                f"{res['final_cash']:9.0f}",
+                res["final_fleet_size"],
+                f"{res['total_distance']:9.0f}",
+                res["deliveries_total"],
                 res["first_upgrade_hour"] if res["first_upgrade_hour"] is not None else "-",
                 f"{res['avg_route_len']:7.1f}",
                 res["num_routes"],
@@ -445,11 +625,22 @@ def summarize(results):
         "Feasible Orders",
         "$/hr",
         "Cash Gain",
+        "Final Cash",
+        "Fleet",
+        "Distance km",
+        "Deliveries",
         "First Upgrade (h)",
         "Avg Route km",
         "Routes",
     ]
     return headers, rows
+
+
+def _mean(values):
+    items = [v for v in values if v is not None]
+    if not items:
+        return float("nan")
+    return statistics.mean(items)
 
 
 def aggregate(results):
@@ -469,15 +660,126 @@ def aggregate(results):
     if not results:
         return {}
     upgrade_samples = [r["first_upgrade_hour"] for r in results if r["first_upgrade_hour"] is not None]
-    return {
-        "avg_feasible_ratio": statistics.mean(r["feasible_ratio"] for r in results),
-        "avg_margin_per_hour": statistics.mean(r["margin_per_hour"] for r in results),
-        "avg_cash_gain": statistics.mean(r["cash_gain"] for r in results),
+
+    agg = {
+        "avg_feasible_ratio": _mean(r["feasible_ratio"] for r in results),
+        "avg_margin_per_hour": _mean(r["margin_per_hour"] for r in results),
+        "avg_cash_gain": _mean(r["cash_gain"] for r in results),
+        "avg_final_cash": _mean(r["final_cash"] for r in results),
+        "avg_total_distance": _mean(r["total_distance"] for r in results),
+        "avg_total_deliveries": _mean(r["deliveries_total"] for r in results),
+        "avg_final_fleet": _mean(r["final_fleet_size"] for r in results),
         "avg_upgrade_hour": statistics.mean(upgrade_samples) if upgrade_samples else float("nan"),
-        "avg_route_len": statistics.mean(r["avg_route_len"] for r in results if r["avg_route_len"] > 0)
-        if any(r["avg_route_len"] > 0 for r in results)
-        else 0.0,
+        "avg_route_len": _mean(
+            r["avg_route_len"]
+            for r in results
+            if r["avg_route_len"] is not None and r["avg_route_len"] > 0
+        ),
     }
+
+    for phase_name, _start, _end in PHASES:
+        prefix = f"phase_{phase_name}_"
+        agg[f"{prefix}hours"] = _mean(r.get(f"{prefix}hours") for r in results)
+        agg[f"{prefix}cash_gain"] = _mean(r.get(f"{prefix}cash_gain") for r in results)
+        agg[f"{prefix}margin_per_hour"] = _mean(r.get(f"{prefix}margin_per_hour") for r in results)
+        agg[f"{prefix}distance"] = _mean(r.get(f"{prefix}distance") for r in results)
+        agg[f"{prefix}deliveries"] = _mean(r.get(f"{prefix}deliveries") for r in results)
+        agg[f"{prefix}fleet_end"] = _mean(r.get(f"{prefix}fleet_end") for r in results)
+        agg[f"{prefix}avg_fleet"] = _mean(r.get(f"{prefix}avg_fleet") for r in results)
+
+    return agg
+
+
+def print_aggregate_summary(agg):
+    """Pretty-print aggregate metrics for a scenario."""
+
+    if not agg:
+        return
+
+    def fmt(value, unit=""):
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            return "-"
+        if unit == "$/hr":
+            return f"{value:,.1f}"
+        if unit == "$":
+            return f"{value:,.0f}"
+        if unit == "%":
+            return f"{value*100:,.1f}%"
+        if unit == "km":
+            return f"{value:,.0f}"
+        if unit == "fleet":
+            return f"{value:,.2f}"
+        return f"{value:,.1f}" if isinstance(value, float) else str(value)
+
+    print("  Financial:")
+    print(f"    Avg margin/hr: {fmt(agg.get('avg_margin_per_hour'), '$/hr')}")
+    print(f"    Avg cash gain: {fmt(agg.get('avg_cash_gain'), '$')}")
+    print(f"    Avg final cash: {fmt(agg.get('avg_final_cash'), '$')}")
+
+    print("  Operations:")
+    print(f"    Avg feasible ratio: {fmt(agg.get('avg_feasible_ratio'), '%')}")
+    print(f"    Avg deliveries: {fmt(agg.get('avg_total_deliveries'))}")
+    print(f"    Avg distance flown: {fmt(agg.get('avg_total_distance'), 'km')} km")
+    print(f"    Avg route length: {fmt(agg.get('avg_route_len'), 'km')} km")
+    print(f"    Avg fleet size: {fmt(agg.get('avg_final_fleet'), 'fleet')}")
+
+    upgrade = agg.get("avg_upgrade_hour")
+    if upgrade is not None and not (isinstance(upgrade, float) and math.isnan(upgrade)):
+        print(f"    Avg first upgrade hour: {upgrade:,.0f}")
+
+    for phase_name, _start, _end in PHASES:
+        prefix = f"phase_{phase_name}_"
+        label = phase_name.capitalize()
+        print(f"  {label} Phase:")
+        print(
+            f"    Hours: {fmt(agg.get(prefix + 'hours'))} | Cash gain: {fmt(agg.get(prefix + 'cash_gain'), '$')}"
+        )
+        print(
+            f"    Margin/hr: {fmt(agg.get(prefix + 'margin_per_hour'), '$/hr')} | Distance: {fmt(agg.get(prefix + 'distance'), 'km')} km"
+        )
+        print(
+            f"    Deliveries: {fmt(agg.get(prefix + 'deliveries'))} | Fleet end: {fmt(agg.get(prefix + 'fleet_end'), 'fleet')} (avg {fmt(agg.get(prefix + 'avg_fleet'), 'fleet')})"
+        )
+
+
+def _summarize_world(world):
+    if not world:
+        return ""
+
+    parts = []
+    starting_cash = world.get("starting_cash", world.get("cash"))
+    if starting_cash is not None:
+        parts.append(f"starting_cash={starting_cash:,.0f}")
+
+    num_airports = world.get("num_airports")
+    if num_airports is not None:
+        parts.append(f"num_airports={num_airports}")
+
+    gameplay = world.get("gameplay", {})
+    if gameplay:
+        restock = gameplay.get("restock_cycle_hours")
+        fuel_interval = gameplay.get("fuel_interval_hours")
+        gp_parts = []
+        if restock is not None:
+            gp_parts.append(f"restock={restock}h")
+        if fuel_interval is not None:
+            gp_parts.append(f"fuel_interval={fuel_interval}h")
+        orders = gameplay.get("orders", {})
+        if orders:
+            order_bits = []
+            for key in ["min_weight", "max_weight", "alpha", "beta", "max_deadline_hours"]:
+                if key in orders:
+                    order_bits.append(f"{key}={orders[key]}")
+            if "regenerate" in orders:
+                order_bits.append(f"regenerate={orders['regenerate']}")
+            if "generate_initial" in orders:
+                order_bits.append(f"initial={orders['generate_initial']}")
+            if order_bits:
+                gp_parts.append("orders[" + ", ".join(order_bits) + "]")
+        if gp_parts:
+            parts.append("gameplay=" + ", ".join(gp_parts))
+
+    return ", ".join(parts)
 
 
 def write_time_series(seed, timeline, out_dir):
@@ -576,16 +878,38 @@ def write_summary_csv(records, out_dir):
         "seed_count",
         "avg_margin_per_hour",
         "avg_cash_gain",
+        "avg_final_cash",
         "avg_feasible_ratio",
         "avg_upgrade_hour",
         "avg_route_len",
-        "metadata_json",
+        "avg_total_distance",
+        "avg_total_deliveries",
+        "avg_final_fleet",
     ]
+
+    for phase_name, _start, _end in PHASES:
+        prefix = f"phase_{phase_name}_"
+        fieldnames.extend(
+            [
+                f"{prefix}hours",
+                f"{prefix}cash_gain",
+                f"{prefix}margin_per_hour",
+                f"{prefix}distance",
+                f"{prefix}deliveries",
+                f"{prefix}fleet_end",
+                f"{prefix}avg_fleet",
+            ]
+        )
+
+    fieldnames.append("metadata_json")
     with path.open("w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
         writer.writeheader()
         for record in records:
             row = {key: record.get(key) for key in fieldnames}
+            for key, value in list(row.items()):
+                if isinstance(value, float) and math.isnan(value):
+                    row[key] = ""
             row["metadata_json"] = json.dumps(record.get("metadata", {}), sort_keys=True)
             writer.writerow(row)
 
@@ -602,8 +926,21 @@ def plot_parameter_sweeps(records, out_dir):
     metrics = {
         "avg_margin_per_hour": ("Margin per Hour ($/hr)", "margin"),
         "avg_cash_gain": ("Cash Gain ($)", "cash"),
+        "avg_final_cash": ("Final Cash ($)", "final_cash"),
+        "avg_total_distance": ("Distance (km)", "distance"),
+        "avg_total_deliveries": ("Deliveries", "deliveries"),
+        "avg_final_fleet": ("Fleet Size", "fleet"),
         "avg_feasible_ratio": ("Feasible Orders Ratio", "feasible"),
     }
+
+    for phase_name, _start, _end in PHASES:
+        label = phase_name.capitalize()
+        prefix = f"phase_{phase_name}_"
+        metrics[f"{prefix}margin_per_hour"] = (f"{label} Margin/hr ($/hr)", f"{phase_name}_margin")
+        metrics[f"{prefix}cash_gain"] = (f"{label} Cash Gain ($)", f"{phase_name}_cash")
+        metrics[f"{prefix}distance"] = (f"{label} Distance (km)", f"{phase_name}_distance")
+        metrics[f"{prefix}deliveries"] = (f"{label} Deliveries", f"{phase_name}_deliveries")
+        metrics[f"{prefix}fleet_end"] = (f"{label} Fleet Size", f"{phase_name}_fleet")
 
     base_records = {}
     grouped = {}
@@ -647,7 +984,10 @@ def plot_parameter_sweeps(records, out_dir):
                 numeric_entries.sort(key=lambda pair: pair[0])
                 xs = [pair[0] for pair in numeric_entries]
                 ys = [pair[1].get(metric_key) for pair in numeric_entries]
-                if any(value is None for value in ys):
+                if any(
+                    value is None or (isinstance(value, float) and math.isnan(value))
+                    for value in ys
+                ):
                     continue
                 plt.figure(figsize=(6, 4))
                 plt.plot(xs, ys, marker="o")
@@ -661,7 +1001,10 @@ def plot_parameter_sweeps(records, out_dir):
             elif categorical_entries:
                 labels = [label for label, _ in categorical_entries]
                 values = [entry.get(metric_key) for _, entry in categorical_entries]
-                if any(value is None for value in values):
+                if any(
+                    value is None or (isinstance(value, float) and math.isnan(value))
+                    for value in values
+                ):
                     continue
                 plt.figure(figsize=(6, 4))
                 plt.bar(labels, values, color="#1976d2")
@@ -839,7 +1182,8 @@ def load_scenarios(path, cli_defaults):
 
         name = merged.pop("name", None) or f"scenario_{idx}"
         seeds = ensure_list(merged.pop("seeds", cli_defaults["seeds"]))
-        hours = int(merged.pop("hours", cli_defaults["hours"]))
+        base_hours = int(merged.pop("hours", cli_defaults["hours"]))
+        hours = max(base_hours, 10_000)
         config_path = merged.pop("config_path", None)
         include_base = bool(merged.pop("include_base", True))
         metadata = dict(merged.pop("metadata", {}))
@@ -921,8 +1265,10 @@ def load_scenarios(path, cli_defaults):
 
 def main():  # pragma: no cover - CLI dispatch
     parser = argparse.ArgumentParser(description="Run RustyRunways heuristic benchmarks")
-    parser.add_argument("--seeds", nargs="*", type=int, default=[0, 1, 2], help="Seeds to evaluate")
-    parser.add_argument("--hours", type=int, default=120, help="Simulation horizon (hours)")
+    parser.add_argument(
+        "--seeds", nargs="*", type=int, default=[0, 1, 2, 3, 4], help="Seeds to evaluate"
+    )
+    parser.add_argument("--hours", type=int, default=10_000, help="Simulation horizon (hours)")
     parser.add_argument("--airports", type=int, default=6, help="Number of airports to generate")
     parser.add_argument("--cash", type=float, default=1_000_000.0, help="Starting cash")
     parser.add_argument("--scenario-config", type=str, help="Path to scenario YAML definition")
@@ -960,6 +1306,17 @@ def main():  # pragma: no cover - CLI dispatch
         scenario_results = []
         scenario_series = {}
 
+        print(f"\nScenario: {scenario['name']}")
+        if scenario.get("config_path"):
+            print(f"  Config: {scenario['config_path']}")
+        world_summary = _summarize_world(scenario.get("world"))
+        if world_summary:
+            print(f"  World params: {world_summary}")
+        description = scenario.get("metadata", {}).get("description")
+        if description:
+            print(f"  Notes: {description}")
+        print(f"  Seeds: {', '.join(str(s) for s in scenario['seeds'])} | Hours: {scenario['hours']}")
+
         for seed in tqdm(scenario["seeds"], desc=f"{scenario['name']} seeds"):
             metrics, timeline = run_seed(seed, scenario["hours"], scenario)
             scenario_results.append(metrics)
@@ -967,13 +1324,10 @@ def main():  # pragma: no cover - CLI dispatch
             write_time_series(seed, timeline, scenario_dir)
 
         headers, rows = summarize(scenario_results)
-        print(f"\nScenario: {scenario['name']}")
         print(tabulate(rows, headers=headers, tablefmt="github"))
         agg = aggregate(scenario_results)
         if agg:
-            print("  Aggregates:")
-            for key, value in agg.items():
-                print(f"    {key}: {value:.3f}")
+            print_aggregate_summary(agg)
 
         plot_series(scenario_series, scenario_dir, scenario["name"])
         plot_cash_distribution(scenario_results, scenario_dir, scenario["name"])
