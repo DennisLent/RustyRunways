@@ -39,6 +39,7 @@ pub struct GameplayConfig {
     pub restock_cycle_hours: u64,
     pub fuel_interval_hours: u64,
     pub orders: OrdersGameplay,
+    pub fuel: FuelGameplay,
 }
 
 impl Default for GameplayConfig {
@@ -47,6 +48,28 @@ impl Default for GameplayConfig {
             restock_cycle_hours: DEFAULT_RESTOCK_CYCLE_HOURS,
             fuel_interval_hours: DEFAULT_FUEL_INTERVAL_HOURS,
             orders: OrdersGameplay::default(),
+            fuel: FuelGameplay::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FuelGameplay {
+    /// Elasticity applied when prices adjust (fractional step size per interval)
+    pub elasticity: f32,
+    /// Lower bound multiplier relative to the base fuel price
+    pub min_price_multiplier: f32,
+    /// Upper bound multiplier relative to the base fuel price
+    pub max_price_multiplier: f32,
+}
+
+impl Default for FuelGameplay {
+    fn default() -> Self {
+        FuelGameplay {
+            elasticity: 0.05,
+            min_price_multiplier: 0.5,
+            max_price_multiplier: 1.5,
         }
     }
 }

@@ -9,9 +9,9 @@ use crate::utils::{
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 
-// Elastic price adjustment for fuel prices (+- 5%)
-const ELASTICITY: f32 = 0.05;
-const MIN_FUEL_PRICE: f32 = 0.20;
+fn default_base_fuel_price() -> f32 {
+    0.0
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Airport {
@@ -19,10 +19,12 @@ pub struct Airport {
     pub name: String,
     pub runway_length: f32, // Limits the types of airplanes that can take off and land
     pub fuel_price: f32,    // price/L
-    pub landing_fee: f32,   // standard cost that gets multiplied by airplane per ton of mtow
-    pub parking_fee: f32,   // standard fee per hour
+    #[serde(default = "default_base_fuel_price")]
+    pub base_fuel_price: f32,
+    pub landing_fee: f32, // standard cost that gets multiplied by airplane per ton of mtow
+    pub parking_fee: f32, // standard fee per hour
     pub orders: Vec<Order>, // list of current orders
-    pub fuel_sold: f32,     // demand based on how much fuel was bought
+    pub fuel_sold: f32,   // demand based on how much fuel was bought
 }
 
 impl Airport {
@@ -71,6 +73,7 @@ impl Airport {
             name,
             runway_length,
             fuel_price,
+            base_fuel_price: fuel_price,
             landing_fee,
             parking_fee,
             orders: Vec::new(),
@@ -185,17 +188,25 @@ impl Airport {
         Ok(())
     }
 
-    /// Internal method that adjusts the fuel price based on supply
-    pub fn adjust_fuel_price(&mut self) {
-        if self.fuel_sold > 0.0 {
-            self.fuel_price *= 1.0 + ELASTICITY;
-        } else {
-            self.fuel_price *= 1.0 - ELASTICITY;
-            if self.fuel_price < MIN_FUEL_PRICE {
-                self.fuel_price = MIN_FUEL_PRICE;
-            }
+    pub fn ensure_base_fuel_price(&mut self) {
+        if self.base_fuel_price <= 0.0 {
+            self.base_fuel_price = self.fuel_price;
         }
-        // reset
+    }
+
+    /// Internal method that adjusts the fuel price based on supply
+    pub fn adjust_fuel_price(&mut self, elasticity: f32, min_multiplier: f32, max_multiplier: f32) {
+        self.ensure_base_fuel_price();
+
+        if self.fuel_sold > 0.0 {
+            let increased = self.fuel_price * (1.0 + elasticity);
+            self.fuel_price = increased.min(self.base_fuel_price * max_multiplier);
+        } else {
+            let decreased = self.fuel_price * (1.0 - elasticity);
+            self.fuel_price = decreased.max(self.base_fuel_price * min_multiplier);
+        }
+
+        // reset usage counter for next interval
         self.fuel_sold = 0.0;
     }
 }
@@ -204,6 +215,8 @@ impl Airport {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const TEST_ELASTICITY: f32 = 0.05;
 
     #[test]
     fn generate_name_check() {
@@ -220,6 +233,7 @@ mod tests {
             name: "AAA".to_string(),
             runway_length: 1000.0,
             fuel_price: 1.5,
+            base_fuel_price: 1.5,
             landing_fee: 4.0,
             parking_fee: 10.0,
             orders: Vec::new(),
@@ -231,22 +245,23 @@ mod tests {
     fn adjust_fuel_price_increases_when_fuel_sold() {
         let mut airport = sample_airport();
         airport.fuel_sold = 500.0;
-        airport.adjust_fuel_price();
-        assert!((airport.fuel_price - 1.5 * (1.0 + ELASTICITY)).abs() < f32::EPSILON);
+        airport.adjust_fuel_price(TEST_ELASTICITY, 0.5, 1.5);
+        assert!((airport.fuel_price - 1.5 * (1.0 + TEST_ELASTICITY)).abs() < f32::EPSILON);
     }
 
     #[test]
     fn adjust_fuel_price_decreases_when_idle() {
         let mut airport = sample_airport();
-        airport.adjust_fuel_price();
-        assert!((airport.fuel_price - 1.5 * (1.0 - ELASTICITY)).abs() < f32::EPSILON);
+        airport.adjust_fuel_price(TEST_ELASTICITY, 0.5, 1.5);
+        assert!((airport.fuel_price - 1.5 * (1.0 - TEST_ELASTICITY)).abs() < f32::EPSILON);
     }
 
     #[test]
     fn adjust_fuel_price_respects_floor() {
         let mut airport = sample_airport();
-        airport.fuel_price = MIN_FUEL_PRICE * 0.5;
-        airport.adjust_fuel_price();
-        assert!((airport.fuel_price - MIN_FUEL_PRICE).abs() < f32::EPSILON);
+        airport.base_fuel_price = 1.5;
+        airport.fuel_price = airport.base_fuel_price * 0.3;
+        airport.adjust_fuel_price(TEST_ELASTICITY, 0.5, 1.5);
+        assert!((airport.fuel_price - airport.base_fuel_price * 0.5).abs() < f32::EPSILON);
     }
 }

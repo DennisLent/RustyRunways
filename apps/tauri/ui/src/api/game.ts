@@ -82,6 +82,15 @@ export async function refuelPlane(plane: number): Promise<void> {
   }
 }
 
+export async function sellPlane(plane: number): Promise<number> {
+  if (isTauri()) {
+    return await invoke<number>('sell_plane_cmd', { plane })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    return await wasm.sell_plane(plane)
+  }
+}
+
 export async function maintenance(plane: number): Promise<void> {
   if (isTauri()) {
     await invoke('maintenance', { plane })

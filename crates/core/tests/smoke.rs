@@ -149,7 +149,7 @@ fn delivery_cycle() {
     let before_landing = game.player.cash;
     game.advance(hours_remaining);
     assert_eq!(game.airplanes[plane_id].status, AirplaneStatus::Parked);
-    assert_eq!(game.arrival_times[plane_id], game.time);
+    assert_eq!(game.arrival_times.get(&plane_id), Some(&game.time));
     assert_eq!(
         game.airplanes[plane_id].location,
         game.map.airports[dest_idx].1

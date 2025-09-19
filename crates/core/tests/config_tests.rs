@@ -153,6 +153,9 @@ fn from_config_applies_gameplay_tuning() {
     cfg.gameplay.orders.tuning.max_weight = 750.0;
     cfg.gameplay.orders.tuning.alpha = 0.3;
     cfg.gameplay.orders.tuning.beta = 0.6;
+    cfg.gameplay.fuel.elasticity = 0.04;
+    cfg.gameplay.fuel.min_price_multiplier = 0.6;
+    cfg.gameplay.fuel.max_price_multiplier = 1.4;
 
     let game = Game::from_config(cfg).expect("should build");
     assert_eq!(game.restock_cycle, 72);
@@ -162,6 +165,9 @@ fn from_config_applies_gameplay_tuning() {
     assert!((game.map.order_params.max_weight - 750.0).abs() < f32::EPSILON);
     assert!((game.map.order_params.alpha - 0.3).abs() < f32::EPSILON);
     assert!((game.map.order_params.beta - 0.6).abs() < f32::EPSILON);
+    assert!((game.fuel_settings.elasticity - 0.04).abs() < f32::EPSILON);
+    assert!((game.fuel_settings.min_price_multiplier - 0.6).abs() < f32::EPSILON);
+    assert!((game.fuel_settings.max_price_multiplier - 1.4).abs() < f32::EPSILON);
     // generate_initial disabled => airports start empty even though regeneration remains enabled
     assert!(game.map.airports.iter().all(|(a, _)| a.orders.is_empty()));
 }

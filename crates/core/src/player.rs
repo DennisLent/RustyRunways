@@ -114,6 +114,22 @@ impl Player {
         Ok(())
     }
 
+    /// Sell a plane by id, returning the removed airplane and cash refund.
+    pub fn sell_plane(&mut self, plane_id: usize) -> Result<(Airplane, f32), GameError> {
+        let idx = self
+            .fleet
+            .iter()
+            .position(|plane| plane.id == plane_id)
+            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
+
+        let plane = self.fleet.remove(idx);
+        let refund = plane.specs.purchase_price * 0.6;
+        self.cash += refund;
+        self.fleet_size = self.fleet.len();
+
+        Ok((plane, refund))
+    }
+
     /// Records that the player has delivered an order
     pub fn record_delivery(&mut self) {
         self.orders_delivered += 1;

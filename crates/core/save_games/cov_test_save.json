@@ -9,6 +9,7 @@
           "name": "AAA",
           "runway_length": 946.06824,
           "fuel_price": 1.5531148,
+          "base_fuel_price": 1.5531148,
           "landing_fee": 3.3238645,
           "parking_fee": 10.427253,
           "orders": [
@@ -89,6 +90,7 @@
           "name": "AAB",
           "runway_length": 5100.5317,
           "fuel_price": 2.0058112,
+          "base_fuel_price": 2.0058112,
           "landing_fee": 7.5355406,
           "parking_fee": 38.400856,
           "orders": [
@@ -439,6 +441,7 @@
           "name": "AAC",
           "runway_length": 2659.0938,
           "fuel_price": 1.3907231,
+          "base_fuel_price": 1.3907231,
           "landing_fee": 5.67302,
           "parking_fee": 26.065235,
           "orders": [
@@ -627,6 +630,7 @@
           "name": "AAD",
           "runway_length": 3793.0278,
           "fuel_price": 1.1181347,
+          "base_fuel_price": 1.1181347,
           "landing_fee": 7.127447,
           "parking_fee": 31.045033,
           "orders": [
@@ -995,6 +999,7 @@
           "name": "AAE",
           "runway_length": 4567.226,
           "fuel_price": 1.7618543,
+          "base_fuel_price": 1.7618543,
           "landing_fee": 7.0813994,
           "parking_fee": 43.16902,
           "orders": [
@@ -1358,9 +1363,9 @@
       "needs_maintenance": false
     }
   ],
-  "arrival_times": [
-    0
-  ],
+  "arrival_times": {
+    "0": 0
+  },
   "player": {
     "cash": 123456.0,
     "fleet_size": 1,
@@ -1426,5 +1431,10 @@
   "seed": 42,
   "restock_cycle": 336,
   "fuel_interval": 6,
+  "fuel_settings": {
+    "elasticity": 0.05,
+    "min_price_multiplier": 0.5,
+    "max_price_multiplier": 1.5
+  },
   "regenerate_orders": true
 }

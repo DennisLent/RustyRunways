@@ -23,7 +23,7 @@ RustyRunways advances in integer hours (`GameTime = u64`). The engine uses a pri
 - DailyStats
   - Aggregates income/expenses delta for daily reporting.
 - DynamicPricing
-  - Every 6 hours, adjusts airport fuel prices based on recent demand.
+  - Every `fuel_interval_hours`, raises or lowers airport fuel prices by the configured elasticity, clamped between the configured minimum and maximum multipliers of each airport's base price.
 - WorldEvent { airport, factor, duration }
   - Temporary world/airport factor altering prices/fees for `duration` hours.
 - WorldEventEnd { airport, factor }
@@ -43,4 +43,3 @@ RustyRunways advances in integer hours (`GameTime = u64`). The engine uses a pri
 
 - `advance(hours)` repeatedly pops due events and executes them until the target time or queue is empty.
 - The game’s `time` is set to the time of the last processed event (or the target if idle).
-

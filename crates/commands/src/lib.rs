@@ -8,6 +8,7 @@ pub enum Command {
     ShowAirplane { id: usize },
     ShowDistances { plane_id: usize },
     BuyPlane { model: String, airport: usize },
+    SellPlane { plane: usize },
     LoadOrder { order: usize, plane: usize },
     LoadOrders { orders: Vec<usize>, plane: usize },
     UnloadOrder { order: usize, plane: usize },
@@ -112,6 +113,11 @@ pub fn parse_command(line: &str) -> Result<Command> {
             airport: aid
                 .parse()
                 .map_err(|_| CommandError::Syntax("bad airport id".into()))?,
+        }),
+        ["SELL", "PLANE", plane_id] => Ok(Command::SellPlane {
+            plane: plane_id
+                .parse()
+                .map_err(|_| CommandError::Syntax("bad plane id".into()))?,
         }),
         ["EXIT"] => Ok(Command::Exit),
         ["SAVE", name] => Ok(Command::SaveGame {

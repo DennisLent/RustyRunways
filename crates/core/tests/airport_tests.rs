@@ -197,3 +197,37 @@ fn load_orders_stops_on_error() {
         panic!("Expected MaxPayloadReached");
     }
 }
+
+#[test]
+fn ensure_base_fuel_price_defaults_to_current_price() {
+    let mut airport = Airport::generate_random(0, 0);
+    airport.base_fuel_price = 0.0;
+    airport.ensure_base_fuel_price();
+    assert!((airport.base_fuel_price - airport.fuel_price).abs() < f32::EPSILON);
+}
+
+#[test]
+fn fuel_price_increase_clamped_to_ceiling() {
+    let mut airport = Airport::generate_random(0, 0);
+    airport.base_fuel_price = 2.0;
+    airport.fuel_price = 2.0;
+    for _ in 0..500 {
+        airport.fuel_sold = 100.0;
+        airport.adjust_fuel_price(0.05, 0.5, 1.5);
+        assert!(airport.fuel_price <= airport.base_fuel_price * 1.5 + 1e-5);
+    }
+    assert!((airport.fuel_price - airport.base_fuel_price * 1.5).abs() < 1e-3);
+}
+
+#[test]
+fn fuel_price_decrease_clamped_to_floor() {
+    let mut airport = Airport::generate_random(0, 0);
+    airport.base_fuel_price = 1.8;
+    airport.fuel_price = 1.8;
+    for _ in 0..500 {
+        airport.fuel_sold = 0.0;
+        airport.adjust_fuel_price(0.05, 0.5, 1.5);
+        assert!(airport.fuel_price >= airport.base_fuel_price * 0.5 - 1e-5);
+    }
+    assert!((airport.fuel_price - airport.base_fuel_price * 0.5).abs() < 1e-3);
+}

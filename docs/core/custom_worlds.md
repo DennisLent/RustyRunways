@@ -15,7 +15,7 @@ Top‑level keys:
 - `starting_cash` (float, optional, default `1_000_000.0`).
 - `num_airports` (int, optional): number of airports to generate automatically when `airports` is omitted.
 - `airports` (list, optional): explicit or partially specified airport definitions.
-- `gameplay` (object, optional): tuning knobs for restocking cadence, order behaviour, and order value scaling.
+- `gameplay` (object, optional): tuning knobs for restocking cadence, fuel price behaviour, and order generation.
 
 Airport fields (everything except `id`/`name` optional):
 
@@ -40,6 +40,10 @@ Gameplay tuning (defaults shown):
 
 - `restock_cycle_hours` (int, default `336`): cadence for regeneration cycles.
 - `fuel_interval_hours` (int, default `6`): cadence for dynamic fuel price adjustments.
+- `fuel` (object):
+  - `elasticity` (float, default `0.05`): fractional step applied when prices move up or down.
+  - `min_price_multiplier` (float, default `0.5`): floor expressed as a multiple of each airport's base price.
+  - `max_price_multiplier` (float, default `1.5`): ceiling expressed as a multiple of each airport's base price.
 - `orders` (object):
   - `regenerate` (bool, default `true`): whether airports restock after the initial load.
   - `generate_initial` (bool, default `true`): whether random orders are generated at time 0.
@@ -76,6 +80,10 @@ airports:
 gameplay:
   restock_cycle_hours: 168
   fuel_interval_hours: 4
+  fuel:
+    elasticity: 0.05
+    min_price_multiplier: 0.5
+    max_price_multiplier: 1.5
   orders:
     regenerate: true
     generate_initial: true
@@ -174,6 +182,7 @@ gameplay:
 - Duplicate airport names (case‑insensitive) → error.
 - Invalid coordinates (outside `[0, 10000]`) → error.
 - Non‑positive runway length or fuel price → error.
+- Fuel tuning: `elasticity` must be in `(0,1)`, `min_price_multiplier > 0`, and `max_price_multiplier >= min_price_multiplier` (typically > 1).
 - `orders.regenerate: false` requires every listed airport to provide at least one manual order.
 
 Common issues:

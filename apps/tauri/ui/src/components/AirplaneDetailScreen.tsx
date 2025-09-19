@@ -17,9 +17,10 @@ import {
   Filter,
   Plus,
   Minus,
-  MapPin
+  MapPin,
+  CircleDollarSign
 } from "lucide-react";
-import { airportOrders as apiAirportOrders, planeInfo as apiPlaneInfo, departPlane as apiDepart, loadOrder as apiLoad, unloadOrder as apiUnload, refuelPlane as apiRefuel, maintenance as apiMaint, canFly as apiCanFly, reachability as apiReach } from "@/api/game";
+import { airportOrders as apiAirportOrders, planeInfo as apiPlaneInfo, departPlane as apiDepart, loadOrder as apiLoad, unloadOrder as apiUnload, refuelPlane as apiRefuel, maintenance as apiMaint, canFly as apiCanFly, reachability as apiReach, sellPlane as apiSell } from "@/api/game";
 
 interface Order {
   id: string;
@@ -43,12 +44,14 @@ interface AirplaneDetailScreenProps {
   airplaneId: string;
   onBack: () => void;
   airportsData?: { id: number; name: string }[];
+  onSold?: (planeId: string, refund: number) => void | Promise<void>;
 }
 
 export const AirplaneDetailScreen = ({ 
   airplaneId, 
   onBack,
-  airportsData
+  airportsData,
+  onSold
 }: AirplaneDetailScreenProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -210,6 +213,18 @@ export const AirplaneDetailScreen = ({
     await refresh();
   }
 
+  async function handleSell() {
+    try {
+      setError(null);
+      const refund = await apiSell(parseInt(airplane.id, 10));
+      if (onSold) {
+        await onSold(airplane.id, refund);
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function handleDispatch() {
     if (!selectedDestination) return;
     await apiDepart(parseInt(airplane.id, 10), parseInt(selectedDestination, 10));
@@ -262,6 +277,14 @@ export const AirplaneDetailScreen = ({
             <Button variant="runway" onClick={handleRefuel}>
               <Fuel className="w-4 h-4 mr-1" />
               Refuel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleSell}
+              disabled={airplane.loadedOrders.length > 0 || airplane.status.toLowerCase() !== 'parked'}
+            >
+              <CircleDollarSign className="w-4 h-4 mr-1" />
+              Sell
             </Button>
           </div>
         </div>

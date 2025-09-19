@@ -125,6 +125,12 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
     setSelectedAirportId("");
   };
 
+  const handlePlaneSold = async (planeId: string, refund: number) => {
+    addLog('success', `Sold plane ${planeId} for $${refund.toFixed(2)}`);
+    await refresh();
+    handleBackToMain();
+  };
+
   const handleAdvanceTime = async () => {
     const obs = await apiAdvance(1);
     setCash(obs.cash);
@@ -200,6 +206,7 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
         airplaneId={selectedAirplaneId}
         onBack={handleBackToMain}
         airportsData={airports.map((a) => ({ id: a.id, name: a.name }))}
+        onSold={handlePlaneSold}
       />
     );
   }

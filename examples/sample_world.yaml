@@ -20,6 +20,10 @@ airports:
 gameplay:
   restock_cycle_hours: 168
   fuel_interval_hours: 4
+  fuel:
+    elasticity: 0.05
+    min_price_multiplier: 0.5
+    max_price_multiplier: 1.5
   orders:
     regenerate: true
     generate_initial: true

@@ -103,6 +103,8 @@ class HeuristicAgent:
         self.first_upgrade_hour = None
         self.last_purchase_hour = None
         self.fleet_limit = 6
+        self.last_sale_hour = None
+        self.sale_cooldown_hours = 12.0
 
     def act(self, env, horizon):
         """Advance the environment by applying a heuristic policy."""
@@ -112,6 +114,9 @@ class HeuristicAgent:
         time_now = float(state["time"])
         if self.first_upgrade_hour is None and player.get("fleet_size", 1) > 1:
             self.first_upgrade_hour = time_now
+
+        if self._maybe_sell_plane(env, state):
+            return
 
         if self._maybe_buy_plane(env, state):
             return
@@ -213,6 +218,59 @@ class HeuristicAgent:
             step_hours = min(int(math.ceil(remaining)), max_allowed)
             env.step(max(step_hours, 1))
             return True
+
+        return False
+
+    def _maybe_sell_plane(self, env, state):
+        fleet = state.get("airplanes", [])
+        if len(fleet) <= 1:
+            return False
+
+        player = state.get("player", {})
+        cash = float(player.get("cash", 0.0))
+        if cash >= 0.0:
+            return False
+
+        time_now = float(state.get("time", 0.0))
+        if (
+            self.last_sale_hour is not None
+            and time_now - self.last_sale_hour < self.sale_cooldown_hours
+        ):
+            return False
+
+        sale_candidates = []
+        for plane in fleet:
+            status = str(plane.get("status", "")).lower()
+            if status != "parked":
+                continue
+            if plane.get("manifest"):
+                continue
+            model = str(plane.get("model", ""))
+            price = PLANE_CATALOG.get(model, {}).get("price")
+            if price is None:
+                continue
+            plane_id = int(plane.get("id", 0))
+            sale_candidates.append((price, plane_id, model))
+
+        if not sale_candidates:
+            return False
+
+        # Prefer selling the most valuable plane first (excluding the starter if possible)
+        sale_candidates.sort(key=lambda item: (item[0], -item[1]), reverse=True)
+
+        for price, plane_id, _model in sale_candidates:
+            if len(fleet) <= 1:
+                break
+            if plane_id == 0 and any(candidate[1] != 0 for candidate in sale_candidates):
+                continue
+
+            before_count = len(fleet)
+            _safe_execute(env, f"SELL PLANE {plane_id}")
+            new_state = _full_state(env)
+            if len(new_state.get("airplanes", [])) < before_count:
+                self.last_sale_hour = time_now
+                env.step(1)
+                return True
 
         return False
 
@@ -764,6 +822,14 @@ def _summarize_world(world):
             gp_parts.append(f"restock={restock}h")
         if fuel_interval is not None:
             gp_parts.append(f"fuel_interval={fuel_interval}h")
+        fuel_cfg = gameplay.get("fuel", {})
+        if fuel_cfg:
+            fuel_bits = []
+            for key in ["elasticity", "min_price_multiplier", "max_price_multiplier"]:
+                if key in fuel_cfg:
+                    fuel_bits.append(f"{key}={fuel_cfg[key]}")
+            if fuel_bits:
+                gp_parts.append("fuel[" + ", ".join(fuel_bits) + "]")
         orders = gameplay.get("orders", {})
         if orders:
             order_bits = []

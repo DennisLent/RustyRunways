@@ -64,6 +64,13 @@ impl GameEnv {
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
+    #[pyo3(text_signature = "(plane_id)")]
+    fn sell_plane(&mut self, plane_id: usize) -> PyResult<f32> {
+        self.game
+            .sell_plane(plane_id)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
     fn state_json(&self) -> PyResult<String> {
         serde_json::to_string(&self.game.observe())
             .map_err(|e| PyValueError::new_err(e.to_string()))
@@ -452,6 +459,16 @@ impl VectorGameEnv {
             .iter()
             .map(|g| g.map.airports.iter().map(|(a, _)| a.id).collect())
             .collect()
+    }
+
+    #[pyo3(text_signature = "(env_idx, plane_id)")]
+    fn sell_plane(&mut self, env_idx: usize, plane_id: usize) -> PyResult<f32> {
+        let env = self
+            .envs
+            .get_mut(env_idx)
+            .ok_or_else(|| PyValueError::new_err("env index out of range"))?;
+        env.sell_plane(plane_id)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 }
 

@@ -1162,7 +1162,8 @@ impl RustyRunwaysGui {
                             .collect::<Vec<_>>()
                     };
 
-                    Window::new(format!("Plane {}", pid))
+                    let mut sold_plane = false;
+                    let _plane_window = Window::new(format!("Plane {}", pid))
                         .open(&mut self.plane_panel)
                         .collapsible(false)
                         .default_size(Vec2::new(440.0, 520.0))
@@ -1239,6 +1240,21 @@ impl RustyRunwaysGui {
                                             .push(format!("Plane {} maintenance scheduled", pid)),
                                         Err(e) => {
                                             self.log.push(format!("Maintenance failed: {}", e))
+                                        }
+                                    }
+                                    self.scroll_log = true;
+                                }
+                                if ui.button("Sell Plane").clicked() {
+                                    match self.game.as_mut().unwrap().sell_plane(pid) {
+                                        Ok(refund) => {
+                                            self.log.push(format!(
+                                                "Plane {} sold for ${:.2}",
+                                                pid, refund
+                                            ));
+                                            sold_plane = true;
+                                        }
+                                        Err(e) => {
+                                            self.log.push(format!("Sell plane failed: {}", e))
                                         }
                                     }
                                     self.scroll_log = true;
@@ -1457,6 +1473,10 @@ impl RustyRunwaysGui {
                                 }
                             }
                         });
+                    if sold_plane {
+                        self.selected_airplane = None;
+                        self.plane_panel = false;
+                    }
                 }
             }
         }

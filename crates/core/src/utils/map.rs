@@ -162,12 +162,18 @@ impl Map {
         order_params: OrderGenerationParams,
         next_order_id: usize,
     ) -> Self {
-        Map {
+        let mut map = Map {
             num_airports: airports.len(),
             airports,
             seed,
             next_order_id,
             order_params,
+        };
+
+        for (airport, _) in map.airports.iter_mut() {
+            airport.ensure_base_fuel_price();
         }
+
+        map
     }
 }

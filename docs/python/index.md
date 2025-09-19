@@ -68,6 +68,7 @@ Key methods
 - `reset(seed=None, num_airports=None, cash=None, config_path=None)`: Reinitialize the world.
 - `step(hours: int)`: Advance simulation time by `hours`.
 - `execute(cmd: str)`: Run CLI command (see CLI docs for syntax).
+- `sell_plane(plane_id: int) -> float`: Sell a parked, empty plane (returns refund).
 - `state_json() -> str`: JSON snapshot of the observable state.
 - `state_py() -> dict`: Python dict snapshot (JSON decoded).
 - `full_state_json() -> str`: Full internal state snapshot.
@@ -109,6 +110,7 @@ Core vector API
 - `state_all_json() / state_all_py()`: Vector snapshots.
 - `times() -> list[int]`, `cashes() -> list[float]`, `drain_logs() -> list[list[str]]`.
 - `orders_at_plane_all(plane_id) -> list[list[int]]`, `airport_ids_all() -> list[list[int]]`.
+- `sell_plane(env_idx: int, plane_id: int) -> float`: Sell a plane in a specific environment.
 
 Examples
 

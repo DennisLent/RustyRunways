@@ -29,6 +29,7 @@ Inspecting the world state
 Purchases
 
 - `BUY PLANE <Model> <airport_id>` — buy and place an airplane at the airport
+- `SELL PLANE <plane_id>` — sell a parked, empty plane for a 60% refund
 
 Cargo handling
 

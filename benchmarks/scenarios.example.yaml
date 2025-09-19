@@ -9,6 +9,10 @@ defaults:
   gameplay:
     restock_cycle_hours: 168
     fuel_interval_hours: 4
+    fuel:
+      elasticity: 0.05
+      min_price_multiplier: 0.5
+      max_price_multiplier: 1.5
     orders:
       regenerate: true
       generate_initial: true
@@ -38,6 +42,32 @@ scenarios:
       parameter: gameplay.fuel_interval_hours
       label: fuel
       values: [2, 4, 6, 8]
+
+  - name: fuel-elasticity-bounds
+    metadata:
+      description: Evaluate elasticity response and price clamps
+    variants:
+      - label: default-bounds
+        overrides:
+          gameplay:
+            fuel:
+              elasticity: 0.05
+              min_price_multiplier: 0.5
+              max_price_multiplier: 1.5
+      - label: conservative
+        overrides:
+          gameplay:
+            fuel:
+              elasticity: 0.02
+              min_price_multiplier: 0.6
+              max_price_multiplier: 1.2
+      - label: aggressive
+        overrides:
+          gameplay:
+            fuel:
+              elasticity: 0.08
+              min_price_multiplier: 0.4
+              max_price_multiplier: 1.8
 
   - name: deadline-sweep
     metadata:

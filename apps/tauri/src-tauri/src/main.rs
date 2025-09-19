@@ -109,6 +109,13 @@ fn maintenance(state: State<AppState>, plane: usize) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn sell_plane_cmd(state: State<AppState>, plane: usize) -> Result<f32, String> {
+    let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
+    let game = guard.as_mut().ok_or("no game running")?;
+    game.sell_plane(plane).map_err(|e| e.to_string())
+}
+
 #[derive(Serialize)]
 struct OrderDto {
     id: usize,
@@ -352,6 +359,7 @@ fn main() {
             unload_all,
             refuel_plane,
             maintenance,
+            sell_plane_cmd,
             plane_info,
             airport_orders,
             list_models,

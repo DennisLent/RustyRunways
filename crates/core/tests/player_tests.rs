@@ -95,3 +95,16 @@ fn buy_plane_deducts_cash() {
         .unwrap();
     assert!((player.cash - (1_000_000.0 - price)).abs() < f32::EPSILON);
 }
+
+#[test]
+fn sell_plane_returns_refund_and_updates_state() {
+    let map = Map::generate_from_seed(7, Some(3));
+    let mut player = Player::new(1_000_000.0, &map);
+    let starting_cash = player.cash;
+    let (plane, refund) = player.sell_plane(0).expect("plane 0 should exist");
+    assert_eq!(plane.id, 0);
+    assert!((refund - plane.specs.purchase_price * 0.6).abs() < f32::EPSILON);
+    assert!((player.cash - (starting_cash + refund)).abs() < f32::EPSILON);
+    assert_eq!(player.fleet_size, player.fleet.len());
+    assert!(player.fleet.iter().all(|p| p.id != 0));
+}
