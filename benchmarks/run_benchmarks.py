@@ -868,6 +868,56 @@ def write_time_series(seed, timeline, out_dir):
         writer.writerows(timeline)
 
 
+def write_seed_metrics(results, out_dir):
+    """Persist per-seed metrics so they can be inspected without rerunning."""
+
+    if not results:
+        return
+
+    path = out_dir / "seed_metrics.csv"
+    fieldnames = [
+        "seed",
+        "hours",
+        "cash_gain",
+        "margin_per_hour",
+        "orders_feasible",
+        "orders_visible",
+        "feasible_ratio",
+        "first_upgrade_hour",
+        "avg_route_len",
+        "num_routes",
+        "total_distance",
+        "deliveries_total",
+        "final_cash",
+        "final_fleet_size",
+    ]
+
+    for phase_name, _start, _end in PHASES:
+        prefix = f"phase_{phase_name}_"
+        for metric in [
+            "hours",
+            "cash_gain",
+            "margin_per_hour",
+            "distance",
+            "deliveries",
+            "fleet_end",
+            "avg_fleet",
+        ]:
+            fieldnames.append(f"{prefix}{metric}")
+
+    with path.open("w", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        for res in results:
+            row = {}
+            for key in fieldnames:
+                value = res.get(key)
+                if isinstance(value, float) and math.isnan(value):
+                    value = ""
+                row[key] = value
+            writer.writerow(row)
+
+
 def plot_series(series_by_seed, out_dir, scenario_name):
     """Generate comparative plots for cash, fleet size, and deliveries.
 
@@ -1397,6 +1447,7 @@ def main():  # pragma: no cover - CLI dispatch
 
         plot_series(scenario_series, scenario_dir, scenario["name"])
         plot_cash_distribution(scenario_results, scenario_dir, scenario["name"])
+        write_seed_metrics(scenario_results, scenario_dir)
 
         metadata = dict(scenario.get("metadata", {}))
         summary_record = {
