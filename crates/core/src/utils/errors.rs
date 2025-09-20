@@ -23,6 +23,15 @@ pub enum GameError {
         maximum_capacity: f32,
         added_weight: f32,
     },
+    PassengerCapacityReached {
+        current_capacity: u32,
+        maximum_capacity: u32,
+        added_passengers: u32,
+    },
+    PayloadTypeUnsupported {
+        plane_model: String,
+        payload: String,
+    },
     OrderIdInvalid {
         id: usize,
     },
@@ -111,6 +120,23 @@ impl fmt::Display for GameError {
                     "Cannot load order of weight {:.2}. Airplane capacity: {:.2}. Current Capacity: {:.2}",
                     added_weight, maximum_capacity, current_capacity
                 )
+            }
+            GameError::PassengerCapacityReached {
+                current_capacity,
+                maximum_capacity,
+                added_passengers,
+            } => {
+                write!(
+                    f,
+                    "Cannot board {} passengers. Seats available: {}. Currently occupied: {}",
+                    added_passengers, maximum_capacity, current_capacity
+                )
+            }
+            GameError::PayloadTypeUnsupported {
+                plane_model,
+                payload,
+            } => {
+                write!(f, "Plane {} cannot carry {} payloads", plane_model, payload)
             }
             GameError::OrderIdInvalid { id } => {
                 write!(f, "Order with id {:?} does not exist", id)

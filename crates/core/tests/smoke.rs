@@ -50,26 +50,17 @@ fn load_check() {
     let payload_cap = game.airplanes[plane_id].specs.payload_capacity;
 
     let mut heavy_id: Option<usize> = None;
-    let mut manageable_id: Option<usize> = None;
 
     for _ in 0..4 {
         for order in &game.map.airports[origin_idx].0.orders {
-            if order.weight > payload_cap && heavy_id.is_none() {
+            let Some(weight) = order.cargo_weight() else {
+                continue;
+            };
+            if weight > payload_cap && heavy_id.is_none() {
                 heavy_id = Some(order.id);
             }
-            if order.weight <= payload_cap
-                && manageable_id.is_none()
-                && game.planes()[plane_id]
-                    .can_fly_to(
-                        &game.map.airports[order.destination_id].0,
-                        &game.map.airports[order.destination_id].1,
-                    )
-                    .is_ok()
-            {
-                manageable_id = Some(order.id);
-            }
         }
-        if heavy_id.is_some() && manageable_id.is_some() {
+        if heavy_id.is_some() {
             break;
         }
         game.map.restock_airports();
@@ -83,7 +74,27 @@ fn load_check() {
         assert_eq!(game.airplanes[plane_id].status, AirplaneStatus::Parked);
     }
 
-    let light_id = manageable_id.expect("expected at least one loadable order");
+    let mut candidate: Option<(usize, usize)> = None;
+    for _ in 0..5 {
+        candidate = game.map.airports.get(origin_idx).and_then(|(airport, _)| {
+            airport.orders.iter().find_map(|order| {
+                let weight = order.cargo_weight()?;
+                let plane = &game.planes()[plane_id];
+                let (airport_dest, coord_dest) = &game.airports()[order.destination_id];
+                if weight <= payload_cap && plane.can_fly_to(airport_dest, coord_dest).is_ok() {
+                    Some((order.id, order.destination_id))
+                } else {
+                    None
+                }
+            })
+        });
+        if candidate.is_some() {
+            break;
+        }
+        game.map.restock_airports();
+    }
+
+    let (light_id, _dest_idx) = candidate.expect("expected at least one loadable order");
     game.load_order(light_id, plane_id).unwrap();
     assert_eq!(game.airplanes[plane_id].status, AirplaneStatus::Loading);
 
@@ -110,15 +121,18 @@ fn delivery_cycle() {
 
     let mut candidate: Option<(usize, usize, f32)> = None;
     for _ in 0..5 {
-        for order in &game.map.airports[origin_idx].0.orders {
-            if order.weight <= payload_cap {
-                let (airport, coord) = &game.airports()[order.destination_id];
-                if game.planes()[plane_id].can_fly_to(airport, coord).is_ok() {
-                    candidate = Some((order.id, order.destination_id, order.value));
-                    break;
+        candidate = game.map.airports.get(origin_idx).and_then(|(airport, _)| {
+            airport.orders.iter().find_map(|order| {
+                let weight = order.cargo_weight()?;
+                let plane = &game.planes()[plane_id];
+                let (airport_dest, coord_dest) = &game.airports()[order.destination_id];
+                if weight <= payload_cap && plane.can_fly_to(airport_dest, coord_dest).is_ok() {
+                    Some((order.id, order.destination_id, order.value))
+                } else {
+                    None
                 }
-            }
-        }
+            })
+        });
         if candidate.is_some() {
             break;
         }

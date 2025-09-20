@@ -21,6 +21,13 @@ defaults:
       max_weight: 650.0
       alpha: 0.12
       beta: 0.55
+      passengers:
+        max_deadline_hours: 48
+        min_count: 4
+        max_count: 120
+        alpha: 0.10
+        beta: 0.40
+        fare_per_km: 9.5
 
 scenarios:
   - name: baseline

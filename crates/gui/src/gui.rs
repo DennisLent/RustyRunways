@@ -2,9 +2,10 @@ use eframe::egui::{
     self, CornerRadius, Id, Pos2, Rect, ScrollArea, Sense, SidePanel, TopBottomPanel, Vec2, Window,
 };
 use rand::Rng;
+use rusty_runways_core::Game;
 use rusty_runways_core::config::WorldConfig;
-use rusty_runways_core::utils::airplanes::models::AirplaneModel;
-use rusty_runways_core::{Game, utils::airplanes::models::AirplaneStatus};
+use rusty_runways_core::utils::airplanes::models::{AirplaneModel, AirplaneStatus};
+use rusty_runways_core::utils::orders::order::OrderPayload;
 
 use crate::transforms::{map_transforms, world_to_screen};
 
@@ -992,14 +993,23 @@ impl RustyRunwaysGui {
                                             [order.destination_id]
                                             .0
                                             .name;
+                                        let (payload_label, detail_label) = match &order.payload {
+                                            OrderPayload::Cargo { cargo_type, weight } => (
+                                                format!("{:?}", cargo_type),
+                                                format!("{:.1} kg", weight),
+                                            ),
+                                            OrderPayload::Passengers { count } => {
+                                                ("Passengers".to_string(), format!("{} pax", count))
+                                            }
+                                        };
                                         group_ui.horizontal(|ui| {
-                                            ui.strong(format!("[{}] {:?}", order.id, order.name));
+                                            ui.strong(format!("[{}] {}", order.id, payload_label));
                                             ui.separator();
                                             ui.label("Dest:");
                                             ui.label(dest_name);
                                         });
                                         group_ui.add_space(4.0);
-                                        group_ui.label(format!("Weight:   {:.1} kg", order.weight));
+                                        group_ui.label(format!("Load:    {}", detail_label));
                                         group_ui.label(format!("Value:    ${:.2}", order.value));
                                         group_ui.label(format!("Deadline: {}", order.deadline));
                                         group_ui.add_space(4.0);
@@ -1023,9 +1033,23 @@ impl RustyRunwaysGui {
                                         [o.destination_id]
                                         .0
                                         .name;
+                                    let (payload_label, detail_label) = match &o.payload {
+                                        OrderPayload::Cargo { cargo_type, weight } => (
+                                            format!("{:?}", cargo_type),
+                                            format!("{:.1}kg", weight),
+                                        ),
+                                        OrderPayload::Passengers { count } => {
+                                            ("Passengers".to_string(), format!("{} pax", count))
+                                        }
+                                    };
                                     format!(
-                                        "[{}] {:?} | wt {:.1}kg | dest {} | dl {} | ${:.2}",
-                                        o.id, o.name, o.weight, dest_name, o.deadline, o.value
+                                        "[{}] {} | {} | dest {} | dl {} | ${:.2}",
+                                        o.id,
+                                        payload_label,
+                                        detail_label,
+                                        dest_name,
+                                        o.deadline,
+                                        o.value
                                     )
                                 } else {
                                     "Select".into()
@@ -1041,9 +1065,23 @@ impl RustyRunwaysGui {
                                             [o.destination_id]
                                             .0
                                             .name;
+                                        let (payload_label, detail_label) = match &o.payload {
+                                            OrderPayload::Cargo { cargo_type, weight } => (
+                                                format!("{:?}", cargo_type),
+                                                format!("{:.1}kg", weight),
+                                            ),
+                                            OrderPayload::Passengers { count } => {
+                                                ("Passengers".to_string(), format!("{} pax", count))
+                                            }
+                                        };
                                         let label = format!(
-                                            "[{}] {:?} | wt {:.1}kg | dest {} | dl {} | ${:.2}",
-                                            o.id, o.name, o.weight, dest_name, o.deadline, o.value
+                                            "[{}] {} | {} | dest {} | dl {} | ${:.2}",
+                                            o.id,
+                                            payload_label,
+                                            detail_label,
+                                            dest_name,
+                                            o.deadline,
+                                            o.value
                                         );
                                         ui.selectable_value(
                                             &mut self.airport_order_selection,
@@ -1059,14 +1097,23 @@ impl RustyRunwaysGui {
                             ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
                                 for order in &airport_clone.orders {
                                     let mut checked = self.airport_order_multi.contains(&order.id);
+                                    let (payload_label, detail_label) = match &order.payload {
+                                        OrderPayload::Cargo { cargo_type, weight } => (
+                                            format!("{:?}", cargo_type),
+                                            format!("{:.1}kg", weight),
+                                        ),
+                                        OrderPayload::Passengers { count } => {
+                                            ("Passengers".to_string(), format!("{} pax", count))
+                                        }
+                                    };
                                     ui.horizontal(|ui| {
                                         ui.set_width(full_w);
                                         if ui
                                             .checkbox(
                                                 &mut checked,
                                                 format!(
-                                                    "[{}] {:?} ({:.1}kg)",
-                                                    order.id, order.name, order.weight
+                                                    "[{}] {} ({})",
+                                                    order.id, payload_label, detail_label
                                                 ),
                                             )
                                             .changed()
@@ -1178,6 +1225,11 @@ impl RustyRunwaysGui {
                                 "Payload: {:.0}/{:.0}kg",
                                 plane_clone.current_payload, plane_clone.specs.payload_capacity
                             ));
+                            ui.label(format!(
+                                "Passengers: {}/{}",
+                                plane_clone.current_passengers,
+                                plane_clone.specs.passenger_capacity
+                            ));
                             ui.separator();
                             ui.heading("Manifest");
                             ScrollArea::vertical()
@@ -1188,11 +1240,22 @@ impl RustyRunwaysGui {
                                         ui.label("No cargo");
                                     } else {
                                         for order in &plane_clone.manifest {
+                                            let (payload_label, detail_label) = match &order.payload
+                                            {
+                                                OrderPayload::Cargo { cargo_type, weight } => (
+                                                    format!("{:?}", cargo_type),
+                                                    format!("wt {:.1}", weight),
+                                                ),
+                                                OrderPayload::Passengers { count } => (
+                                                    "Passengers".to_string(),
+                                                    format!("{} pax", count),
+                                                ),
+                                            };
                                             ui.label(format!(
-                                                "[{}] {:?} wt {:.1} val ${:.2} dl {}",
+                                                "[{}] {} {} val ${:.2} dl {}",
                                                 order.id,
-                                                order.name,
-                                                order.weight,
+                                                payload_label,
+                                                detail_label,
                                                 order.value,
                                                 order.deadline
                                             ));
@@ -1313,18 +1376,20 @@ impl RustyRunwaysGui {
                                     }
                                 });
 
-                                let filtered_orders: Vec<
-                                    &rusty_runways_core::utils::orders::order::Order,
-                                > = orders_at_airport
+                                let filtered_orders: Vec<_> = orders_at_airport
                                     .iter()
                                     .filter(|o| {
                                         let dest_ok = match self.plane_filter_dest {
                                             Some(d) => o.destination_id == d,
                                             None => true,
                                         };
-                                        let w = o.weight;
-                                        let w_ok = w >= self.plane_filter_min_w
-                                            && w <= self.plane_filter_max_w;
+                                        let w_ok = match o.cargo_weight() {
+                                            Some(w) => {
+                                                w >= self.plane_filter_min_w
+                                                    && w <= self.plane_filter_max_w
+                                            }
+                                            None => true,
+                                        };
                                         dest_ok && w_ok
                                     })
                                     .collect();
@@ -1336,9 +1401,23 @@ impl RustyRunwaysGui {
                                             [o.destination_id]
                                             .0
                                             .name;
+                                        let (payload_label, detail_label) = match &o.payload {
+                                            OrderPayload::Cargo { cargo_type, weight } => (
+                                                format!("{:?}", cargo_type),
+                                                format!("{:.1}kg", weight),
+                                            ),
+                                            OrderPayload::Passengers { count } => {
+                                                ("Passengers".to_string(), format!("{} pax", count))
+                                            }
+                                        };
                                         format!(
-                                            "[{}] {:?} | wt {:.1}kg | dest {} | dl {} | ${:.2}",
-                                            o.id, o.name, o.weight, dest_name, o.deadline, o.value
+                                            "[{}] {} | {} | dest {} | dl {} | ${:.2}",
+                                            o.id,
+                                            payload_label,
+                                            detail_label,
+                                            dest_name,
+                                            o.deadline,
+                                            o.value
                                         )
                                     } else {
                                         "Select".into()
@@ -1355,11 +1434,21 @@ impl RustyRunwaysGui {
                                                     [o.destination_id]
                                                     .0
                                                     .name;
+                                            let (payload_label, detail_label) = match &o.payload {
+                                                OrderPayload::Cargo { cargo_type, weight } => (
+                                                    format!("{:?}", cargo_type),
+                                                    format!("{:.1}kg", weight),
+                                                ),
+                                                OrderPayload::Passengers { count } => (
+                                                    "Passengers".to_string(),
+                                                    format!("{} pax", count),
+                                                ),
+                                            };
                                             let label = format!(
-                                                "[{}] {:?} | wt {:.1}kg | dest {} | dl {} | ${:.2}",
+                                                "[{}] {} | {} | dest {} | dl {} | ${:.2}",
                                                 o.id,
-                                                o.name,
-                                                o.weight,
+                                                payload_label,
+                                                detail_label,
                                                 dest_name,
                                                 o.deadline,
                                                 o.value
@@ -1386,11 +1475,21 @@ impl RustyRunwaysGui {
                                                     [o.destination_id]
                                                     .0
                                                     .name;
+                                            let (payload_label, detail_label) = match &o.payload {
+                                                OrderPayload::Cargo { cargo_type, weight } => (
+                                                    format!("{:?}", cargo_type),
+                                                    format!("{:.1}kg", weight),
+                                                ),
+                                                OrderPayload::Passengers { count } => (
+                                                    "Passengers".to_string(),
+                                                    format!("{} pax", count),
+                                                ),
+                                            };
                                             let label = format!(
-                                                "[{}] {:?} | wt {:.1}kg | dest {} | dl {} | ${:.2}",
+                                                "[{}] {} | {} | dest {} | dl {} | ${:.2}",
                                                 o.id,
-                                                o.name,
-                                                o.weight,
+                                                payload_label,
+                                                detail_label,
                                                 dest_name,
                                                 o.deadline,
                                                 o.value

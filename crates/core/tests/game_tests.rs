@@ -4,7 +4,10 @@ use rusty_runways_core::{
     utils::{
         airplanes::models::AirplaneStatus,
         errors::GameError,
-        orders::{cargo::CargoType, order::Order},
+        orders::{
+            cargo::CargoType,
+            order::{Order, OrderPayload},
+        },
     },
 };
 
@@ -141,8 +144,10 @@ fn sell_plane_requires_empty_manifest() {
     game.airplanes[0].status = AirplaneStatus::Parked;
     game.airplanes[0].manifest.push(Order {
         id: 42,
-        name: CargoType::Food,
-        weight: 10.0,
+        payload: OrderPayload::Cargo {
+            cargo_type: CargoType::Food,
+            weight: 10.0,
+        },
         value: 500.0,
         deadline: 12,
         origin_id: 0,
@@ -150,6 +155,47 @@ fn sell_plane_requires_empty_manifest() {
     });
     let err = game.sell_plane(0).unwrap_err();
     assert!(matches!(err, GameError::InvalidCommand { .. }));
+}
+
+#[test]
+fn observe_reports_passenger_payload() {
+    let game = Game::new(6, Some(4), 750_000.0);
+    let snapshot = game.observe();
+    assert!(!snapshot.planes.is_empty());
+    let payload = &snapshot.planes[0].payload;
+    assert_eq!(payload.passenger_current, 0);
+    assert!(payload.passenger_capacity >= payload.passenger_current);
+}
+
+#[test]
+fn world_event_cycle_updates_prices() {
+    let mut game = Game::new(7, Some(4), 500_000.0);
+    let base_price = game.map.airports[0].0.fuel_price;
+    game.events.push(ScheduledEvent {
+        time: game.time,
+        event: Event::WorldEvent {
+            airport: Some(0),
+            factor: 1.2,
+            duration: 2,
+        },
+    });
+    assert!(game.tick_event());
+    let increased = game.map.airports[0].0.fuel_price;
+    assert!((increased - base_price * 1.2).abs() < 1e-3);
+
+    game.events.clear();
+    game.events.push(ScheduledEvent {
+        time: game.time + 2,
+        event: Event::WorldEventEnd {
+            airport: Some(0),
+            factor: 1.2,
+        },
+    });
+    game.time += 2;
+    assert!(game.tick_event());
+    game.events.clear();
+    let reset = game.map.airports[0].0.fuel_price;
+    assert!((reset - base_price).abs() < 1e-3);
 }
 
 #[test]

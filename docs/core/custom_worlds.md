@@ -28,13 +28,19 @@ Airport fields (everything except `id`/`name` optional):
 - `parking_fee_per_hour` (float >= 0, optional): $ per hour (generated when missing).
 - `orders` (list, optional): static orders to seed the airport with. Required when order regeneration is disabled.
 
-Manual order fields:
+Manual order fields (choose cargo **or** passengers per entry):
 
-- `cargo` (string): any `CargoType` variant (e.g., `Food`, `Electronics`).
-- `weight` (float > 0): weight in kilograms.
-- `value` (float >= 0): payout in dollars.
-- `deadline_hours` (int > 0): deadline window in hours.
-- `destination_id` (int): airport id the cargo must reach (must exist and differ from the origin).
+- Cargo orders:
+  - `cargo` (string): any `CargoType` variant (e.g., `Food`, `Electronics`).
+  - `weight` (float > 0): weight in kilograms.
+  - `value` (float >= 0): payout in dollars.
+  - `deadline_hours` (int > 0): deadline window in hours.
+  - `destination_id` (int): airport id the cargo must reach (must exist and differ from the origin).
+- Passenger orders:
+  - `passengers` (int > 0): number of travellers waiting for the route.
+  - `value` (float >= 0): payout in dollars.
+  - `deadline_hours` (int > 0): deadline window in hours.
+  - `destination_id` (int): airport id the passengers want to reach (must exist and differ from the origin).
 
 Gameplay tuning (defaults shown):
 
@@ -52,10 +58,17 @@ Gameplay tuning (defaults shown):
   - `max_weight` (float, default `650.0`): maximum cargo weight (kg) for generated orders.
   - `alpha` (float, default `0.12`): distance multiplier in the value calculation.
   - `beta` (float, default `0.55`): urgency multiplier in the value calculation.
+  - `passengers` (object, optional): passenger generation tuning.
+    - `max_deadline_hours` (int, default `48`).
+    - `min_count` (int, default `4`).
+    - `max_count` (int, default `220`).
+    - `alpha` (float, default `0.10`).
+    - `beta` (float, default `0.40`).
+    - `fare_per_km` (float, default `9.5`).
 
 ### Common Customisations
 
-The most frequently adjusted knobs are the `gameplay` block and the weight/deadline limits inside `orders`. Increasing `restock_cycle_hours` slows down how quickly new work appears. Lowering `max_weight` keeps starter planes relevant for longer, whereas raising it forces players to invest in larger aircraft earlier. Tightening the fuel `min_price_multiplier` and `max_price_multiplier` narrows price swings, making cash flow more predictable during playtests. For handcrafted cargo chains, disable regeneration (`regenerate: false`) and list explicit `orders` for each airport.
+The most frequently adjusted knobs are the `gameplay` block and the payload/deadline limits inside `orders`. Increasing `restock_cycle_hours` slows down how quickly new work appears. Lowering `max_weight` keeps starter planes relevant for longer, whereas raising it forces players to invest in larger aircraft earlier. Tightening the fuel `min_price_multiplier` and `max_price_multiplier` narrows price swings, making cash flow more predictable during playtests. For handcrafted cargo/passenger chains, disable regeneration (`regenerate: false`) and list explicit `orders` for each airport.
 
 Every change can be tested immediately by pointing the CLI, GUI, or Python environment at your YAML file. Because the schema defaults to the tuned KPIs, omitting a field means “use the balanced value.”
 

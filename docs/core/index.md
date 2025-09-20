@@ -11,7 +11,7 @@ The `rusty_runways_core` crate implements all game rules and the event‑driven 
 - Game state (`Game`): time, player, airplanes, airports, scheduled events, and logs.
 - Airports: name, coordinates, fees, runway length, dynamic fuel price, and outstanding orders.
 - Airplanes: model, specs, location, status, manifest, and operational costs.
-- Orders: cargo type, weight, value, deadline, origin, destination.
+- Orders: either cargo (type, weight) or passenger groups (count), plus value, deadline, origin, destination.
 - Player: cash, fleet, deliveries; can buy planes subject to constraints.
 
 ## Game Rules
@@ -61,18 +61,20 @@ The `rusty_runways_core` crate implements all game rules and the event‑driven 
 
 All models (see `utils::airplanes::models`):
 
-- SparrowLight – small prop
-- FalconJet – light biz jet
-- CometRegional – regional turbofan
-- Atlas – narrow‑body jet
-- TitanHeavy – wide‑body freighter
-- Goliath – super‑heavy lift
-- Zephyr – long‑range twin‑aisle
-- Lightning – supersonic small jet
+- SparrowLight – short-range combi prop
+- FalconJet – light biz jet (passenger)
+- CometRegional – regional turbofan (passenger)
+- Atlas – narrow-body combi
+- TitanHeavy – wide-body freighter (cargo)
+- Goliath – super-heavy freighter (cargo)
+- Zephyr – long-range twin-aisle (passenger)
+- Lightning – supersonic small jet (passenger)
+- BisonFreighter – medium cargo hauler
+- TrailblazerCombi – high-capacity combi aircraft
 
 Each model exposes specs via `AirplaneModel::specs()` including:
 
-- MTOW, cruise speed (km/h), fuel capacity (L), fuel consumption (L/h), operating cost ($/h), payload capacity (kg), purchase price, and computed minimum runway length (m).
+- MTOW, cruise speed (km/h), fuel capacity (L), fuel consumption (L/h), operating cost ($/h), cargo payload capacity (kg), passenger capacity (seats), model role (cargo/passenger/mixed), purchase price, and computed minimum runway length (m).
 - Players may sell a parked, empty airplane back to the market for 60% of its purchase price.
 
 ## Landing Constraints and Derivation

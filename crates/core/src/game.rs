@@ -1,6 +1,6 @@
 use crate::config::{
     DEFAULT_FUEL_INTERVAL_HOURS, DEFAULT_RESTOCK_CYCLE_HOURS, FuelGameplay, GameplayConfig,
-    WorldConfig,
+    ManualOrderConfig, WorldConfig,
 };
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
@@ -11,7 +11,10 @@ use crate::utils::airport::Airport;
 use crate::utils::coordinate::Coordinate;
 use crate::utils::errors::GameError;
 use crate::utils::map::Map;
-use crate::utils::orders::order::{Order, OrderGenerationParams};
+use crate::utils::orders::{
+    DemandGenerationParams, OrderGenerationParams, PassengerGenerationParams,
+    order::{Order, OrderPayload},
+};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use rusty_runways_commands::Command::*;
 use rusty_runways_commands::{Command, parse_command};
@@ -26,6 +29,65 @@ const DEFAULT_FUEL_INTERVAL: u64 = DEFAULT_FUEL_INTERVAL_HOURS;
 
 fn default_rng() -> StdRng {
     StdRng::seed_from_u64(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn world_event_branches_update_prices() {
+        let mut game = Game::new(9, Some(3), 100_000.0);
+        let base = game.map.airports[0].0.fuel_price;
+        game.schedule(
+            game.time,
+            Event::WorldEvent {
+                airport: Some(0),
+                factor: 1.2,
+                duration: 1,
+            },
+        );
+        assert!(game.tick_event());
+        assert!((game.map.airports[0].0.fuel_price - base * 1.2).abs() < 1e-3);
+
+        game.events.clear();
+        game.events.push(ScheduledEvent {
+            time: game.time + 1,
+            event: Event::WorldEventEnd {
+                airport: Some(0),
+                factor: 1.2,
+            },
+        });
+        game.time += 1;
+        assert!(game.tick_event());
+        game.events.clear();
+        assert!((game.map.airports[0].0.fuel_price - base).abs() < 1e-3);
+    }
+
+    #[test]
+    fn list_airports_handles_passenger_orders() {
+        let mut game = Game::new(10, Some(3), 250_000.0);
+        game.map.airports[0].0.orders.push(Order {
+            id: 123,
+            payload: OrderPayload::Passengers { count: 14 },
+            value: 5_500.0,
+            deadline: 18,
+            origin_id: 0,
+            destination_id: 1,
+        });
+        game.list_airports(true);
+    }
+
+    #[test]
+    fn refresh_specs_restores_passenger_capacity() {
+        let mut game = Game::new(11, Some(3), 300_000.0);
+        game.airplanes[0].specs.passenger_capacity = 0;
+        game.player.fleet[0].specs.passenger_capacity = 0;
+        game.refresh_airplane_specs();
+        let expected = game.airplanes[0].model.specs().passenger_capacity;
+        assert_eq!(game.airplanes[0].specs.passenger_capacity, expected);
+        assert_eq!(game.player.fleet[0].specs.passenger_capacity, expected);
+    }
 }
 
 fn default_restock_cycle() -> GameTime {
@@ -75,7 +137,7 @@ fn gameplay_settings(
     cfg: &GameplayConfig,
 ) -> Result<
     (
-        OrderGenerationParams,
+        DemandGenerationParams,
         GameTime,
         GameTime,
         bool,
@@ -85,6 +147,7 @@ fn gameplay_settings(
     String,
 > {
     let tuning = &cfg.orders.tuning;
+    let passenger_tuning = &cfg.orders.passengers;
     if tuning.max_deadline_hours == 0 {
         return Err("orders.max_deadline_hours must be at least 1".into());
     }
@@ -93,6 +156,18 @@ fn gameplay_settings(
     }
     if tuning.max_weight < tuning.min_weight {
         return Err("orders.max_weight must be >= orders.min_weight".into());
+    }
+    if passenger_tuning.max_deadline_hours == 0 {
+        return Err("orders.passengers.max_deadline_hours must be at least 1".into());
+    }
+    if passenger_tuning.min_count == 0 {
+        return Err("orders.passengers.min_count must be greater than 0".into());
+    }
+    if passenger_tuning.max_count < passenger_tuning.min_count {
+        return Err("orders.passengers.max_count must be >= min_count".into());
+    }
+    if passenger_tuning.fare_per_km <= 0.0 {
+        return Err("orders.passengers.fare_per_km must be greater than 0".into());
     }
     if cfg.restock_cycle_hours == 0 {
         return Err("restock_cycle_hours must be at least 1".into());
@@ -118,8 +193,13 @@ fn gameplay_settings(
     }
 
     let order_params = OrderGenerationParams::from(tuning);
+    let passenger_params = PassengerGenerationParams::from(passenger_tuning);
+    let demand_params = DemandGenerationParams {
+        cargo: order_params,
+        passengers: passenger_params,
+    };
     Ok((
-        order_params,
+        demand_params,
         cfg.restock_cycle_hours,
         cfg.fuel_interval_hours,
         cfg.orders.regenerate,
@@ -215,8 +295,10 @@ pub struct FuelObs {
 
 #[derive(Serialize)]
 pub struct PayloadObs {
-    pub current: f32,
-    pub capacity: f32,
+    pub cargo_current: f32,
+    pub cargo_capacity: f32,
+    pub passenger_current: u32,
+    pub passenger_capacity: u32,
 }
 
 impl Game {
@@ -271,7 +353,7 @@ impl Game {
     pub fn from_config(cfg: WorldConfig) -> Result<Self, GameError> {
         let seed = cfg.seed.unwrap_or(0);
         let (
-            order_params,
+            demand_params,
             restock_cycle,
             fuel_interval,
             regenerate_orders,
@@ -398,44 +480,118 @@ impl Game {
 
                 let mut manual_orders = Vec::with_capacity(a.orders.len());
                 for order_cfg in &a.orders {
-                    if order_cfg.deadline_hours == 0 {
-                        return Err(GameError::InvalidConfig {
-                            msg: format!("airport {} has order with deadline_hours == 0", a.id),
-                        });
-                    }
-                    if order_cfg.weight <= 0.0 {
-                        return Err(GameError::InvalidConfig {
-                            msg: format!("airport {} has order with non-positive weight", a.id),
-                        });
-                    }
-                    if order_cfg.value < 0.0 {
-                        return Err(GameError::InvalidConfig {
-                            msg: format!("airport {} has order with negative value", a.id),
-                        });
-                    }
-                    if order_cfg.destination_id == a.id {
-                        return Err(GameError::InvalidConfig {
-                            msg: format!("airport {} has order pointing to itself", a.id),
-                        });
-                    }
-                    if !ids.contains(&order_cfg.destination_id) {
-                        return Err(GameError::InvalidConfig {
-                            msg: format!(
-                                "airport {} has order with unknown destination {}",
-                                a.id, order_cfg.destination_id
-                            ),
-                        });
-                    }
+                    match order_cfg {
+                        ManualOrderConfig::Cargo {
+                            cargo,
+                            weight,
+                            value,
+                            deadline_hours,
+                            destination_id,
+                        } => {
+                            if *deadline_hours == 0 {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!(
+                                        "airport {} has order with deadline_hours == 0",
+                                        a.id
+                                    ),
+                                });
+                            }
+                            if *weight <= 0.0 {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!(
+                                        "airport {} has order with non-positive weight",
+                                        a.id
+                                    ),
+                                });
+                            }
+                            if *value < 0.0 {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!("airport {} has order with negative value", a.id),
+                                });
+                            }
+                            if *destination_id == a.id {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!("airport {} has order pointing to itself", a.id),
+                                });
+                            }
+                            if !ids.contains(destination_id) {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!(
+                                        "airport {} has order with unknown destination {}",
+                                        a.id, destination_id
+                                    ),
+                                });
+                            }
 
-                    manual_orders.push(Order {
-                        id: next_order_id,
-                        name: order_cfg.cargo,
-                        weight: order_cfg.weight,
-                        value: order_cfg.value,
-                        deadline: order_cfg.deadline_hours,
-                        origin_id: a.id,
-                        destination_id: order_cfg.destination_id,
-                    });
+                            manual_orders.push(Order {
+                                id: next_order_id,
+                                payload: OrderPayload::Cargo {
+                                    cargo_type: *cargo,
+                                    weight: *weight,
+                                },
+                                value: *value,
+                                deadline: *deadline_hours,
+                                origin_id: a.id,
+                                destination_id: *destination_id,
+                            });
+                        }
+                        ManualOrderConfig::Passengers {
+                            passengers,
+                            value,
+                            deadline_hours,
+                            destination_id,
+                        } => {
+                            if *deadline_hours == 0 {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!(
+                                        "airport {} has passenger order with deadline_hours == 0",
+                                        a.id
+                                    ),
+                                });
+                            }
+                            if *passengers == 0 {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!(
+                                        "airport {} has passenger order with zero passengers",
+                                        a.id
+                                    ),
+                                });
+                            }
+                            if *value < 0.0 {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!(
+                                        "airport {} has passenger order with negative value",
+                                        a.id
+                                    ),
+                                });
+                            }
+                            if *destination_id == a.id {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!(
+                                        "airport {} has passenger order pointing to itself",
+                                        a.id
+                                    ),
+                                });
+                            }
+                            if !ids.contains(destination_id) {
+                                return Err(GameError::InvalidConfig {
+                                    msg: format!(
+                                        "airport {} has passenger order with unknown destination {}",
+                                        a.id, destination_id
+                                    ),
+                                });
+                            }
+
+                            manual_orders.push(Order {
+                                id: next_order_id,
+                                payload: OrderPayload::Passengers { count: *passengers },
+                                value: *value,
+                                deadline: *deadline_hours,
+                                origin_id: a.id,
+                                destination_id: *destination_id,
+                            });
+                        }
+                    }
                     next_order_id += 1;
                 }
 
@@ -454,7 +610,7 @@ impl Game {
             }
 
             let mut built =
-                Map::from_airports(seed, airports_vec, order_params.clone(), next_order_id);
+                Map::from_airports(seed, airports_vec, demand_params.clone(), next_order_id);
             if regenerate_orders && generate_initial_orders {
                 built.restock_airports();
             }
@@ -474,7 +630,7 @@ impl Game {
             }
 
             let mut generated = Map::generate_from_seed(seed, Some(num_airports));
-            generated.order_params = order_params.clone();
+            generated.demand_params = demand_params.clone();
             generated.clear_orders();
             if generate_initial_orders {
                 generated.restock_airports();
@@ -520,6 +676,8 @@ impl Game {
         game.schedule(game.fuel_interval, Event::DynamicPricing);
         game.schedule_world_event();
         game.schedule(1, Event::MaintenanceCheck);
+
+        game.refresh_airplane_specs();
 
         Ok(game)
     }
@@ -595,6 +753,29 @@ impl Game {
         serde_json::to_writer_pretty(writer, self).map_err(io::Error::other)
     }
 
+    fn refresh_airplane_specs(&mut self) {
+        for plane in &mut self.airplanes {
+            let specs = plane.model.specs();
+            plane.specs = specs;
+            if plane.current_passengers > specs.passenger_capacity {
+                plane.current_passengers = specs.passenger_capacity;
+            }
+            if plane.current_payload > specs.payload_capacity {
+                plane.current_payload = specs.payload_capacity;
+            }
+        }
+        for plane in &mut self.player.fleet {
+            let specs = plane.model.specs();
+            plane.specs = specs;
+            if plane.current_passengers > specs.passenger_capacity {
+                plane.current_passengers = specs.passenger_capacity;
+            }
+            if plane.current_payload > specs.payload_capacity {
+                plane.current_payload = specs.payload_capacity;
+            }
+        }
+    }
+
     /// Load a game from JSON
     pub fn load_game(name: &str) -> io::Result<Self> {
         let mut path = PathBuf::from("save_games");
@@ -609,7 +790,8 @@ impl Game {
 
         let file = fs::File::open(&path)?;
         let reader = io::BufReader::new(file);
-        let game: Game = serde_json::from_reader(reader).map_err(io::Error::other)?;
+        let mut game: Game = serde_json::from_reader(reader).map_err(io::Error::other)?;
+        game.refresh_airplane_specs();
         Ok(game)
     }
 
@@ -947,12 +1129,19 @@ impl Game {
                 } else {
                     println!("  Orders:");
                     for order in &airport.orders {
+                        let payload_info = match &order.payload {
+                            OrderPayload::Cargo { cargo_type, weight } => {
+                                format!("{:?} | weight: {:.1}kg", cargo_type, weight)
+                            }
+                            OrderPayload::Passengers { count } => {
+                                format!("Passengers | count: {}", count)
+                            }
+                        };
                         println!(
-                            "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {} | destination: {}",
+                            "    [{}] {} -> {} | value: ${:.2} | deadline: {} | destination: {}",
                             order.id,
-                            order.name,
+                            payload_info,
                             self.map.airports[order.destination_id].0.name,
-                            order.weight,
                             order.value,
                             order.deadline,
                             order.destination_id
@@ -988,12 +1177,19 @@ impl Game {
             } else {
                 println!("  Orders:");
                 for order in &airport.orders {
+                    let payload_info = match &order.payload {
+                        OrderPayload::Cargo { cargo_type, weight } => {
+                            format!("{:?} | weight: {:.1}kg", cargo_type, weight)
+                        }
+                        OrderPayload::Passengers { count } => {
+                            format!("Passengers | count: {}", count)
+                        }
+                    };
                     println!(
-                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {} | destination: {}",
+                        "    [{}] {} -> {} | value: ${:.2} | deadline: {} | destination: {}",
                         order.id,
-                        order.name,
+                        payload_info,
                         self.map.airports[order.destination_id].0.name,
-                        order.weight,
                         order.value,
                         self.days_and_hours(order.deadline),
                         order.destination_id
@@ -1120,7 +1316,7 @@ impl Game {
             let loc = &plane.location;
             let airport_name = self.find_associated_airport(loc)?;
             println!(
-                "ID: {} | {:?} at airport {} ({:.2}, {:.2}) | Fuel: {:.2}/{:.2}L | Payload: {:.2}/{:.2}kg | Status: {:?}",
+                "ID: {} | {:?} at airport {} ({:.2}, {:.2}) | Fuel: {:.2}/{:.2}L | Cargo: {:.2}/{:.2}kg | Pax: {}/{} | Status: {:?}",
                 plane.id,
                 plane.model,
                 airport_name,
@@ -1130,17 +1326,26 @@ impl Game {
                 plane.specs.fuel_capacity,
                 plane.current_payload,
                 plane.specs.payload_capacity,
+                plane.current_passengers,
+                plane.specs.passenger_capacity,
                 plane.status,
             );
             if !plane.manifest.is_empty() {
                 println!("  Manifest:");
                 for order in plane.manifest.clone() {
+                    let payload_info = match &order.payload {
+                        OrderPayload::Cargo { cargo_type, weight } => {
+                            format!("{:?} | weight: {:.1}kg", cargo_type, weight)
+                        }
+                        OrderPayload::Passengers { count } => {
+                            format!("Passengers | count: {}", count)
+                        }
+                    };
                     println!(
-                        "    [{}] {:?} -> {} | weight: {:.1}kg | value: ${:.2} | deadline: {} | destination: {}",
+                        "    [{}] {} -> {} | value: ${:.2} | deadline: {} | destination: {}",
                         order.id,
-                        order.name,
+                        payload_info,
                         self.map.airports[order.destination_id].0.name,
-                        order.weight,
                         order.value,
                         order.deadline,
                         order.destination_id
@@ -1579,8 +1784,10 @@ impl Game {
                         capacity: plane.specs.fuel_capacity,
                     },
                     payload: PayloadObs {
-                        current: plane.current_payload,
-                        capacity: plane.specs.payload_capacity,
+                        cargo_current: plane.current_payload,
+                        cargo_capacity: plane.specs.payload_capacity,
+                        passenger_current: plane.current_passengers,
+                        passenger_capacity: plane.specs.passenger_capacity,
                     },
                     destination,
                     hours_remaining,

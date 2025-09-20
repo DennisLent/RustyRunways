@@ -1,7 +1,7 @@
 use crate::utils::{
     airport::Airport,
     coordinate::Coordinate,
-    orders::order::{OrderAirportInfo, OrderGenerationParams},
+    orders::{DemandGenerationParams, order::OrderAirportInfo},
 };
 use rand::{Rng, SeedableRng, rngs::StdRng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ pub struct Map {
     pub seed: u64,
     next_order_id: usize,
     #[serde(default)]
-    pub order_params: OrderGenerationParams,
+    pub demand_params: DemandGenerationParams,
 }
 
 impl Map {
@@ -91,7 +91,7 @@ impl Map {
             airports: airport_list,
             seed,
             next_order_id: 0,
-            order_params: OrderGenerationParams::default(),
+            demand_params: DemandGenerationParams::default(),
         };
 
         map.restock_airports();
@@ -116,7 +116,7 @@ impl Map {
                 self.seed,
                 &airport_infos,
                 &mut self.next_order_id,
-                &self.order_params,
+                &self.demand_params,
             );
         }
     }
@@ -157,7 +157,7 @@ impl Map {
     pub fn from_airports(
         seed: u64,
         airports: Vec<(Airport, Coordinate)>,
-        order_params: OrderGenerationParams,
+        demand_params: DemandGenerationParams,
         next_order_id: usize,
     ) -> Self {
         let mut map = Map {
@@ -165,7 +165,7 @@ impl Map {
             airports,
             seed,
             next_order_id,
-            order_params,
+            demand_params,
         };
 
         for (airport, _) in map.airports.iter_mut() {

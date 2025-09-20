@@ -1,12 +1,9 @@
 use crate::utils::{
     airplanes::airplane::Airplane,
     errors::GameError,
-    orders::{
-        Order,
-        order::{OrderAirportInfo, OrderGenerationParams},
-    },
+    orders::{DemandGenerationParams, Order, order::OrderAirportInfo},
 };
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{Rng, SeedableRng, rngs::StdRng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 
 fn default_base_fuel_price() -> f32 {
@@ -88,7 +85,7 @@ impl Airport {
         seed: u64,
         airports: &[OrderAirportInfo],
         next_order_id: &mut usize,
-        params: &OrderGenerationParams,
+        params: &DemandGenerationParams,
     ) {
         let mut rng = StdRng::seed_from_u64(seed.wrapping_add(self.id as u64));
 
@@ -98,6 +95,14 @@ impl Airport {
             1500.0..2500.0 => rng.gen_range(9..=15),
             2500.0..3500.0 => rng.gen_range(15..=24),
             _ => rng.gen_range(25..=40),
+        };
+
+        let passenger_groups: usize = match self.runway_length {
+            245.0..500.0 => rng.gen_range(1..=2),
+            500.0..1500.0 => rng.gen_range(2..=4),
+            1500.0..2500.0 => rng.gen_range(4..=7),
+            2500.0..3500.0 => rng.gen_range(6..=10),
+            _ => rng.gen_range(10..=18),
         };
 
         // Clear all orders within the airport
@@ -110,9 +115,33 @@ impl Airport {
             let order_seed = seed
                 .wrapping_add(self.id as u64)
                 .wrapping_add(order_id as u64);
-            self.orders
-                .push(Order::new(order_seed, order_id, self.id, airports, params));
+            self.orders.push(Order::new_cargo(
+                order_seed,
+                order_id,
+                self.id,
+                airports,
+                &params.cargo,
+            ));
         }
+
+        for _ in 0..passenger_groups {
+            let order_id = *next_order_id;
+            *next_order_id += 1;
+
+            let order_seed = seed
+                .wrapping_add(self.id as u64)
+                .wrapping_add(order_id as u64)
+                .wrapping_add(13);
+            self.orders.push(Order::new_passenger(
+                order_seed,
+                order_id,
+                self.id,
+                airports,
+                &params.passengers,
+            ));
+        }
+
+        self.orders.shuffle(&mut rng);
     }
 
     /// Check if any orders have expired, if so we remove them.
@@ -150,17 +179,8 @@ impl Airport {
         // find the position of the order in this airport
         if let Some(pos) = self.orders.iter().position(|o| o.id == order_id) {
             let order = self.orders[pos].clone();
+            airplane.validate_payload(&order)?;
 
-            // check payload capacity before removing
-            if airplane.current_payload + order.weight > airplane.specs.payload_capacity {
-                return Err(GameError::MaxPayloadReached {
-                    current_capacity: airplane.current_payload,
-                    maximum_capacity: airplane.specs.payload_capacity,
-                    added_weight: order.weight,
-                });
-            }
-
-            // remove from airport and load into airplane
             let order = self.orders.remove(pos);
             airplane.load_order(order)?;
             Ok(())

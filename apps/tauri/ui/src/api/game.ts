@@ -19,7 +19,22 @@ export type Observation = {
   time: number
   cash: number
   airports: { id: number; name: string; x: number; y: number; fuel_price: number; runway_length: number; num_orders: number }[]
-  planes: { id: number; model: string; x: number; y: number; status: string; destination?: number | null; hours_remaining?: number | null; fuel: { current: number; capacity: number }; payload: { current: number; capacity: number } }[]
+  planes: {
+    id: number
+    model: string
+    x: number
+    y: number
+    status: string
+    destination?: number | null
+    hours_remaining?: number | null
+    fuel: { current: number; capacity: number }
+    payload: {
+      cargo_current: number
+      cargo_capacity: number
+      passenger_current: number
+      passenger_capacity: number
+    }
+  }[]
 }
 
 export async function newGame(seed: string | undefined, airportCount: number, startingCash: number): Promise<void> {
@@ -137,6 +152,8 @@ export type PlaneInfo = {
   fuel_capacity: number
   payload_current: number
   payload_capacity: number
+  passenger_current: number
+  passenger_capacity: number
   current_airport_id: number | null
   manifest: OrderDto[]
 }
@@ -145,9 +162,11 @@ export type OrderDto = {
   id: number
   destination_id: number
   value: number
-  weight: number
   deadline: number
-  cargo_type: string
+  payload_kind: string
+  cargo_type?: string
+  weight?: number
+  passenger_count?: number
 }
 
 export async function planeInfo(planeId: number): Promise<PlaneInfo> {
@@ -176,8 +195,10 @@ export type ModelDto = {
   fuel_consumption: number
   operating_cost: number
   payload_capacity: number
+  passenger_capacity: number
   purchase_price: number
   min_runway_length: number
+  role: string
 }
 
 export async function listModels(): Promise<ModelDto[]> {

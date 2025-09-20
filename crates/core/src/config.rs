@@ -1,8 +1,10 @@
 use crate::utils::orders::{
     cargo::CargoType,
     order::{
-        DEFAULT_ALPHA, DEFAULT_BETA, DEFAULT_MAX_DEADLINE_HOURS, DEFAULT_MAX_WEIGHT,
-        DEFAULT_MIN_WEIGHT, OrderGenerationParams,
+        DEFAULT_ALPHA, DEFAULT_BETA, DEFAULT_FARE_PER_KM, DEFAULT_MAX_DEADLINE_HOURS,
+        DEFAULT_MAX_WEIGHT, DEFAULT_MIN_WEIGHT, DEFAULT_PASSENGER_ALPHA, DEFAULT_PASSENGER_BETA,
+        DEFAULT_PASSENGER_MAX_COUNT, DEFAULT_PASSENGER_MAX_DEADLINE_HOURS,
+        DEFAULT_PASSENGER_MIN_COUNT, OrderGenerationParams, PassengerGenerationParams,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -81,6 +83,8 @@ pub struct OrdersGameplay {
     pub generate_initial: bool,
     #[serde(flatten)]
     pub tuning: OrderTuning,
+    #[serde(default)]
+    pub passengers: PassengerTuning,
 }
 
 impl Default for OrdersGameplay {
@@ -89,6 +93,7 @@ impl Default for OrdersGameplay {
             regenerate: true,
             generate_initial: true,
             tuning: OrderTuning::default(),
+            passengers: PassengerTuning::default(),
         }
     }
 }
@@ -115,6 +120,30 @@ impl Default for OrderTuning {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PassengerTuning {
+    pub max_deadline_hours: u64,
+    pub min_count: u32,
+    pub max_count: u32,
+    pub alpha: f32,
+    pub beta: f32,
+    pub fare_per_km: f32,
+}
+
+impl Default for PassengerTuning {
+    fn default() -> Self {
+        PassengerTuning {
+            max_deadline_hours: DEFAULT_PASSENGER_MAX_DEADLINE_HOURS,
+            min_count: DEFAULT_PASSENGER_MIN_COUNT,
+            max_count: DEFAULT_PASSENGER_MAX_COUNT,
+            alpha: DEFAULT_PASSENGER_ALPHA,
+            beta: DEFAULT_PASSENGER_BETA,
+            fare_per_km: DEFAULT_FARE_PER_KM,
+        }
+    }
+}
+
 impl From<&OrderTuning> for OrderGenerationParams {
     fn from(value: &OrderTuning) -> Self {
         OrderGenerationParams {
@@ -123,6 +152,19 @@ impl From<&OrderTuning> for OrderGenerationParams {
             max_weight: value.max_weight,
             alpha: value.alpha,
             beta: value.beta,
+        }
+    }
+}
+
+impl From<&PassengerTuning> for PassengerGenerationParams {
+    fn from(value: &PassengerTuning) -> Self {
+        PassengerGenerationParams {
+            max_deadline_hours: value.max_deadline_hours,
+            min_count: value.min_count,
+            max_count: value.max_count,
+            alpha: value.alpha,
+            beta: value.beta,
+            fare_per_km: value.fare_per_km,
         }
     }
 }
@@ -157,10 +199,19 @@ pub struct Location {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ManualOrderConfig {
-    pub cargo: CargoType,
-    pub weight: f32,
-    pub value: f32,
-    pub deadline_hours: u64,
-    pub destination_id: usize,
+#[serde(untagged)]
+pub enum ManualOrderConfig {
+    Cargo {
+        cargo: CargoType,
+        weight: f32,
+        value: f32,
+        deadline_hours: u64,
+        destination_id: usize,
+    },
+    Passengers {
+        passengers: u32,
+        value: f32,
+        deadline_hours: u64,
+        destination_id: usize,
+    },
 }

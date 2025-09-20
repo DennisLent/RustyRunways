@@ -1,7 +1,12 @@
 use super::models::{AirplaneModel, AirplaneSpecs, AirplaneStatus};
 use crate::{
     events::GameTime,
-    utils::{airport::Airport, coordinate::Coordinate, errors::GameError, orders::Order},
+    utils::{
+        airport::Airport,
+        coordinate::Coordinate,
+        errors::GameError,
+        orders::{Order, order::OrderPayload},
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +24,8 @@ pub struct Airplane {
     pub location: Coordinate,
     pub current_fuel: f32,
     pub current_payload: f32,
+    #[serde(default)]
+    pub current_passengers: u32,
     pub manifest: Vec<Order>,
     pub hours_since_maintenance: GameTime,
     pub needs_maintenance: bool,
@@ -36,6 +43,7 @@ impl Airplane {
             location: home_airport_coordinates,
             current_fuel: specs.fuel_capacity,
             current_payload: 0.0,
+            current_passengers: 0,
             manifest: Vec::new(),
             hours_since_maintenance: 0,
             needs_maintenance: false,
@@ -92,24 +100,27 @@ impl Airplane {
 
     /// Load an order if it fits; returns Err(order) if too heavy
     pub fn load_order(&mut self, order: Order) -> Result<(), GameError> {
-        if self.current_payload + order.weight <= self.specs.payload_capacity {
-            self.current_payload += order.weight;
-            self.manifest.push(order);
-            self.status = AirplaneStatus::Loading;
-            Ok(())
-        } else {
-            Err(GameError::MaxPayloadReached {
-                current_capacity: self.current_payload,
-                maximum_capacity: self.specs.payload_capacity,
-                added_weight: order.weight,
-            })
+        self.validate_payload(&order)?;
+
+        match order.payload {
+            OrderPayload::Cargo { weight, .. } => {
+                self.current_payload += weight;
+            }
+            OrderPayload::Passengers { count } => {
+                self.current_passengers = self.current_passengers.saturating_add(count);
+            }
         }
+
+        self.manifest.push(order);
+        self.status = AirplaneStatus::Loading;
+        Ok(())
     }
 
     /// Unload all cargo, clearing manifest & resetting payload
     pub fn unload_all(&mut self) -> Vec<Order> {
         let delivered = self.manifest.drain(..).collect();
         self.current_payload = 0.0;
+        self.current_passengers = 0;
         self.status = AirplaneStatus::Unloading;
         delivered
     }
@@ -119,14 +130,58 @@ impl Airplane {
         if let Some(idx) = self.manifest.iter().position(|order| order.id == order_id) {
             let delivered = self.manifest.remove(idx);
 
-            // Ensure we don't have some FLOP rounding errors
-            self.current_payload = (self.current_payload - delivered.weight).max(0.0);
+            match &delivered.payload {
+                OrderPayload::Cargo { weight, .. } => {
+                    // Ensure we don't have some FLOP rounding errors
+                    self.current_payload = (self.current_payload - weight).max(0.0);
+                }
+                OrderPayload::Passengers { count } => {
+                    self.current_passengers = self.current_passengers.saturating_sub(*count);
+                }
+            }
             self.status = AirplaneStatus::Unloading;
 
             Ok(delivered)
         } else {
             Err(GameError::OrderIdInvalid { id: order_id })
         }
+    }
+
+    pub fn validate_payload(&self, order: &Order) -> Result<(), GameError> {
+        match &order.payload {
+            OrderPayload::Cargo { weight, .. } => {
+                if self.specs.payload_capacity <= 0.0 {
+                    return Err(GameError::PayloadTypeUnsupported {
+                        plane_model: format!("{:?}", self.model),
+                        payload: "cargo".into(),
+                    });
+                }
+                if self.current_payload + weight > self.specs.payload_capacity + f32::EPSILON {
+                    return Err(GameError::MaxPayloadReached {
+                        current_capacity: self.current_payload,
+                        maximum_capacity: self.specs.payload_capacity,
+                        added_weight: *weight,
+                    });
+                }
+            }
+            OrderPayload::Passengers { count } => {
+                if self.specs.passenger_capacity == 0 {
+                    return Err(GameError::PayloadTypeUnsupported {
+                        plane_model: format!("{:?}", self.model),
+                        payload: "passengers".into(),
+                    });
+                }
+                let next = self.current_passengers.saturating_add(*count);
+                if next > self.specs.passenger_capacity {
+                    return Err(GameError::PassengerCapacityReached {
+                        current_capacity: self.current_passengers,
+                        maximum_capacity: self.specs.passenger_capacity,
+                        added_passengers: *count,
+                    });
+                }
+            }
+        }
+        Ok(())
     }
 
     //// Check runway & fuel, consume fuel, and return flight time in hours.

@@ -8,7 +8,7 @@ use rusty_runways_core::utils::{
     errors::GameError,
     orders::{
         Order,
-        order::{OrderAirportInfo, OrderGenerationParams},
+        order::{DemandGenerationParams, OrderAirportInfo, OrderGenerationParams},
     },
 };
 
@@ -91,17 +91,18 @@ fn generate_orders_counts_and_ids() {
         0,
         &airport_infos,
         &mut next_id,
-        &OrderGenerationParams::default(),
+        &DemandGenerationParams::default(),
     );
 
-    assert!(ap.orders.len() >= 5 && ap.orders.len() <= 8);
+    assert!(ap.orders.len() >= 7 && ap.orders.len() <= 12);
 
     assert_eq!(next_id, ap.orders.len());
 
     // check unique, ascending ids
-    let ids: Vec<_> = ap.orders.iter().map(|o| o.id).collect();
-    for win in ids.windows(2) {
-        assert!(win[1] == win[0] + 1);
+    let mut ids: Vec<_> = ap.orders.iter().map(|o| o.id).collect();
+    ids.sort_unstable();
+    for (expected, actual) in ids.iter().enumerate() {
+        assert_eq!(*actual, expected);
     }
 }
 
@@ -127,14 +128,21 @@ fn load_order_and_errors() {
         0,
         &airport_infos,
         &mut next_id,
-        &OrderGenerationParams::default(),
+        &DemandGenerationParams::default(),
     );
 
-    let order = ap.orders[0].clone();
+    let idx = ap
+        .orders
+        .iter()
+        .position(|o| o.cargo_weight().is_some())
+        .expect("expected at least one cargo order");
+    let order = ap.orders[idx].clone();
     let home = Coordinate::new(0., 0.);
     let mut plane = Airplane::new(0, AirplaneModel::Atlas, home);
-    if plane.specs.payload_capacity <= order.weight {
-        plane.specs.payload_capacity = order.weight + 1.0;
+    if let Some(weight) = order.cargo_weight() {
+        if plane.specs.payload_capacity <= weight {
+            plane.specs.payload_capacity = weight + 1.0;
+        }
     }
 
     // load should succeed
@@ -169,8 +177,8 @@ fn load_orders_stops_on_error() {
     ];
 
     // these are both going to be the same
-    let order1 = Order::new(1, 0, 0, &airport_infos, &OrderGenerationParams::default());
-    let order2 = Order::new(1, 1, 0, &airport_infos, &OrderGenerationParams::default());
+    let order1 = Order::new_cargo(1, 0, 0, &airport_infos, &OrderGenerationParams::default());
+    let order2 = Order::new_cargo(1, 1, 0, &airport_infos, &OrderGenerationParams::default());
 
     ap.orders = vec![order1, order2];
 
@@ -183,7 +191,7 @@ fn load_orders_stops_on_error() {
 
     // make plan that can hold 1 item, but not two
     let mut plane = Airplane::new(0, AirplaneModel::SparrowLight, home);
-    plane.specs.payload_capacity = ap.orders[0].weight + 1.0;
+    plane.specs.payload_capacity = ap.orders[0].cargo_weight().unwrap() + 1.0;
 
     // attempt batch loading
     let result = ap.load_orders(ids.clone(), &mut plane);
@@ -192,7 +200,7 @@ fn load_orders_stops_on_error() {
         // the failing added_weight must match second order weight
         // that order is now the first element
         assert_eq!(begin_length - 1, ap.orders.len());
-        assert_eq!(added_weight, ap.orders[0].weight);
+        assert_eq!(added_weight, ap.orders[0].cargo_weight().unwrap());
     } else {
         panic!("Expected MaxPayloadReached");
     }

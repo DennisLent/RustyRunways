@@ -22,10 +22,14 @@ import {
 } from "lucide-react";
 import { airportOrders as apiAirportOrders, planeInfo as apiPlaneInfo, departPlane as apiDepart, loadOrder as apiLoad, unloadOrder as apiUnload, refuelPlane as apiRefuel, maintenance as apiMaint, canFly as apiCanFly, reachability as apiReach, sellPlane as apiSell } from "@/api/game";
 
+type PayloadKind = 'cargo' | 'passengers';
+
 interface Order {
   id: string;
-  cargoType: string;
-  weight: number;
+  payloadKind: PayloadKind;
+  cargoType?: string;
+  weight?: number;
+  passengerCount?: number;
   destination: string;
   deadline: string;
   value: number;
@@ -74,8 +78,10 @@ export const AirplaneDetailScreen = ({
     maxFuel: 100,
     cargoCapacity: 0,
     currentCargo: 0,
+    passengerCapacity: 0,
+    currentPassengers: 0,
     condition: 100,
-    loadedOrders: [] as { id: string; cargoType: string; weight: number; destination: string; deadline: string; value: number }[],
+    loadedOrders: [] as Order[],
   });
 
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
@@ -84,12 +90,37 @@ export const AirplaneDetailScreen = ({
   const filteredOrders = availableOrders.filter(order => {
     const maxW = filterWeight ? parseInt(filterWeight, 10) : Infinity;
     const minV = filterValue ? parseInt(filterValue, 10) : 0;
+    const weightOk = order.payloadKind === 'cargo'
+      ? (order.weight ?? 0) <= maxW
+      : true;
     return (
       (!filterDestination || order.destination.toLowerCase().includes(filterDestination.toLowerCase())) &&
-      order.weight <= maxW &&
+      weightOk &&
       order.value >= minV
     );
   });
+
+  const payloadSummary = (order: Order) => {
+    if (order.payloadKind === 'cargo') {
+      const weight = order.weight ?? 0;
+      return `${order.cargoType ?? 'Cargo'} • ${weight.toLocaleString()} kg`;
+    }
+    return `Passengers • ${(order.passengerCount ?? 0).toLocaleString()} pax`;
+  };
+
+  const orderCapacityOk = (order: Order) => {
+    if (order.payloadKind === 'cargo') {
+      return airplane.currentCargo + (order.weight ?? 0) <= airplane.cargoCapacity;
+    }
+    return airplane.currentPassengers + (order.passengerCount ?? 0) <= airplane.passengerCapacity;
+  };
+
+  const capacityBadgeLabel = (order: Order) => {
+    if (order.payloadKind === 'cargo') {
+      return orderCapacityOk(order) ? 'Fits cargo' : 'Too heavy';
+    }
+    return orderCapacityOk(order) ? 'Seats available' : 'No seats';
+  };
 
   const availableAirports: Airport[] = airportsData
     ? airportsData.map(a => ({
@@ -124,10 +155,14 @@ export const AirplaneDetailScreen = ({
         maxFuel: 100,
         cargoCapacity: info.payload_capacity,
         currentCargo: info.payload_current,
+        passengerCapacity: info.passenger_capacity,
+        currentPassengers: info.passenger_current,
         loadedOrders: info.manifest.map(o => ({
           id: String(o.id),
-          cargoType: o.cargo_type || "",
-          weight: o.weight,
+          payloadKind: (o.payload_kind || 'cargo') as PayloadKind,
+          cargoType: o.cargo_type || undefined,
+          weight: o.weight ?? undefined,
+          passengerCount: o.passenger_count ?? undefined,
           destination: String(o.destination_id),
           deadline: String(o.deadline),
           value: o.value,
@@ -138,8 +173,10 @@ export const AirplaneDetailScreen = ({
         const orders = await apiAirportOrders(info.current_airport_id);
         setAvailableOrders(orders.map(o => ({
           id: String(o.id),
-          cargoType: o.cargo_type || "",
-          weight: o.weight,
+          payloadKind: (o.payload_kind || 'cargo') as PayloadKind,
+          cargoType: o.cargo_type || undefined,
+          weight: o.weight ?? undefined,
+          passengerCount: o.passenger_count ?? undefined,
           destination: String(o.destination_id),
           deadline: String(o.deadline),
           value: o.value,
@@ -339,6 +376,22 @@ export const AirplaneDetailScreen = ({
 
                   <div className="space-y-2">
                     <div className="flex justify-between">
+                      <span className="text-muted-foreground">Passengers</span>
+                      <span>{airplane.passengerCapacity > 0 ? Math.round((airplane.currentPassengers / airplane.passengerCapacity) * 100) : 0}%</span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div
+                        className="bg-aviation-radar h-2 rounded-full transition-all"
+                        style={{ width: `${airplane.passengerCapacity > 0 ? (airplane.currentPassengers / airplane.passengerCapacity) * 100 : 0}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {airplane.currentPassengers.toLocaleString()} / {airplane.passengerCapacity.toLocaleString()} pax
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
                       <span className="text-muted-foreground">Condition</span>
                       <span>{airplane.condition}%</span>
                     </div>
@@ -411,8 +464,8 @@ export const AirplaneDetailScreen = ({
           <div className="col-span-8">
             <Tabs defaultValue="loaded" className="space-y-4">
               <TabsList className="grid w-full grid-cols-2 bg-secondary/50">
-                <TabsTrigger value="loaded">Loaded Cargo ({airplane.loadedOrders.length})</TabsTrigger>
-                <TabsTrigger value="available">Available Orders ({filteredOrders.length})</TabsTrigger>
+                <TabsTrigger value="loaded">Loaded Payload ({airplane.loadedOrders.length})</TabsTrigger>
+                <TabsTrigger value="available">Available Payload ({filteredOrders.length})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="loaded" className="space-y-4">
@@ -432,7 +485,7 @@ export const AirplaneDetailScreen = ({
                               <div className="space-y-1">
                                 <div className="font-semibold">{order.id}</div>
                                 <div className="text-sm text-muted-foreground">
-                                  {order.cargoType} • {order.weight} kg
+                                  {payloadSummary(order)}
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
                                   <span className="flex items-center gap-1">
@@ -486,7 +539,7 @@ export const AirplaneDetailScreen = ({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Max Weight (kg)</Label>
+                        <Label>Max Cargo Weight (kg)</Label>
                         <Input
                           type="number"
                           placeholder="Max weight"
@@ -526,7 +579,7 @@ export const AirplaneDetailScreen = ({
                               <div className="space-y-1">
                                 <div className="font-semibold">{order.id}</div>
                                 <div className="text-sm text-muted-foreground">
-                                  {order.cargoType} • {order.weight} kg
+                                  {payloadSummary(order)}
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
                                   <span className="flex items-center gap-1">
@@ -541,8 +594,8 @@ export const AirplaneDetailScreen = ({
                                   ${order.value.toLocaleString()}
                                 </div>
                                 <div className="mb-2">
-                                  <Badge variant="outline" className={(airplane.cargoCapacity - airplane.currentCargo) >= order.weight ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-400'}>
-                                    {(airplane.cargoCapacity - airplane.currentCargo) >= order.weight ? 'Fits payload' : 'Too heavy'}
+                                  <Badge variant="outline" className={orderCapacityOk(order) ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-400'}>
+                                    {capacityBadgeLabel(order)}
                                   </Badge>
                                   <span className="mx-1" />
                                   <Badge variant="outline" className={(canFlyCache[parseInt(order.destination, 10)] ?? false) ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-400'}>
@@ -553,7 +606,7 @@ export const AirplaneDetailScreen = ({
                                   variant="control" 
                                   size="sm"
                                   onClick={() => handleLoad(order.id)}
-                                  disabled={airplane.currentCargo + order.weight > airplane.cargoCapacity}
+                                  disabled={!orderCapacityOk(order)}
                                 >
                                   <Plus className="w-3 h-3 mr-1" />
                                   Load

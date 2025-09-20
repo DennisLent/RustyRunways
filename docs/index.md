@@ -4,7 +4,7 @@ title: Welcome to RustyRunways
 
 # RustyRunways
 
-RustyRunways is a logistics simulation game where you manage a cargo airline: buy planes, load orders, plan departures, refuel, and survive deadlines and operating costs. Time advances in hours, airports restock every 168 in‑game hours, and fuel prices fluctuate every six hours inside a bounded range. Cargo demand follows the global defaults (55–70% of visible orders are flyable by the starter plane, route lengths start short and grow with upgrades), so the economy remains challenging without requiring manual tuning. The engine is written in Rust and exposed via a CLI, a desktop GUI, and Python bindings.
+RustyRunways is a logistics simulation game where you manage a growing air carrier moving both cargo and passengers: buy planes, schedule departures, balance mixed payloads, refuel, and survive deadlines plus operating costs. Time advances in hours, airports restock every 168 in‑game hours, and fuel prices fluctuate every six hours inside a bounded range. Demand heuristics ensure starter-friendly work (roughly two-thirds of visible payloads are flyable by the starter plane, route lengths start short and grow with upgrades) while larger airports seed lucrative cargo and passenger itineraries. The engine is written in Rust and exposed via a CLI, a desktop GUI, and Python bindings.
 
 This documentation provides a high‑level overview of the project and links to in‑depth sections for the core engine, CLI usage, GUI features, and Python APIs.
 

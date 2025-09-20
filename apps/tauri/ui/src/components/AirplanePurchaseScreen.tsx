@@ -65,10 +65,16 @@ export const AirplanePurchaseScreen = ({ onBack, onPurchase, playerCash, airport
         maxRange: 0,
         cargoCapacity: Math.round(m.payload_capacity),
         fuelCapacity: Math.round(m.fuel_capacity),
-        passengerCapacity: 0,
+        passengerCapacity: m.passenger_capacity,
         cruiseSpeed: Math.round(m.cruise_speed),
         fuelEfficiency: m.fuel_consumption,
-        category: m.payload_capacity > 80000 ? 'cargo' : m.payload_capacity > 20000 ? 'heavy' : m.payload_capacity > 5000 ? 'medium' : 'light',
+        category: m.role === 'Cargo'
+          ? 'cargo'
+          : m.payload_capacity > 80000
+            ? 'heavy'
+            : m.payload_capacity > 20000
+              ? 'medium'
+              : 'light',
       })));
     }
     fetch();
