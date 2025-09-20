@@ -16,13 +16,21 @@ struct AppState {
     game: Mutex<Option<Game>>,
 }
 
+fn default_starting_cash() -> f32 {
+    650_000.0
+}
+
 #[derive(Deserialize)]
 struct NewGameArgs {
     #[serde(default)]
     seed: Option<u64>,
     #[serde(rename = "numAirports", alias = "num_airports")]
     num_airports: Option<usize>,
-    #[serde(rename = "startingCash", alias = "starting_cash")]
+    #[serde(
+        rename = "startingCash",
+        alias = "starting_cash",
+        default = "default_starting_cash"
+    )]
     starting_cash: f32,
 }
 
@@ -107,6 +115,13 @@ fn maintenance(state: State<AppState>, plane: usize) -> Result<(), String> {
     let game = guard.as_mut().ok_or("no game running")?;
     game.maintenance_on_airplane(plane)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn sell_plane_cmd(state: State<AppState>, plane: usize) -> Result<f32, String> {
+    let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
+    let game = guard.as_mut().ok_or("no game running")?;
+    game.sell_plane(plane).map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -352,6 +367,7 @@ fn main() {
             unload_all,
             refuel_plane,
             maintenance,
+            sell_plane_cmd,
             plane_info,
             airport_orders,
             list_models,

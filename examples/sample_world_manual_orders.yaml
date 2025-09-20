@@ -1,0 +1,35 @@
+version: 1
+seed: 3
+starting_cash: 800000.0
+airports:
+  - id: 0
+    name: HUB
+    location: { x: 1200.0, y: 900.0 }
+    runway_length_m: 3200.0
+    fuel_price_per_l: 1.5
+    landing_fee_per_ton: 4.5
+    parking_fee_per_hour: 18.0
+    orders:
+      - cargo: Food
+        weight: 550.0
+        value: 2700.0
+        deadline_hours: 48
+        destination_id: 1
+  - id: 1
+    name: AAX
+    location: { x: 3400.0, y: 2100.0 }
+    runway_length_m: 2400.0
+    fuel_price_per_l: 1.8
+    landing_fee_per_ton: 4.0
+    parking_fee_per_hour: 16.0
+    orders:
+      - cargo: Electronics
+        weight: 300.0
+        value: 4200.0
+        deadline_hours: 36
+        destination_id: 0
+
+gameplay:
+  orders:
+    regenerate: false
+    generate_initial: false

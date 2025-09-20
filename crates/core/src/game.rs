@@ -1,4 +1,7 @@
-use crate::config::WorldConfig;
+use crate::config::{
+    DEFAULT_FUEL_INTERVAL_HOURS, DEFAULT_RESTOCK_CYCLE_HOURS, FuelGameplay, GameplayConfig,
+    WorldConfig,
+};
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::statistics::DailyStats;
@@ -8,21 +11,121 @@ use crate::utils::airport::Airport;
 use crate::utils::coordinate::Coordinate;
 use crate::utils::errors::GameError;
 use crate::utils::map::Map;
-use crate::utils::orders::order::MAX_DEADLINE;
+use crate::utils::orders::order::{Order, OrderGenerationParams};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use rusty_runways_commands::Command::*;
 use rusty_runways_commands::{Command, parse_command};
 use serde::{Deserialize, Serialize};
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashMap};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-const RESTOCK_CYCLE: u64 = MAX_DEADLINE * 24;
 const REPORT_INTERVAL: u64 = 24;
-const FUEL_INTERVAL: u64 = 6;
+const DEFAULT_RESTOCK_CYCLE: u64 = DEFAULT_RESTOCK_CYCLE_HOURS;
+const DEFAULT_FUEL_INTERVAL: u64 = DEFAULT_FUEL_INTERVAL_HOURS;
 
 fn default_rng() -> StdRng {
     StdRng::seed_from_u64(0)
+}
+
+fn default_restock_cycle() -> GameTime {
+    DEFAULT_RESTOCK_CYCLE
+}
+
+fn default_fuel_interval() -> GameTime {
+    DEFAULT_FUEL_INTERVAL
+}
+
+fn default_regenerate_orders() -> bool {
+    true
+}
+
+fn default_arrival_times() -> HashMap<usize, GameTime> {
+    HashMap::new()
+}
+
+fn deserialize_arrival_times<'de, D>(deserializer: D) -> Result<HashMap<usize, GameTime>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum ArrivalTimesSerde {
+        Map(HashMap<usize, GameTime>),
+        MapString(HashMap<String, GameTime>),
+        Vec(Vec<GameTime>),
+    }
+
+    let parsed = ArrivalTimesSerde::deserialize(deserializer)?;
+    Ok(match parsed {
+        ArrivalTimesSerde::Map(map) => map,
+        ArrivalTimesSerde::MapString(map) => map
+            .into_iter()
+            .filter_map(|(k, v)| k.parse::<usize>().ok().map(|idx| (idx, v)))
+            .collect(),
+        ArrivalTimesSerde::Vec(vec) => vec.into_iter().enumerate().collect::<HashMap<_, _>>(),
+    })
+}
+
+fn default_fuel_settings() -> FuelGameplay {
+    FuelGameplay::default()
+}
+
+fn gameplay_settings(
+    cfg: &GameplayConfig,
+) -> Result<
+    (
+        OrderGenerationParams,
+        GameTime,
+        GameTime,
+        bool,
+        bool,
+        FuelGameplay,
+    ),
+    String,
+> {
+    let tuning = &cfg.orders.tuning;
+    if tuning.max_deadline_hours == 0 {
+        return Err("orders.max_deadline_hours must be at least 1".into());
+    }
+    if tuning.min_weight <= 0.0 {
+        return Err("orders.min_weight must be greater than 0".into());
+    }
+    if tuning.max_weight < tuning.min_weight {
+        return Err("orders.max_weight must be >= orders.min_weight".into());
+    }
+    if cfg.restock_cycle_hours == 0 {
+        return Err("restock_cycle_hours must be at least 1".into());
+    }
+    if cfg.fuel_interval_hours == 0 {
+        return Err("fuel_interval_hours must be at least 1".into());
+    }
+
+    if cfg.fuel.elasticity <= 0.0 {
+        return Err("fuel.elasticity must be greater than 0".into());
+    }
+    if cfg.fuel.elasticity >= 1.0 {
+        return Err("fuel.elasticity must be less than 1".into());
+    }
+    if cfg.fuel.min_price_multiplier <= 0.0 {
+        return Err("fuel.min_price_multiplier must be greater than 0".into());
+    }
+    if cfg.fuel.max_price_multiplier < cfg.fuel.min_price_multiplier {
+        return Err("fuel.max_price_multiplier must be >= fuel.min_price_multiplier".into());
+    }
+    if cfg.fuel.max_price_multiplier <= 1.0 {
+        return Err("fuel.max_price_multiplier must be greater than 1".into());
+    }
+
+    let order_params = OrderGenerationParams::from(tuning);
+    Ok((
+        order_params,
+        cfg.restock_cycle_hours,
+        cfg.fuel_interval_hours,
+        cfg.orders.regenerate,
+        cfg.orders.generate_initial,
+        cfg.fuel.clone(),
+    ))
 }
 
 /// Holds all mutable world state and drives the simulation via scheduled events.
@@ -35,7 +138,11 @@ pub struct Game {
     /// All airplanes in the world
     pub airplanes: Vec<Airplane>,
     /// Tracker for each plane's last arrival time
-    pub arrival_times: Vec<GameTime>,
+    #[serde(
+        default = "default_arrival_times",
+        deserialize_with = "deserialize_arrival_times"
+    )]
+    pub arrival_times: HashMap<usize, GameTime>,
     /// The player's company (cash, fleet, deliveries)
     pub player: Player,
     /// Future events, ordered by their `time` (earliest first)
@@ -48,6 +155,18 @@ pub struct Game {
     pub stats: Vec<DailyStats>,
     /// Seed used to create the RNG for deterministic behaviour
     pub seed: u64,
+    /// Frequency (in hours) for restocking airports
+    #[serde(default = "default_restock_cycle")]
+    pub restock_cycle: GameTime,
+    /// Frequency (in hours) for dynamic fuel price adjustments
+    #[serde(default = "default_fuel_interval")]
+    pub fuel_interval: GameTime,
+    /// Fuel pricing behavior parameters
+    #[serde(default = "default_fuel_settings")]
+    pub fuel_settings: FuelGameplay,
+    /// Whether dynamic restocking is enabled for this save
+    #[serde(default = "default_regenerate_orders")]
+    pub regenerate_orders: bool,
     /// Game-local random number generator to avoid global RNG usage
     #[serde(skip, default = "default_rng")]
     rng: StdRng,
@@ -103,11 +222,17 @@ pub struct PayloadObs {
 impl Game {
     /// Initialize a new game with `num_airports`, seeded randomness, and player's starting cash.
     pub fn new(seed: u64, num_airports: Option<usize>, starting_cash: f32) -> Self {
-        let map = Map::generate_from_seed(seed, num_airports);
+        let mut map = Map::generate_from_seed(seed, num_airports);
+        for (airport, _) in map.airports.iter_mut() {
+            airport.ensure_base_fuel_price();
+        }
 
         let player = Player::new(starting_cash, &map);
         let airplanes = player.fleet.clone();
-        let arrival_times = vec![0; airplanes.len()];
+        let arrival_times = airplanes
+            .iter()
+            .map(|plane| (plane.id, 0))
+            .collect::<HashMap<_, _>>();
         let events = BinaryHeap::new();
 
         let mut game = Game {
@@ -121,13 +246,21 @@ impl Game {
             daily_expenses: 0.0,
             stats: Vec::new(),
             seed,
+            restock_cycle: DEFAULT_RESTOCK_CYCLE,
+            fuel_interval: DEFAULT_FUEL_INTERVAL,
+            fuel_settings: FuelGameplay::default(),
+            regenerate_orders: true,
             rng: StdRng::seed_from_u64(seed),
             log: Vec::new(),
         };
 
-        game.schedule(RESTOCK_CYCLE, Event::Restock);
+        for (airport, _) in game.map.airports.iter_mut() {
+            airport.ensure_base_fuel_price();
+        }
+
+        game.schedule(game.restock_cycle, Event::Restock);
         game.schedule(REPORT_INTERVAL, Event::DailyStats);
-        game.schedule(FUEL_INTERVAL, Event::DynamicPricing);
+        game.schedule(game.fuel_interval, Event::DynamicPricing);
         game.schedule_world_event();
         game.schedule(1, Event::MaintenanceCheck);
 
@@ -136,15 +269,31 @@ impl Game {
 
     /// Initialize a game from a configuration (airports explicitly provided).
     pub fn from_config(cfg: WorldConfig) -> Result<Self, GameError> {
-        if cfg.airports.is_empty() {
+        let seed = cfg.seed.unwrap_or(0);
+        let (
+            order_params,
+            restock_cycle,
+            fuel_interval,
+            regenerate_orders,
+            generate_initial_orders,
+            fuel_settings,
+        ) = gameplay_settings(&cfg.gameplay).map_err(|msg| GameError::InvalidConfig { msg })?;
+
+        let have_explicit_airports = !cfg.airports.is_empty();
+        if have_explicit_airports && cfg.num_airports.is_some() {
             return Err(GameError::InvalidConfig {
-                msg: "no airports provided".into(),
+                msg: "num_airports cannot be provided when airports are explicitly listed".into(),
+            });
+        }
+        if !have_explicit_airports && cfg.num_airports.is_none() {
+            return Err(GameError::InvalidConfig {
+                msg: "num_airports must be provided when airports list is empty".into(),
             });
         }
 
-        // validate unique ids and duplicate names
-        {
+        let map = if have_explicit_airports {
             use std::collections::HashSet;
+
             let mut ids = HashSet::new();
             let mut names = HashSet::new();
             for a in &cfg.airports {
@@ -160,52 +309,185 @@ impl Game {
                     });
                 }
             }
-        }
 
-        let mut airports_vec = Vec::with_capacity(cfg.airports.len());
-        for a in &cfg.airports {
-            if a.runway_length_m <= 0.0 {
-                return Err(GameError::InvalidConfig {
-                    msg: format!("airport {} runway_length must be > 0", a.id),
-                });
-            }
-            if a.fuel_price_per_l <= 0.0 {
-                return Err(GameError::InvalidConfig {
-                    msg: format!("airport {} fuel_price_per_l must be > 0", a.id),
-                });
-            }
-            if !(0.0..=10000.0).contains(&a.location.x) || !(0.0..=10000.0).contains(&a.location.y)
-            {
-                return Err(GameError::InvalidConfig {
-                    msg: format!(
-                        "airport {} location ({:.2},{:.2}) out of bounds [0,10000]",
-                        a.id, a.location.x, a.location.y
-                    ),
-                });
-            }
-            let ap = Airport {
-                id: a.id,
-                name: a.name.clone(),
-                runway_length: a.runway_length_m,
-                fuel_price: a.fuel_price_per_l,
-                landing_fee: a.landing_fee_per_ton,
-                parking_fee: a.parking_fee_per_hour,
-                orders: Vec::new(),
-                fuel_sold: 0.0,
+            let mut airports_vec = Vec::with_capacity(cfg.airports.len());
+            let mut next_order_id = 0usize;
+            let missing_coords: Vec<usize> = cfg
+                .airports
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, a)| {
+                    if a.location.is_some() {
+                        None
+                    } else {
+                        Some(idx)
+                    }
+                })
+                .collect();
+            let generated_coords = if missing_coords.is_empty() {
+                Vec::new()
+            } else {
+                Map::generate_clustered_coordinates(seed.wrapping_add(13), missing_coords.len())
             };
-            let coord = Coordinate::new(a.location.x, a.location.y);
-            airports_vec.push((ap, coord));
-        }
 
-        let seed = cfg.seed.unwrap_or(0);
-        let mut map = Map::from_airports(seed, airports_vec);
-        if cfg.generate_orders {
-            map.restock_airports();
-        }
+            for (idx, a) in cfg.airports.iter().enumerate() {
+                if let Some(len) = a.runway_length_m {
+                    if len <= 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} runway_length must be > 0", a.id),
+                        });
+                    }
+                }
+                if let Some(price) = a.fuel_price_per_l {
+                    if price <= 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} fuel_price_per_l must be > 0", a.id),
+                        });
+                    }
+                }
+                if let Some(fee) = a.landing_fee_per_ton {
+                    if fee < 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} landing_fee_per_ton must be >= 0", a.id),
+                        });
+                    }
+                }
+                if let Some(fee) = a.parking_fee_per_hour {
+                    if fee < 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} parking_fee_per_hour must be >= 0", a.id),
+                        });
+                    }
+                }
+                if let Some(loc) = a.location {
+                    if !(0.0..=10000.0).contains(&loc.x) || !(0.0..=10000.0).contains(&loc.y) {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!(
+                                "airport {} location ({:.2},{:.2}) out of bounds [0,10000]",
+                                a.id, loc.x, loc.y
+                            ),
+                        });
+                    }
+                }
+                if !regenerate_orders && a.orders.is_empty() {
+                    return Err(GameError::InvalidConfig {
+                        msg: format!(
+                            "airport {} must define at least one order when regeneration is disabled",
+                            a.id
+                        ),
+                    });
+                }
+
+                let default_airport = Airport::generate_random(seed, a.id);
+                let coord = if let Some(loc) = a.location {
+                    Coordinate::new(loc.x, loc.y)
+                } else {
+                    let generated_idx = missing_coords
+                        .iter()
+                        .position(|i| *i == idx)
+                        .expect("generated coordinate index must exist");
+                    generated_coords[generated_idx]
+                };
+
+                let runway_length = a.runway_length_m.unwrap_or(default_airport.runway_length);
+                let fuel_price = a.fuel_price_per_l.unwrap_or(default_airport.fuel_price);
+                let landing_fee = a.landing_fee_per_ton.unwrap_or(default_airport.landing_fee);
+                let parking_fee = a
+                    .parking_fee_per_hour
+                    .unwrap_or(default_airport.parking_fee);
+
+                let mut manual_orders = Vec::with_capacity(a.orders.len());
+                for order_cfg in &a.orders {
+                    if order_cfg.deadline_hours == 0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} has order with deadline_hours == 0", a.id),
+                        });
+                    }
+                    if order_cfg.weight <= 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} has order with non-positive weight", a.id),
+                        });
+                    }
+                    if order_cfg.value < 0.0 {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} has order with negative value", a.id),
+                        });
+                    }
+                    if order_cfg.destination_id == a.id {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("airport {} has order pointing to itself", a.id),
+                        });
+                    }
+                    if !ids.contains(&order_cfg.destination_id) {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!(
+                                "airport {} has order with unknown destination {}",
+                                a.id, order_cfg.destination_id
+                            ),
+                        });
+                    }
+
+                    manual_orders.push(Order {
+                        id: next_order_id,
+                        name: order_cfg.cargo,
+                        weight: order_cfg.weight,
+                        value: order_cfg.value,
+                        deadline: order_cfg.deadline_hours,
+                        origin_id: a.id,
+                        destination_id: order_cfg.destination_id,
+                    });
+                    next_order_id += 1;
+                }
+
+                let ap = Airport {
+                    id: a.id,
+                    name: a.name.clone(),
+                    runway_length,
+                    fuel_price,
+                    base_fuel_price: fuel_price,
+                    landing_fee,
+                    parking_fee,
+                    orders: manual_orders,
+                    fuel_sold: 0.0,
+                };
+                airports_vec.push((ap, coord));
+            }
+
+            let mut built =
+                Map::from_airports(seed, airports_vec, order_params.clone(), next_order_id);
+            if regenerate_orders && generate_initial_orders {
+                built.restock_airports();
+            }
+            built
+        } else {
+            let num_airports = cfg.num_airports.unwrap();
+            if num_airports == 0 {
+                return Err(GameError::InvalidConfig {
+                    msg: "num_airports must be greater than 0".into(),
+                });
+            }
+            if !regenerate_orders {
+                return Err(GameError::InvalidConfig {
+                    msg: "orders.regenerate=false requires explicit airports with manual orders"
+                        .into(),
+                });
+            }
+
+            let mut generated = Map::generate_from_seed(seed, Some(num_airports));
+            generated.order_params = order_params.clone();
+            generated.clear_orders();
+            if generate_initial_orders {
+                generated.restock_airports();
+            }
+            generated
+        };
 
         let player = Player::new(cfg.starting_cash, &map);
         let airplanes = player.fleet.clone();
-        let arrival_times = vec![0; airplanes.len()];
+        let arrival_times = airplanes
+            .iter()
+            .map(|plane| (plane.id, 0))
+            .collect::<HashMap<_, _>>();
         let events = BinaryHeap::new();
 
         let mut game = Game {
@@ -219,17 +501,25 @@ impl Game {
             daily_expenses: 0.0,
             stats: Vec::new(),
             seed,
+            restock_cycle,
+            fuel_interval,
+            fuel_settings,
+            regenerate_orders,
             rng: StdRng::seed_from_u64(seed),
             log: Vec::new(),
         };
 
-        game.schedule(RESTOCK_CYCLE, Event::Restock);
+        for (airport, _) in game.map.airports.iter_mut() {
+            airport.ensure_base_fuel_price();
+        }
+
+        if game.regenerate_orders {
+            game.schedule(game.restock_cycle, Event::Restock);
+        }
         game.schedule(REPORT_INTERVAL, Event::DailyStats);
-        game.schedule(FUEL_INTERVAL, Event::DynamicPricing);
+        game.schedule(game.fuel_interval, Event::DynamicPricing);
         game.schedule_world_event();
         game.schedule(1, Event::MaintenanceCheck);
-
-        // (no duplicate-name warnings; duplicate names are treated as errors in validation)
 
         Ok(game)
     }
@@ -397,8 +687,10 @@ impl Game {
             match scheduled.event {
                 // Restock every 14 days
                 Event::Restock => {
-                    self.map.restock_airports();
-                    self.schedule(self.time + RESTOCK_CYCLE, Event::Restock);
+                    if self.regenerate_orders {
+                        self.map.restock_airports();
+                        self.schedule(self.time + self.restock_cycle, Event::Restock);
+                    }
                 }
 
                 // Finished loading, therefore we need to update the status
@@ -447,7 +739,7 @@ impl Game {
                                 self.player.cash -= landing_fee;
                                 self.daily_expenses += landing_fee;
 
-                                self.arrival_times[plane] = self.time;
+                                self.arrival_times.insert(plane, self.time);
                                 airplane.location = self.map.airports[destination].1;
 
                                 if airplane.needs_maintenance {
@@ -482,7 +774,7 @@ impl Game {
                     });
 
                     //reset
-                    self.daily_expenses = 0.0;
+                    self.daily_income = 0.0;
                     self.daily_expenses = 0.0;
 
                     self.schedule(self.time + REPORT_INTERVAL, Event::DailyStats);
@@ -490,12 +782,17 @@ impl Game {
 
                 Event::DynamicPricing => {
                     // Adjust prices across the board
+                    let settings = &self.fuel_settings;
                     for (airport, _) in self.map.airports.iter_mut() {
-                        airport.adjust_fuel_price();
+                        airport.adjust_fuel_price(
+                            settings.elasticity,
+                            settings.min_price_multiplier,
+                            settings.max_price_multiplier,
+                        );
                     }
 
                     // Schedule next
-                    self.schedule(self.time + FUEL_INTERVAL, Event::DynamicPricing);
+                    self.schedule(self.time + self.fuel_interval, Event::DynamicPricing);
                 }
 
                 Event::WorldEvent {
@@ -900,18 +1197,62 @@ impl Game {
 
         match self.player.buy_plane(model, airport_ref, &home_coord) {
             Ok(_) => {
-                // update expenses (can safely unwrap becuse else this wouldn't be ok)
-                let new_plane = self.airplanes.last().unwrap();
-                let buying_price = new_plane.specs.purchase_price;
+                let (new_plane_id, buying_price) = {
+                    let plane = self
+                        .player
+                        .fleet
+                        .last()
+                        .expect("player fleet must contain newly purchased plane");
+                    (plane.id, plane.specs.purchase_price)
+                };
                 self.daily_expenses += buying_price;
 
-                // Buy plane, update fleet and update arrival times
                 self.airplanes = self.player.fleet.clone();
-                self.arrival_times.push(self.time);
+                self.player.fleet = self.airplanes.clone();
+                self.player.fleet_size = self.player.fleet.len();
+                self.arrival_times.insert(new_plane_id, self.time);
                 Ok(())
             }
             Err(e) => Err(e),
         }
+    }
+
+    /// Sell an airplane currently owned by the player.
+    pub fn sell_plane(&mut self, plane_id: usize) -> Result<f32, GameError> {
+        let plane_index = self
+            .airplanes
+            .iter()
+            .position(|plane| plane.id == plane_id)
+            .ok_or(GameError::PlaneIdInvalid { id: plane_id })?;
+
+        let plane_snapshot = self.airplanes[plane_index].clone();
+        if !plane_snapshot.manifest.is_empty() {
+            return Err(GameError::InvalidCommand {
+                msg: format!(
+                    "Plane {} cannot be sold while carrying {} orders",
+                    plane_id,
+                    plane_snapshot.manifest.len()
+                ),
+            });
+        }
+        if plane_snapshot.status != AirplaneStatus::Parked {
+            return Err(GameError::PlaneNotReady {
+                plane_state: plane_snapshot.status,
+            });
+        }
+
+        let (sold_plane, refund) = self.player.sell_plane(plane_id)?;
+        debug_assert_eq!(sold_plane.id, plane_id);
+
+        self.airplanes.remove(plane_index);
+        self.arrival_times.remove(&plane_id);
+
+        self.player.fleet = self.airplanes.clone();
+        self.player.fleet_size = self.player.fleet.len();
+
+        self.daily_income += refund;
+
+        Ok(refund)
     }
 
     /// Load an order if possible.
@@ -1070,7 +1411,7 @@ impl Game {
         let origin_coord = plane.location;
 
         // charge parking
-        let parked_since = self.arrival_times[plane_id];
+        let parked_since = *self.arrival_times.get(&plane_id).unwrap_or(&self.time);
         let parked_hours = (self.time - parked_since) as f32;
         let parking_fee = self.map.airports[origin_idx].0.parking_fee * parked_hours;
         self.player.cash -= parking_fee;
@@ -1100,6 +1441,12 @@ impl Game {
 
         // fuel airplane and log liters for dynamic pricing
         let fueling_fee = self.map.airports[airport_idx].0.fueling_fee(plane);
+        if self.player.cash < fueling_fee {
+            return Err(GameError::InsufficientFunds {
+                have: self.player.cash,
+                need: fueling_fee,
+            });
+        }
         self.map.airports[airport_idx].0.fuel_supply(plane);
         plane.refuel();
 
@@ -1155,6 +1502,10 @@ impl Game {
             | LoadConfig { .. }
             | Exit => Ok(()),
             BuyPlane { model, airport } => self.buy_plane(&model, airport),
+            SellPlane { plane } => {
+                self.sell_plane(plane)?;
+                Ok(())
+            }
             LoadOrder { order, plane } => self.load_order(order, plane),
             LoadOrders { orders, plane } => {
                 for o in orders {

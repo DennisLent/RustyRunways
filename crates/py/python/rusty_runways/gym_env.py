@@ -555,7 +555,19 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
         return _build_obs_from_state(s)
 
     def _proxy_single(self, s: dict):
-        # create a lightweight proxy for using the single-env _observe on a pre-fetched state
+        """Create a lightweight proxy to reuse single-env observation helpers.
+
+        Parameters
+        ----------
+        s : dict
+            JSON-decoded state dictionary for one environment.
+
+        Returns
+        -------
+        object
+            Proxy object exposing ``_state_cache`` and ``_prev_state_cache`` attributes.
+        """
+
         class _P:
             pass
 
@@ -566,6 +578,21 @@ class RustyRunwaysGymVectorEnv(gym.vector.VectorEnv):
         return p
 
     def _current_airport_id_for_plane(self, s: dict, plane_id: int) -> Optional[int]:
+        """Determine the airport id where a plane is currently located.
+
+        Parameters
+        ----------
+        s : dict
+            JSON-decoded state dictionary for one environment.
+        plane_id : int
+            Identifier of the plane.
+
+        Returns
+        -------
+        int or None
+            Airport id if the plane is parked at a known airport, otherwise ``None``.
+        """
+
         airports = s.get("airports", [])
         planes = s.get("planes", [])
         p = None
@@ -588,9 +615,24 @@ def make_sb3_envs(
 ) -> List[Callable[[], gym.Env]]:
     """Return a list of callables for SB3's VecEnv builders.
 
-    Example:
-        from stable_baselines3.common.vec_env import DummyVecEnv
-        vec_env = DummyVecEnv(make_sb3_envs(4, seed=1))
+    Parameters
+    ----------
+    n_envs : int
+        Number of environment factories to create.
+    seed : int, optional
+        Base seed applied to each environment (incremented per env).
+    **kwargs
+        Additional keyword arguments forwarded to :class:`RustyRunwaysGymEnv`.
+
+    Returns
+    -------
+    list of Callable
+        Thunks suitable for constructing SB3 vectorized environments.
+
+    Examples
+    --------
+    >>> from stable_baselines3.common.vec_env import DummyVecEnv
+    >>> env = DummyVecEnv(make_sb3_envs(2, seed=1))
     """
     thunks: List[Callable[[], gym.Env]] = []
     base_seed = 0 if seed is None else int(seed)

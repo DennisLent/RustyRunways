@@ -54,6 +54,7 @@ The `rusty_runways_core` crate implements all game rules and the event‑driven 
 ## Fuel Prices
 
 - Each airport has a fuel price per liter. Refueling charges depend on the quantity and local pricing.
+- Dynamic pricing nudges prices up or down by the configured elasticity each `fuel_interval_hours`, clamped between the configured minimum and maximum multipliers of the airport's base price.
 - Strategy: refuel where cheaper, accounting for range, payload, and deadlines.
 
 ## Airplanes
@@ -72,6 +73,7 @@ All models (see `utils::airplanes::models`):
 Each model exposes specs via `AirplaneModel::specs()` including:
 
 - MTOW, cruise speed (km/h), fuel capacity (L), fuel consumption (L/h), operating cost ($/h), payload capacity (kg), purchase price, and computed minimum runway length (m).
+- Players may sell a parked, empty airplane back to the market for 60% of its purchase price.
 
 ## Landing Constraints and Derivation
 
@@ -80,4 +82,3 @@ Minimum runway length is derived from simplified physics based on the airplane�
 - Takeoff distance: `v² / (2a)` with `a ≈ 2.5 m/s²`.
 - Landing distance: `v² / (2d)` with `d ≈ 4.0 m/s²`.
 - The required runway length is the max of the two. Airports must meet this requirement to allow takeoff/landing for a model.
-

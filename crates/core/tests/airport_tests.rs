@@ -6,7 +6,10 @@ use rusty_runways_core::utils::{
     airport::Airport,
     coordinate::Coordinate,
     errors::GameError,
-    orders::Order,
+    orders::{
+        Order,
+        order::{OrderAirportInfo, OrderGenerationParams},
+    },
 };
 
 fn approx_eq(a: f32, b: f32, tol: f32) -> bool {
@@ -70,9 +73,26 @@ fn generate_orders_counts_and_ids() {
     // with 1000 number_orders is in [15, 24]
     let mut ap = Airport::generate_random(0, 0);
     ap.runway_length = 1000.0;
-    let coords = vec![Coordinate::new(0., 0.), Coordinate::new(10., 10.)];
+    let coords = [Coordinate::new(0., 0.), Coordinate::new(10., 10.)];
+    let airport_infos = vec![
+        OrderAirportInfo {
+            id: 0,
+            runway_length: ap.runway_length,
+            coordinate: coords[0],
+        },
+        OrderAirportInfo {
+            id: 1,
+            runway_length: 2_400.0,
+            coordinate: coords[1],
+        },
+    ];
     let mut next_id = 0;
-    ap.generate_orders(0, &coords, coords.len(), &mut next_id);
+    ap.generate_orders(
+        0,
+        &airport_infos,
+        &mut next_id,
+        &OrderGenerationParams::default(),
+    );
 
     assert!(ap.orders.len() >= 5 && ap.orders.len() <= 8);
 
@@ -89,13 +109,33 @@ fn generate_orders_counts_and_ids() {
 fn load_order_and_errors() {
     // set up airport with one order
     let mut ap = Airport::generate_random(0, 0);
-    let coords = vec![Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
+    let coords = [Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
+    let airport_infos = vec![
+        OrderAirportInfo {
+            id: 0,
+            runway_length: ap.runway_length,
+            coordinate: coords[0],
+        },
+        OrderAirportInfo {
+            id: 1,
+            runway_length: 2_000.0,
+            coordinate: coords[1],
+        },
+    ];
     let mut next_id = 0;
-    ap.generate_orders(0, &coords, coords.len(), &mut next_id);
+    ap.generate_orders(
+        0,
+        &airport_infos,
+        &mut next_id,
+        &OrderGenerationParams::default(),
+    );
 
     let order = ap.orders[0].clone();
     let home = Coordinate::new(0., 0.);
     let mut plane = Airplane::new(0, AirplaneModel::Atlas, home);
+    if plane.specs.payload_capacity <= order.weight {
+        plane.specs.payload_capacity = order.weight + 1.0;
+    }
 
     // load should succeed
     ap.load_order(order.id, &mut plane).unwrap();
@@ -114,11 +154,23 @@ fn load_order_and_errors() {
 fn load_orders_stops_on_error() {
     // set up airport with two orders
     let mut ap = Airport::generate_random(0, 0);
-    let coords = vec![Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
+    let coords = [Coordinate::new(0., 0.), Coordinate::new(5., 5.)];
+    let airport_infos = vec![
+        OrderAirportInfo {
+            id: 0,
+            runway_length: ap.runway_length,
+            coordinate: coords[0],
+        },
+        OrderAirportInfo {
+            id: 1,
+            runway_length: 2_500.0,
+            coordinate: coords[1],
+        },
+    ];
 
     // these are both going to be the same
-    let order1 = Order::new(1, 0, 0, &coords, 2);
-    let order2 = Order::new(1, 1, 0, &coords, 2);
+    let order1 = Order::new(1, 0, 0, &airport_infos, &OrderGenerationParams::default());
+    let order2 = Order::new(1, 1, 0, &airport_infos, &OrderGenerationParams::default());
 
     ap.orders = vec![order1, order2];
 
@@ -144,4 +196,38 @@ fn load_orders_stops_on_error() {
     } else {
         panic!("Expected MaxPayloadReached");
     }
+}
+
+#[test]
+fn ensure_base_fuel_price_defaults_to_current_price() {
+    let mut airport = Airport::generate_random(0, 0);
+    airport.base_fuel_price = 0.0;
+    airport.ensure_base_fuel_price();
+    assert!((airport.base_fuel_price - airport.fuel_price).abs() < f32::EPSILON);
+}
+
+#[test]
+fn fuel_price_increase_clamped_to_ceiling() {
+    let mut airport = Airport::generate_random(0, 0);
+    airport.base_fuel_price = 2.0;
+    airport.fuel_price = 2.0;
+    for _ in 0..500 {
+        airport.fuel_sold = 100.0;
+        airport.adjust_fuel_price(0.05, 0.5, 1.5);
+        assert!(airport.fuel_price <= airport.base_fuel_price * 1.5 + 1e-5);
+    }
+    assert!((airport.fuel_price - airport.base_fuel_price * 1.5).abs() < 1e-3);
+}
+
+#[test]
+fn fuel_price_decrease_clamped_to_floor() {
+    let mut airport = Airport::generate_random(0, 0);
+    airport.base_fuel_price = 1.8;
+    airport.fuel_price = 1.8;
+    for _ in 0..500 {
+        airport.fuel_sold = 0.0;
+        airport.adjust_fuel_price(0.05, 0.5, 1.5);
+        assert!(airport.fuel_price >= airport.base_fuel_price * 0.5 - 1e-5);
+    }
+    assert!((airport.fuel_price - airport.base_fuel_price * 0.5).abs() < 1e-3);
 }

@@ -1,0 +1,8 @@
+version: 1
+seed: 12
+starting_cash: 600000.0
+num_airports: 6
+gameplay:
+  orders:
+    regenerate: true
+    generate_initial: true

@@ -148,6 +148,11 @@ pub fn refuel_plane(plane: usize) -> Result<(), JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn sell_plane(plane: usize) -> Result<f32, JsValue> {
+    with_game(|g| g.sell_plane(plane).map_err(|e| e.to_string()))
+}
+
+#[wasm_bindgen]
 pub fn maintenance(plane: usize) -> Result<(), JsValue> {
     with_game(|g| {
         g.maintenance_on_airplane(plane)

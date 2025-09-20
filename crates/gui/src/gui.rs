@@ -85,8 +85,8 @@ impl Default for RustyRunwaysGui {
         RustyRunwaysGui {
             screen: Screen::MainMenu,
             seed_str: "1".into(),
-            airports_str: "5".into(),
-            cash_str: "1000000".into(),
+            airports_str: "12".into(),
+            cash_str: "650000".into(),
             save_name: "None".into(),
             recent_saves: Vec::new(),
             error: None,
@@ -298,7 +298,7 @@ impl RustyRunwaysGui {
 
                     println!("[DEBUG]: started random game with: seed={}", seed);
 
-                    self.game = Some(Game::new(seed, None, 1_000_000.0));
+                    self.game = Some(Game::new(seed, None, 650_000.0));
                     self.screen = Screen::InGame;
                 }
 
@@ -319,24 +319,51 @@ impl RustyRunwaysGui {
                 .default_size(Vec2::new(640.0, 420.0))
                 .show(ctx, |ui| {
                     if let Some(cfg) = &self.preview_cfg {
+                        let airport_summary = if cfg.airports.is_empty() {
+                            match cfg.num_airports {
+                                Some(count) => format!("Random x{}", count),
+                                None => "Random".to_string(),
+                            }
+                        } else {
+                            format!("{} listed", cfg.airports.len())
+                        };
                         ui.label(format!(
-                            "Seed: {:?} | Starting Cash: ${:.0} | Generate Orders: {}",
-                            cfg.seed, cfg.starting_cash, cfg.generate_orders
+                            "Seed: {:?} | Starting Cash: ${:.0} | Airports: {} | Regenerate: {} | Initial Orders: {}",
+                            cfg.seed,
+                            cfg.starting_cash,
+                            airport_summary,
+                            cfg.gameplay.orders.regenerate,
+                            cfg.gameplay.orders.generate_initial
                         ));
                         ui.separator();
                         ScrollArea::vertical().max_height(320.0).show(ui, |ui| {
                             for a in &cfg.airports {
+                                let location_text = if let Some(loc) = a.location {
+                                    format!("({:.1}, {:.1})", loc.x, loc.y)
+                                } else {
+                                    "(auto)".to_string()
+                                };
+                                let runway_text = a
+                                    .runway_length_m
+                                    .map(|v| format!("{:.0}m", v))
+                                    .unwrap_or_else(|| "auto".into());
+                                let fuel_text = a
+                                    .fuel_price_per_l
+                                    .map(|v| format!("${:.2}/L", v))
+                                    .unwrap_or_else(|| "auto".into());
+                                let landing_text = a
+                                    .landing_fee_per_ton
+                                    .map(|v| format!("${:.2}/t", v))
+                                    .unwrap_or_else(|| "auto".into());
+                                let parking_text = a
+                                    .parking_fee_per_hour
+                                    .map(|v| format!("${:.2}/h", v))
+                                    .unwrap_or_else(|| "auto".into());
                                 ui.group(|ui| {
+                                    ui.label(format!("[{}] {} @ {}", a.id, a.name, location_text));
                                     ui.label(format!(
-                                        "[{}] {} @ ({:.1}, {:.1})",
-                                        a.id, a.name, a.location.x, a.location.y
-                                    ));
-                                    ui.label(format!(
-                                        "Runway: {:.0}m | Fuel: ${:.2}/L | Landing: ${:.2}/t | Parking: ${:.2}/h",
-                                        a.runway_length_m,
-                                        a.fuel_price_per_l,
-                                        a.landing_fee_per_ton,
-                                        a.parking_fee_per_hour
+                                        "Runway: {} | Fuel: {} | Landing: {} | Parking: {}",
+                                        runway_text, fuel_text, landing_text, parking_text
                                     ));
                                 });
                                 ui.add_space(6.0);
@@ -1135,7 +1162,8 @@ impl RustyRunwaysGui {
                             .collect::<Vec<_>>()
                     };
 
-                    Window::new(format!("Plane {}", pid))
+                    let mut sold_plane = false;
+                    let _plane_window = Window::new(format!("Plane {}", pid))
                         .open(&mut self.plane_panel)
                         .collapsible(false)
                         .default_size(Vec2::new(440.0, 520.0))
@@ -1212,6 +1240,21 @@ impl RustyRunwaysGui {
                                             .push(format!("Plane {} maintenance scheduled", pid)),
                                         Err(e) => {
                                             self.log.push(format!("Maintenance failed: {}", e))
+                                        }
+                                    }
+                                    self.scroll_log = true;
+                                }
+                                if ui.button("Sell Plane").clicked() {
+                                    match self.game.as_mut().unwrap().sell_plane(pid) {
+                                        Ok(refund) => {
+                                            self.log.push(format!(
+                                                "Plane {} sold for ${:.2}",
+                                                pid, refund
+                                            ));
+                                            sold_plane = true;
+                                        }
+                                        Err(e) => {
+                                            self.log.push(format!("Sell plane failed: {}", e))
                                         }
                                     }
                                     self.scroll_log = true;
@@ -1430,6 +1473,10 @@ impl RustyRunwaysGui {
                                 }
                             }
                         });
+                    if sold_plane {
+                        self.selected_airplane = None;
+                        self.plane_panel = false;
+                    }
                 }
             }
         }
@@ -1484,7 +1531,7 @@ mod tests {
     fn default_inputs_are_seeded() {
         let gui = RustyRunwaysGui::default();
         assert_eq!(gui.seed_str, "1");
-        assert_eq!(gui.airports_str, "5");
-        assert_eq!(gui.cash_str, "1000000");
+        assert_eq!(gui.airports_str, "12");
+        assert_eq!(gui.cash_str, "650000");
     }
 }

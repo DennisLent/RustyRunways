@@ -38,6 +38,8 @@ coverage.xml
 dist/
 build/
 *.egg-info/
+benchmarks/.venv/
+benchmarks/outputs/
 
 # OS/X and editor junk
 .DS_Store

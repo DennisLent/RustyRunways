@@ -37,7 +37,7 @@ Both UIs use the same Core engine and commands. See [Core](../core/index.md) for
   - Overview: model, fuel, payload.
   - Manifest list.
   - Reachable airports (feasibility relative to this plane).
-  - Actions: Refuel, Unload All, Maintenance.
+  - Actions: Refuel, Unload All, Maintenance, Sell (parked & empty only).
   - Load Order(s):
     - Filters: destination and min/max weight.
     - Single‑select and multi‑select order lists with detailed labels.

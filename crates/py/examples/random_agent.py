@@ -3,7 +3,7 @@ import random
 
 
 def main():
-    game = PyGame(seed=1, num_airports=4, cash=1_000_000.0)
+    game = PyGame(seed=1, num_airports=4, cash=650_000.0)
     for _ in range(5):
         game.step(1)
         if random.random() < 0.5:

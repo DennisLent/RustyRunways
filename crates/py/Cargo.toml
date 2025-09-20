@@ -1,6 +1,6 @@
 [package]
 name = "rusty_runways_py"
-version = "2.0.4"
+version = "2.2.1"
 edition = "2024"
 
 [lib]

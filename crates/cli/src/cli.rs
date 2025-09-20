@@ -16,7 +16,7 @@ pub struct Cli {
     #[arg(long)]
     pub n: Option<usize>,
     /// Starting cash for the player
-    #[arg(long, default_value_t = 1_000_000.0)]
+    #[arg(long, default_value_t = 650_000.0)]
     pub c: f32,
 }
 

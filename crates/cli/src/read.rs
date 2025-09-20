@@ -14,6 +14,7 @@ const KEYWORDS: &[&str] = &[
     "PLANES",
     "PLANE",
     "BUY",
+    "SELL",
     "LOAD",
     "ORDER",
     "ORDERS",

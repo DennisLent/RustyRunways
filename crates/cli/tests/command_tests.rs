@@ -73,6 +73,12 @@ fn parse_buy_plane_command() {
 }
 
 #[test]
+fn parse_sell_plane_command() {
+    let cmd = parse_command("SELL PLANE 5").unwrap();
+    assert!(matches!(cmd, Command::SellPlane { plane } if plane == 5));
+}
+
+#[test]
 fn parse_depart_plane_command() {
     let cmd = parse_command("DEPART PLANE 4 1").unwrap();
     assert!(matches!(cmd, Command::DepartPlane { plane, dest } if plane == 4 && dest == 1));

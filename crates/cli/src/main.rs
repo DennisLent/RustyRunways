@@ -122,6 +122,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             },
 
+            Ok(Command::SellPlane { plane }) => match game.sell_plane(plane) {
+                Ok(refund) => println!("Plane {} sold. Refunded ${:.2}", plane, refund),
+                Err(e) => println!("Sell failed: {}", e),
+            },
+
             Ok(Command::LoadOrder { order, plane }) => {
                 if let Err(e) = game.load_order(order, plane) {
                     println!("Load failed: {}", e);

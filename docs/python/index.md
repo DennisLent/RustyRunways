@@ -4,7 +4,9 @@ title: Python Bindings
 
 # Python
 
-Python bindings expose the Rust Core engine to Python for scripting, analysis, and RL/ML workflows. For game rules, see Core.
+The Python bindings expose the Rust core engine for scripting, data analysis, and reinforcement‑learning workflows. They respect the same economic defaults as the game clients: when you build an environment without a YAML override you start with $650 000, a 12‑airport network, weekly restocks, and six‑hour fuel updates. Every CLI command can be issued from Python, so automated agents interact with the simulation just like human players.
+
+As part of the balancing process we routinely let heuristic agents play through procedurally generated worlds so we can observe cash curves, order feasibility, and upgrade cadence. The tooling used for that process lives in the `benchmarks/` directory and is referenced near the end of this document.
 
 ## Installation
 
@@ -34,7 +36,7 @@ maturin develop --release
 
 Gymnasium is only required for the Gym wrappers. See the Gym section for details.
 
-## GameEnv (single)
+## GameEnv (single environment)
 
 Constructor
 
@@ -51,7 +53,7 @@ Common usage
 from rusty_runways_py import GameEnv
 
 # Start from a seeded random world
-g = GameEnv(seed=1, num_airports=5, cash=1_000_000)
+g = GameEnv(seed=1, num_airports=5, cash=650_000)
 g.step(1)
 print(g.time(), g.cash())
 print(g.drain_log())
@@ -66,6 +68,7 @@ Key methods
 - `reset(seed=None, num_airports=None, cash=None, config_path=None)`: Reinitialize the world.
 - `step(hours: int)`: Advance simulation time by `hours`.
 - `execute(cmd: str)`: Run CLI command (see CLI docs for syntax).
+- `sell_plane(plane_id: int) -> float`: Sell a parked, empty plane (returns refund).
 - `state_json() -> str`: JSON snapshot of the observable state.
 - `state_py() -> dict`: Python dict snapshot (JSON decoded).
 - `full_state_json() -> str`: Full internal state snapshot.
@@ -83,7 +86,7 @@ print(obs["airports"][0])
 print(obs["planes"][0])
 ```
 
-## VectorGameEnv (multiple)
+## VectorGameEnv (multiple environments)
 
 Constructor
 
@@ -107,6 +110,7 @@ Core vector API
 - `state_all_json() / state_all_py()`: Vector snapshots.
 - `times() -> list[int]`, `cashes() -> list[float]`, `drain_logs() -> list[list[str]]`.
 - `orders_at_plane_all(plane_id) -> list[list[int]]`, `airport_ids_all() -> list[list[int]]`.
+- `sell_plane(env_idx: int, plane_id: int) -> float`: Sell a plane in a specific environment.
 
 Examples
 
@@ -190,6 +194,97 @@ Dependency note
 
 ## Notes
 
-- Same rules/constraints as the Rust Core engine.
-- Seeds control determinism; vectors default to `base_seed + index` when provided a scalar seed.
-- Parallel stepping releases the GIL and uses Rayon internally.
+- The bindings enforce the same constraints as the Rust engine: planes must be parked to refuel or sell, deadlines continue to expire, and economic defaults mirror the tuned values.
+- Seeds control determinism. When you pass a scalar seed to `VectorGameEnv`, each environment receives `seed + index`, so parallel runs remain reproducible.
+- Parallel stepping releases the GIL and uses Rayon internally, allowing large vector environments to scale efficiently across CPU cores.
+
+## Loading YAML Worlds
+
+All constructors accept `config_path`. The engine reads the YAML, applies defaults for any missing fields, and returns an environment seeded with those parameters. This pattern makes balance testing fast, because you can edit the YAML on disk, call `reset(config_path=...)`, and immediately observe how the new weights, deadlines, or restock cadence influence the simulation.
+
+```python
+from rusty_runways_py import GameEnv
+
+env = GameEnv(config_path="benchmarks/sanity.yaml")
+print(env.cash(), env.seed())
+env.execute("SHOW AIRPORTS WITH ORDERS")
+```
+
+To build YAML files programmatically (for sweeps or automated tests), write them to a temporary path with `yaml.safe_dump`, hand that path to `GameEnv` or `VectorGameEnv`, and delete the file once the run completes. The loader does not keep the file handle open after parsing.
+
+## Sanity Benchmarks and the Heuristic Agent
+
+The `benchmarks/` folder contains a deterministic heuristic agent used during development. Running it regularly helps verify that code or tuning changes keep the starter plane’s feasibility and upgrade timing inside the target window.
+
+1. Edit or create a scenario file (for example `benchmarks/sanity.yaml`).
+2. Execute `python benchmarks/run_benchmarks.py --scenario-config benchmarks/sanity.yaml` to simulate all listed seeds.
+3. Render per-seed charts with `python benchmarks/sanity_report.py`. The script writes feasibility, margin, cash, and route-length plots for early/mid/late phases alongside a JSON summary so you can diff statistics between branches.
+
+These scripts rely solely on the public Python API, so you can copy their helpers into custom analytics pipelines or reinforcement-learning loops.
+
+## Benchmark Agents
+
+The repository contains a small benchmarking harness (see `benchmarks/run_benchmarks.py`) that exercises the Python bindings using a greedy hauling agent. This script evaluates multiple seeds in one go, records cash/fleet/delivery timelines, and renders plots summarizing the progression. To experiment with it locally:
+
+1. Initialise the virtual environment and build the bindings from source:
+
+   ```bash
+   ./benchmarks/setup.sh
+   source benchmarks/.venv/bin/activate
+   ```
+
+2. Run the benchmarking driver:
+
+   ```bash
+   python benchmarks/run_benchmarks.py --seeds 0 1 2 --hours 168 --airports 12
+   ```
+
+   The script prints per-seed statistics (order feasibility, margin-per-hour, upgrade timing). It also emits CSV timelines and PNG plots under `benchmarks/outputs/` so you can inspect cash/fleet/delivery curves by seed.
+
+For exploratory analysis you can now describe arbitrarily rich batches in YAML and pass them via `--scenario-config`. Each scenario may define:
+
+- the world knobs (`num_airports`, `starting_cash`, `gameplay.orders.*`, etc.); the runner creates temporary YAML configs and cleans them up afterwards;
+- sweeps over a single parameter (e.g., vary only `gameplay.restock_cycle_hours`) or named variants with bespoke overrides;
+- the seed list and duration for each variant.
+
+All runs end up under `benchmarks/outputs/<scenario>/` alongside a CSV timeline per seed. The driver also produces a `scenario_summary.csv` plus aggregate line/bar charts in `benchmarks/outputs/summary/`, letting you isolate the impact of the swept parameter (restock cadence, order weights, fuel intervals, and so on).
+
+An abridged configuration example:
+
+```yaml
+defaults:
+  hours: 240
+  seeds: [0, 1, 2]
+  cash: 650000.0
+  num_airports: 12
+  gameplay:
+    restock_cycle_hours: 168
+    fuel_interval_hours: 6
+    orders:
+      regenerate: true
+      generate_initial: true
+      max_deadline_hours: 96
+      min_weight: 180.0
+      max_weight: 650.0
+      alpha: 0.12
+      beta: 0.55
+
+scenarios:
+  - name: baseline
+  - name: restock-sweep
+    sweep:
+      parameter: gameplay.restock_cycle_hours
+      values: [96, 120, 168, 240]
+  - name: order-weight-variants
+    variants:
+      - label: light-cargo
+        overrides:
+          gameplay:
+            orders:
+              min_weight: 150.0
+              max_weight: 600.0
+```
+
+See `benchmarks/scenarios.example.yaml` for a more complete walkthrough including external `config_path` worlds.
+
+Feel free to adapt the harness for richer experiments (e.g., alternative agents, different reward functions, or automated regression checks). Because it builds against the local branch, the outputs always reflect the current balance knobs.

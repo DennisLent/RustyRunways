@@ -20,8 +20,8 @@ interface GameConfig {
 export const MainMenu = ({ onStartGame, onLoadGame, onLoadConfig }: MainMenuProps) => {
   const [gameConfig, setGameConfig] = useState<GameConfig>({
     seed: "",
-    airportCount: 10,
-    startingCash: 100000,
+    airportCount: 12,
+    startingCash: 650000,
   });
   const [loadGameName, setLoadGameName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -100,7 +100,12 @@ export const MainMenu = ({ onStartGame, onLoadGame, onLoadConfig }: MainMenuProp
                     min="5"
                     max="50"
                     value={gameConfig.airportCount}
-                    onChange={(e) => setGameConfig({ ...gameConfig, airportCount: parseInt(e.target.value) || 10 })}
+                    onChange={(e) =>
+                      setGameConfig({
+                        ...gameConfig,
+                        airportCount: parseInt(e.target.value) || 12,
+                      })
+                    }
                     className="bg-secondary/50 border-aviation-blue/20 focus:border-aviation-blue/50"
                   />
                 </div>
@@ -114,7 +119,12 @@ export const MainMenu = ({ onStartGame, onLoadGame, onLoadConfig }: MainMenuProp
                     max="1000000"
                     step="10000"
                     value={gameConfig.startingCash}
-                    onChange={(e) => setGameConfig({ ...gameConfig, startingCash: parseInt(e.target.value) || 100000 })}
+                    onChange={(e) =>
+                      setGameConfig({
+                        ...gameConfig,
+                        startingCash: parseInt(e.target.value) || 650000,
+                      })
+                    }
                     className="bg-secondary/50 border-aviation-blue/20 focus:border-aviation-blue/50"
                   />
                 </div>
