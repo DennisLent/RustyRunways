@@ -26,7 +26,7 @@ fn save_and_load_roundtrip_and_execute_mapping() {
 
 #[test]
 fn list_airport_invalid_and_find_associated_airport_error() {
-    let mut game = Game::new(1, Some(5), 1_000_000.0);
+    let mut game = Game::new(1, Some(5), 650_000.0);
 
     // invalid airport id
     let err = game.list_airport(9999, true).unwrap_err();

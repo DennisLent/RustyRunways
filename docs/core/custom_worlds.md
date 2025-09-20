@@ -12,7 +12,7 @@ Top‑level keys:
 
 - `version` (int): schema version; currently `1`.
 - `seed` (int, optional): base seed for determinism (used for generated elements).
-- `starting_cash` (float, optional, default `1_000_000.0`).
+- `starting_cash` (float, optional, default `650_000.0`).
 - `num_airports` (int, optional): number of airports to generate automatically when `airports` is omitted.
 - `airports` (list, optional): explicit or partially specified airport definitions.
 - `gameplay` (object, optional): tuning knobs for restocking cadence, fuel price behaviour, and order generation.
@@ -38,20 +38,20 @@ Manual order fields:
 
 Gameplay tuning (defaults shown):
 
-- `restock_cycle_hours` (int, default `336`): cadence for regeneration cycles.
+- `restock_cycle_hours` (int, default `168`): cadence for regeneration cycles.
 - `fuel_interval_hours` (int, default `6`): cadence for dynamic fuel price adjustments.
 - `fuel` (object):
-  - `elasticity` (float, default `0.05`): fractional step applied when prices move up or down.
-  - `min_price_multiplier` (float, default `0.5`): floor expressed as a multiple of each airport's base price.
-  - `max_price_multiplier` (float, default `1.5`): ceiling expressed as a multiple of each airport's base price.
+  - `elasticity` (float, default `0.04`): fractional step applied when prices move up or down.
+  - `min_price_multiplier` (float, default `0.6`): floor expressed as a multiple of each airport's base price.
+  - `max_price_multiplier` (float, default `1.3`): ceiling expressed as a multiple of each airport's base price.
 - `orders` (object):
   - `regenerate` (bool, default `true`): whether airports restock after the initial load.
   - `generate_initial` (bool, default `true`): whether random orders are generated at time 0.
-  - `max_deadline_hours` (int, default `336`): maximum deadline assigned to generated orders.
-  - `min_weight` (float, default `100.0`): minimum cargo weight (kg) for generated orders.
-  - `max_weight` (float, default `20000.0`): maximum cargo weight (kg) for generated orders.
-  - `alpha` (float, default `0.5`): distance multiplier in the value calculation.
-  - `beta` (float, default `0.7`): urgency multiplier in the value calculation.
+  - `max_deadline_hours` (int, default `96`): maximum deadline assigned to generated orders.
+  - `min_weight` (float, default `180.0`): minimum cargo weight (kg) for generated orders.
+  - `max_weight` (float, default `650.0`): maximum cargo weight (kg) for generated orders.
+  - `alpha` (float, default `0.12`): distance multiplier in the value calculation.
+  - `beta` (float, default `0.55`): urgency multiplier in the value calculation.
 
 ## Examples
 
@@ -60,7 +60,7 @@ Tuned restocking with explicit airports:
 ```yaml
 version: 1
 seed: 42
-starting_cash: 1000000.0
+starting_cash: 650000.0
 airports:
   - id: 0
     name: HUB
@@ -81,17 +81,17 @@ gameplay:
   restock_cycle_hours: 168
   fuel_interval_hours: 4
   fuel:
-    elasticity: 0.05
-    min_price_multiplier: 0.5
-    max_price_multiplier: 1.5
+    elasticity: 0.04
+    min_price_multiplier: 0.6
+    max_price_multiplier: 1.3
   orders:
     regenerate: true
     generate_initial: true
-    max_deadline_hours: 120
-    min_weight: 250.0
-    max_weight: 1000.0
-    alpha: 0.4
-    beta: 0.9
+    max_deadline_hours: 96
+    min_weight: 180.0
+    max_weight: 650.0
+    alpha: 0.12
+    beta: 0.55
 ```
 
 Random airports with delayed restock:

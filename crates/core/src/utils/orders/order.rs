@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 // Default tuning values used when no custom configuration is provided.
-pub const DEFAULT_ALPHA: f32 = 0.5;
-pub const DEFAULT_BETA: f32 = 0.7;
-pub const DEFAULT_MAX_DEADLINE_HOURS: u64 = 14 * 24;
-pub const DEFAULT_MIN_WEIGHT: f32 = 100.0;
-pub const DEFAULT_MAX_WEIGHT: f32 = 20_000.0;
+pub const DEFAULT_ALPHA: f32 = 0.12;
+pub const DEFAULT_BETA: f32 = 0.55;
+pub const DEFAULT_MAX_DEADLINE_HOURS: u64 = 96;
+pub const DEFAULT_MIN_WEIGHT: f32 = 180.0;
+pub const DEFAULT_MAX_WEIGHT: f32 = 650.0;
 const VALUE_CAP: f32 = 8_000_000.0;
 const MIN_VALUE: f32 = 400.0;
 const BASE_TON_KM_RATE: f32 = 160.0;
@@ -349,14 +349,19 @@ mod internal_tests {
         let params = OrderGenerationParams::default();
         let mut rng = StdRng::seed_from_u64(0);
         let mut saw_tail = false;
+        let threshold = params.max_weight * 0.9;
         for _ in 0..50 {
             let weight = sample_weight(&mut rng, RunwayClass::Small, RunwayClass::Small, &params);
-            if weight > 900.0 {
+            if weight >= threshold {
                 saw_tail = true;
                 break;
             }
         }
-        assert!(saw_tail, "expected at least one extended-tail sample");
+        assert!(
+            saw_tail,
+            "expected at least one extended-tail sample above {:.1} kg",
+            threshold
+        );
     }
 
     #[test]

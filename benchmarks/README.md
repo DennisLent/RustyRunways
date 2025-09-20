@@ -38,6 +38,10 @@ In addition to the per-scenario folders, the root of `outputs` contains:
 
 These files are intended to be disposable. You can safely delete the entire `outputs` directory between runs if you want a clean slate.
 
+### Default Sanity Sweep
+
+`sanity.yaml` describes a lightweight run of the default game knobs across ten seeds. After running `python run_benchmarks.py --scenario-config benchmarks/sanity.yaml`, execute `./sanity_report.py` to render phase-by-phase charts (`sanity_feasible_ratio.png`, `sanity_phase_margins.png`, etc.) under `benchmarks/outputs/sanity-baseline/`. The helper script also emits `sanity_summary.json` with descriptive statistics so you can quickly spot regressions in early, mid, or late progression.
+
 ## Example Configuration
 
 See `scenarios.example.yaml` in this directory for a ready-to-run template. It includes the default gameplay settings drawn from the sample world and demonstrates sweeps over restock cadence, starting cash, airport counts, minimum and maximum order weights, and the `alpha`/`beta` parameters. It also provides explicit weight combinations so you can observe how paired adjustments behave compared to isolated changes.

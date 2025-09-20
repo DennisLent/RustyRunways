@@ -29,7 +29,7 @@ impl GameEnv {
             return Ok(GameEnv { game });
         }
         Ok(GameEnv {
-            game: Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0)),
+            game: Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(650_000.0)),
         })
     }
 
@@ -50,7 +50,7 @@ impl GameEnv {
             self.game = Game::from_config(cfg).map_err(|e| PyValueError::new_err(e.to_string()))?;
             return Ok(());
         }
-        self.game = Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(1_000_000.0));
+        self.game = Game::new(seed.unwrap_or(0), num_airports, cash.unwrap_or(650_000.0));
         Ok(())
     }
 
@@ -233,7 +233,7 @@ impl VectorGameEnv {
                 }
             }
             let s = base_seed + i as u64;
-            envs.push(Game::new(s, num_airports, cash.unwrap_or(1_000_000.0)));
+            envs.push(Game::new(s, num_airports, cash.unwrap_or(650_000.0)));
             seeds.push(s);
         }
         VectorGameEnv { envs, seeds }
@@ -280,7 +280,7 @@ impl VectorGameEnv {
             None => self.seeds.clone(),
         };
         let airports = parse_num_airports(py, num_airports, n)?;
-        let cashes = parse_arg(py, cash, n, vec![1_000_000.0; n])?;
+        let cashes = parse_arg(py, cash, n, vec![650_000.0; n])?;
         self.seeds = seeds.clone();
         for i in 0..n {
             self.envs[i] = Game::new(seeds[i], airports[i], cashes[i]);
@@ -297,7 +297,7 @@ impl VectorGameEnv {
     ) {
         let s = seed.unwrap_or(self.seeds[idx]);
         self.seeds[idx] = s;
-        let c = cash.unwrap_or(1_000_000.0);
+        let c = cash.unwrap_or(650_000.0);
         self.envs[idx] = Game::new(s, num_airports, c);
     }
 

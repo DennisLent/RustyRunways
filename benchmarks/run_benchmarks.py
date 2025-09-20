@@ -530,7 +530,7 @@ def build_config_dict(seed, world_params):
 
     params = dict(world_params or {})
     version = params.pop("version", 1)
-    starting_cash = params.pop("starting_cash", params.pop("cash", 1_000_000.0))
+    starting_cash = params.pop("starting_cash", params.pop("cash", 650_000.0))
 
     config = {"version": version, "seed": seed, "starting_cash": float(starting_cash)}
     for key, value in params.items():
@@ -1382,11 +1382,11 @@ def load_scenarios(path, cli_defaults):
 def main():  # pragma: no cover - CLI dispatch
     parser = argparse.ArgumentParser(description="Run RustyRunways heuristic benchmarks")
     parser.add_argument(
-        "--seeds", nargs="*", type=int, default=[0, 1, 2, 3, 4], help="Seeds to evaluate"
+        "--seeds", nargs="*", type=int, default=list(range(10)), help="Seeds to evaluate"
     )
     parser.add_argument("--hours", type=int, default=10_000, help="Simulation horizon (hours)")
-    parser.add_argument("--airports", type=int, default=6, help="Number of airports to generate")
-    parser.add_argument("--cash", type=float, default=1_000_000.0, help="Starting cash")
+    parser.add_argument("--airports", type=int, default=12, help="Number of airports to generate")
+    parser.add_argument("--cash", type=float, default=650_000.0, help="Starting cash")
     parser.add_argument("--scenario-config", type=str, help="Path to scenario YAML definition")
     args = parser.parse_args()
 

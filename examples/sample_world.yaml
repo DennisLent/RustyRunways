@@ -1,6 +1,6 @@
 version: 1
 seed: 42
-starting_cash: 1000000.0
+starting_cash: 650000.0
 airports:
   - id: 0
     name: HUB
@@ -19,16 +19,16 @@ airports:
 
 gameplay:
   restock_cycle_hours: 168
-  fuel_interval_hours: 4
+  fuel_interval_hours: 6
   fuel:
-    elasticity: 0.05
-    min_price_multiplier: 0.5
-    max_price_multiplier: 1.5
+    elasticity: 0.04
+    min_price_multiplier: 0.6
+    max_price_multiplier: 1.3
   orders:
     regenerate: true
     generate_initial: true
-    max_deadline_hours: 120
-    min_weight: 250.0
-    max_weight: 1000.0
-    alpha: 0.4
-    beta: 0.9
+    max_deadline_hours: 96
+    min_weight: 180.0
+    max_weight: 650.0
+    alpha: 0.12
+    beta: 0.55

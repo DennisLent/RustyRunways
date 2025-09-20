@@ -7,7 +7,7 @@ use crate::utils::orders::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const DEFAULT_RESTOCK_CYCLE_HOURS: u64 = DEFAULT_MAX_DEADLINE_HOURS;
+pub const DEFAULT_RESTOCK_CYCLE_HOURS: u64 = 168;
 pub const DEFAULT_FUEL_INTERVAL_HOURS: u64 = 6;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,7 +30,7 @@ pub struct WorldConfig {
 }
 
 fn default_cash() -> f32 {
-    1_000_000.0
+    650_000.0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,9 +67,9 @@ pub struct FuelGameplay {
 impl Default for FuelGameplay {
     fn default() -> Self {
         FuelGameplay {
-            elasticity: 0.05,
-            min_price_multiplier: 0.5,
-            max_price_multiplier: 1.5,
+            elasticity: 0.04,
+            min_price_multiplier: 0.6,
+            max_price_multiplier: 1.3,
         }
     }
 }

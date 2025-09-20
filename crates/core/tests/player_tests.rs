@@ -7,7 +7,7 @@ use rusty_runways_core::utils::map::Map;
 #[test]
 fn player_initialization_gives_single_plane() {
     let map = Map::generate_from_seed(7, Some(4));
-    let player = Player::new(1_000_000.0, &map);
+    let player = Player::new(650_000.0, &map);
     assert_eq!(player.fleet_size, 1);
     assert_eq!(player.fleet.len(), 1);
     assert_eq!(player.orders_delivered, 0);
@@ -27,7 +27,7 @@ fn player_initialization_gives_single_plane() {
 #[test]
 fn buy_plane_success() {
     let map = Map::generate_from_seed(1, Some(2));
-    let mut player = Player::new(1_000_000.0, &map);
+    let mut player = Player::new(650_000.0, &map);
     let mut airport = Airport::generate_random(1, 10);
     airport.runway_length = 3000.0;
     let coord = Coordinate::new(0.0, 0.0);
@@ -42,7 +42,7 @@ fn buy_plane_success() {
 #[test]
 fn buy_plane_unknown_model() {
     let map = Map::generate_from_seed(2, Some(2));
-    let mut player = Player::new(1_000_000.0, &map);
+    let mut player = Player::new(650_000.0, &map);
     let mut airport = Airport::generate_random(2, 0);
     let coord = Coordinate::new(0.0, 0.0);
     let result = player.buy_plane(&"NotAPlane".to_string(), &mut airport, &coord);
@@ -63,7 +63,7 @@ fn buy_plane_insufficient_funds() {
 #[test]
 fn buy_plane_runway_too_short() {
     let map = Map::generate_from_seed(4, Some(2));
-    let mut player = Player::new(1_000_000.0, &map);
+    let mut player = Player::new(650_000.0, &map);
     let mut airport = Airport::generate_random(4, 0);
     airport.runway_length = 100.0;
     let coord = Coordinate::new(0.0, 0.0);
@@ -74,7 +74,7 @@ fn buy_plane_runway_too_short() {
 #[test]
 fn record_delivery_increments_counter() {
     let map = Map::generate_from_seed(5, Some(2));
-    let mut player = Player::new(1_000_000.0, &map);
+    let mut player = Player::new(650_000.0, &map);
     assert_eq!(player.orders_delivered, 0);
     player.record_delivery();
     player.record_delivery();
@@ -85,7 +85,7 @@ fn record_delivery_increments_counter() {
 fn buy_plane_deducts_cash() {
     use rusty_runways_core::utils::airplanes::models::AirplaneModel;
     let map = Map::generate_from_seed(6, Some(2));
-    let mut player = Player::new(1_000_000.0, &map);
+    let mut player = Player::new(650_000.0, &map);
     let mut airport = Airport::generate_random(6, 10);
     airport.runway_length = 4000.0;
     let coord = Coordinate::new(0.0, 0.0);
@@ -93,13 +93,13 @@ fn buy_plane_deducts_cash() {
     player
         .buy_plane(&"SparrowLight".to_string(), &mut airport, &coord)
         .unwrap();
-    assert!((player.cash - (1_000_000.0 - price)).abs() < f32::EPSILON);
+    assert!((player.cash - (650_000.0 - price)).abs() < f32::EPSILON);
 }
 
 #[test]
 fn sell_plane_returns_refund_and_updates_state() {
     let map = Map::generate_from_seed(7, Some(3));
-    let mut player = Player::new(1_000_000.0, &map);
+    let mut player = Player::new(650_000.0, &map);
     let starting_cash = player.cash;
     let (plane, refund) = player.sell_plane(0).expect("plane 0 should exist");
     assert_eq!(plane.id, 0);

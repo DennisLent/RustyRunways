@@ -16,13 +16,21 @@ struct AppState {
     game: Mutex<Option<Game>>,
 }
 
+fn default_starting_cash() -> f32 {
+    650_000.0
+}
+
 #[derive(Deserialize)]
 struct NewGameArgs {
     #[serde(default)]
     seed: Option<u64>,
     #[serde(rename = "numAirports", alias = "num_airports")]
     num_airports: Option<usize>,
-    #[serde(rename = "startingCash", alias = "starting_cash")]
+    #[serde(
+        rename = "startingCash",
+        alias = "starting_cash",
+        default = "default_starting_cash"
+    )]
     starting_cash: f32,
 }
 

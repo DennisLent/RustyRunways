@@ -22,7 +22,7 @@ fn cli_defaults_cash() {
     let game = init_game_from_cli(cli).unwrap();
     assert_eq!(game.map.seed, 1);
     assert_eq!(game.map.num_airports, 5);
-    assert_eq!(game.player.cash, 1_000_000.0);
+    assert_eq!(game.player.cash, 650_000.0);
 }
 
 #[test]
@@ -38,8 +38,8 @@ fn cli_accepts_custom_cash() {
 fn cli_random_when_no_args() {
     let cli = Cli::try_parse_from(["test"]).unwrap();
     let game = init_game_from_cli(cli).unwrap();
-    assert!(game.map.num_airports >= 4 && game.map.num_airports <= 10);
-    assert_eq!(game.player.cash, 1_000_000.0);
+    assert_eq!(game.map.num_airports, 12);
+    assert_eq!(game.player.cash, 650_000.0);
 }
 
 #[test]

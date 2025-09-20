@@ -53,7 +53,7 @@ Common usage
 from rusty_runways_py import GameEnv
 
 # Start from a seeded random world
-g = GameEnv(seed=1, num_airports=5, cash=1_000_000)
+g = GameEnv(seed=1, num_airports=5, cash=650_000)
 g.step(1)
 print(g.time(), g.cash())
 print(g.drain_log())
@@ -212,7 +212,7 @@ The repository contains a small benchmarking harness (see `benchmarks/run_benchm
 2. Run the benchmarking driver:
 
    ```bash
-   python benchmarks/run_benchmarks.py --seeds 0 1 2 --hours 168 --airports 8
+   python benchmarks/run_benchmarks.py --seeds 0 1 2 --hours 168 --airports 12
    ```
 
    The script prints per-seed statistics (order feasibility, margin-per-hour, upgrade timing). It also emits CSV timelines and PNG plots under `benchmarks/outputs/` so you can inspect cash/fleet/delivery curves by seed.
@@ -231,19 +231,19 @@ An abridged configuration example:
 defaults:
   hours: 240
   seeds: [0, 1, 2]
-  cash: 800000.0
-  num_airports: 8
+  cash: 650000.0
+  num_airports: 12
   gameplay:
     restock_cycle_hours: 168
-    fuel_interval_hours: 4
+    fuel_interval_hours: 6
     orders:
       regenerate: true
       generate_initial: true
-      max_deadline_hours: 120
-      min_weight: 250.0
-      max_weight: 1000.0
-      alpha: 0.4
-      beta: 0.9
+      max_deadline_hours: 96
+      min_weight: 180.0
+      max_weight: 650.0
+      alpha: 0.12
+      beta: 0.55
 
 scenarios:
   - name: baseline

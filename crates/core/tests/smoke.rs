@@ -7,9 +7,9 @@ use rusty_runways_core::{
 };
 #[test]
 fn test_game_new() {
-    let game = Game::new(1, Some(5), 1_000_000.0);
+    let game = Game::new(1, Some(5), 650_000.0);
     assert_eq!(game.map.num_airports, 5);
-    assert_eq!(game.player.cash, 1_000_000.0);
+    assert_eq!(game.player.cash, 650_000.0);
 }
 
 #[test]

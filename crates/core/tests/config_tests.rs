@@ -39,7 +39,7 @@ fn base_airports() -> Vec<AirportConfig> {
 fn from_config_generates_orders_when_enabled() {
     let cfg = WorldConfig {
         seed: Some(1),
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -54,7 +54,7 @@ fn from_config_generates_orders_when_enabled() {
 fn from_config_no_orders_when_disabled() {
     let mut cfg = WorldConfig {
         seed: Some(1),
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -70,7 +70,7 @@ fn from_config_duplicate_ids_is_error() {
     airports[1].id = airports[0].id; // duplicate
     let cfg = WorldConfig {
         seed: None,
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -89,7 +89,7 @@ fn from_config_duplicate_names_is_error() {
     airports[1].name = airports[0].name.clone();
     let cfg = WorldConfig {
         seed: None,
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -111,7 +111,7 @@ fn from_config_location_bounds_enforced() {
     });
     let cfg = WorldConfig {
         seed: None,
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -126,7 +126,7 @@ fn from_config_positive_values_required() {
     airports[0].runway_length_m = Some(0.0);
     let cfg = WorldConfig {
         seed: None,
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -139,7 +139,7 @@ fn from_config_positive_values_required() {
 fn from_config_applies_gameplay_tuning() {
     let mut cfg = WorldConfig {
         seed: Some(123),
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -176,7 +176,7 @@ fn from_config_applies_gameplay_tuning() {
 fn from_config_rejects_invalid_gameplay() {
     let mut cfg = WorldConfig {
         seed: None,
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -233,7 +233,7 @@ fn from_config_rejects_num_airports_with_explicit_airports() {
 fn from_config_regeneration_disabled_requires_orders() {
     let mut cfg = WorldConfig {
         seed: Some(0),
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
@@ -266,7 +266,7 @@ fn from_config_uses_manual_orders_when_regeneration_disabled() {
 
     let mut cfg = WorldConfig {
         seed: Some(9),
-        starting_cash: 1_000_000.0,
+        starting_cash: 650_000.0,
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),

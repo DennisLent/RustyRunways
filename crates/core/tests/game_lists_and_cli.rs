@@ -4,7 +4,7 @@ use rusty_runways_core::utils::airplanes::models::AirplaneStatus;
 #[test]
 fn lists_and_cli_commands_cover_print_paths() {
     // Deterministic seed
-    let mut game = Game::new(1, Some(6), 1_000_000.0);
+    let mut game = Game::new(1, Some(6), 650_000.0);
 
     // airport listings with and without orders
     game.list_airports(false);

@@ -85,8 +85,8 @@ impl Default for RustyRunwaysGui {
         RustyRunwaysGui {
             screen: Screen::MainMenu,
             seed_str: "1".into(),
-            airports_str: "5".into(),
-            cash_str: "1000000".into(),
+            airports_str: "12".into(),
+            cash_str: "650000".into(),
             save_name: "None".into(),
             recent_saves: Vec::new(),
             error: None,
@@ -298,7 +298,7 @@ impl RustyRunwaysGui {
 
                     println!("[DEBUG]: started random game with: seed={}", seed);
 
-                    self.game = Some(Game::new(seed, None, 1_000_000.0));
+                    self.game = Some(Game::new(seed, None, 650_000.0));
                     self.screen = Screen::InGame;
                 }
 
@@ -1531,7 +1531,7 @@ mod tests {
     fn default_inputs_are_seeded() {
         let gui = RustyRunwaysGui::default();
         assert_eq!(gui.seed_str, "1");
-        assert_eq!(gui.airports_str, "5");
-        assert_eq!(gui.cash_str, "1000000");
+        assert_eq!(gui.airports_str, "12");
+        assert_eq!(gui.cash_str, "650000");
     }
 }

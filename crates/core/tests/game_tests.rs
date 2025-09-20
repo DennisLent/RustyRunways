@@ -10,7 +10,7 @@ use rusty_runways_core::{
 
 #[test]
 fn advance_zero_hours_keeps_time_and_events() {
-    let mut game = Game::new(1, Some(4), 1_000_000.0);
+    let mut game = Game::new(1, Some(4), 650_000.0);
     let before_time = game.time;
     let before_len = game.events.len();
     game.advance(0);
@@ -20,14 +20,14 @@ fn advance_zero_hours_keeps_time_and_events() {
 
 #[test]
 fn tick_event_returns_false_when_empty() {
-    let mut game = Game::new(1, Some(3), 1_000_000.0);
+    let mut game = Game::new(1, Some(3), 650_000.0);
     game.events.clear();
     assert!(!game.tick_event());
 }
 
 #[test]
 fn initial_events_are_scheduled() {
-    let game = Game::new(1, Some(3), 1_000_000.0);
+    let game = Game::new(1, Some(3), 650_000.0);
     let mut has_restock = false;
     let mut has_daily = false;
     let mut has_dynamic = false;
@@ -48,7 +48,7 @@ fn initial_events_are_scheduled() {
 
 #[test]
 fn advance_runs_events_up_to_target() {
-    let mut game = Game::new(1, Some(3), 1_000_000.0);
+    let mut game = Game::new(1, Some(3), 650_000.0);
     game.events.clear();
     game.airplanes[0].status = AirplaneStatus::Loading;
     game.events.push(ScheduledEvent {
@@ -67,7 +67,7 @@ fn advance_runs_events_up_to_target() {
 
 #[test]
 fn advance_executes_event_at_target_time() {
-    let mut game = Game::new(1, Some(3), 1_000_000.0);
+    let mut game = Game::new(1, Some(3), 650_000.0);
     game.events.clear();
     game.airplanes[0].status = AirplaneStatus::Loading;
     game.events.push(ScheduledEvent {
@@ -82,14 +82,14 @@ fn advance_executes_event_at_target_time() {
 
 #[test]
 fn tick_event_returns_true_when_event_present() {
-    let mut game = Game::new(1, Some(2), 1_000_000.0);
+    let mut game = Game::new(1, Some(2), 650_000.0);
     let res = game.tick_event();
     assert!(res);
 }
 
 #[test]
 fn advance_zero_executes_due_events() {
-    let mut game = Game::new(1, Some(2), 1_000_000.0);
+    let mut game = Game::new(1, Some(2), 650_000.0);
     game.events.clear();
     game.airplanes[0].status = AirplaneStatus::Loading;
     game.events.push(ScheduledEvent {
@@ -104,7 +104,7 @@ fn advance_zero_executes_due_events() {
 
 #[test]
 fn advance_processes_all_events_at_same_time() {
-    let mut game = Game::new(1, Some(2), 1_000_000.0);
+    let mut game = Game::new(1, Some(2), 650_000.0);
     game.events.clear();
     game.airplanes[0].status = AirplaneStatus::Loading;
     game.events.push(ScheduledEvent {
@@ -122,7 +122,7 @@ fn advance_processes_all_events_at_same_time() {
 
 #[test]
 fn sell_plane_requires_plane_to_be_parked() {
-    let mut game = Game::new(2, Some(3), 1_000_000.0);
+    let mut game = Game::new(2, Some(3), 650_000.0);
     let origin = game.airplanes[0].location;
     let destination = game.map.airports[1].0.id;
     game.airplanes[0].status = AirplaneStatus::InTransit {
@@ -137,7 +137,7 @@ fn sell_plane_requires_plane_to_be_parked() {
 
 #[test]
 fn sell_plane_requires_empty_manifest() {
-    let mut game = Game::new(3, Some(3), 1_000_000.0);
+    let mut game = Game::new(3, Some(3), 650_000.0);
     game.airplanes[0].status = AirplaneStatus::Parked;
     game.airplanes[0].manifest.push(Order {
         id: 42,
@@ -154,21 +154,21 @@ fn sell_plane_requires_empty_manifest() {
 
 #[test]
 fn sell_plane_updates_cash_and_daily_income() {
-    let mut game = Game::new(4, Some(3), 1_000_000.0);
+    let mut game = Game::new(4, Some(3), 650_000.0);
     let price = game.airplanes[0].specs.purchase_price;
     let refund = game.sell_plane(0).expect("sale should succeed");
     assert!((refund - price * 0.6).abs() < f32::EPSILON);
     assert!(game.airplanes.iter().all(|plane| plane.id != 0));
     assert!(game.player.fleet.iter().all(|plane| plane.id != 0));
     assert!(!game.arrival_times.contains_key(&0));
-    assert!((game.player.cash - (1_000_000.0 + refund)).abs() < 1e-3);
+    assert!((game.player.cash - (650_000.0 + refund)).abs() < 1e-3);
     assert!((game.daily_income - refund).abs() < f32::EPSILON);
     assert_eq!(game.player.fleet_size, game.player.fleet.len());
 }
 
 #[test]
 fn refuel_plane_requires_sufficient_cash() {
-    let mut game = Game::new(5, Some(3), 1_000_000.0);
+    let mut game = Game::new(5, Some(3), 650_000.0);
     game.player.cash = 1.0;
     game.airplanes[0].current_fuel = 0.0;
     let err = game.refuel_plane(0).unwrap_err();

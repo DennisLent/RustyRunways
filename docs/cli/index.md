@@ -9,10 +9,10 @@ The CLI (`rusty_runways_cli`) is a REPL that wraps the core engine. It provides 
 ## Running
 
 ```bash
-cargo run -p rusty_runways_cli -- --seed 1 --n 5 --c 1000000
+cargo run -p rusty_runways_cli -- --seed 1 --n 5 --c 650000
 ```
 
-`--seed` and `--n` must be provided together; `--c` defaults to `1000000`.
+`--seed` and `--n` must be provided together; `--c` defaults to `650000`.
 
 ## Commands and Examples
 

@@ -76,9 +76,7 @@ impl Map {
     /// Allows you to input a specific amount of airports or not.
     /// Airports are already stocked with orders.
     pub fn generate_from_seed(seed: u64, num_airports: Option<usize>) -> Self {
-        let mut rng = StdRng::seed_from_u64(seed);
-
-        let num_airports = num_airports.unwrap_or_else(|| rng.gen_range(4..=10));
+        let num_airports = num_airports.unwrap_or(12);
 
         let coordinates = Self::clustered_coordinates(seed, num_airports);
         let mut airport_list = Vec::with_capacity(num_airports);

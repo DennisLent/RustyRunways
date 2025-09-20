@@ -2,7 +2,7 @@ use rusty_runways_core::Game;
 use rusty_runways_core::utils::errors::GameError;
 
 fn new_small_game() -> Game {
-    Game::new(1, Some(5), 1_000_000.0)
+    Game::new(1, Some(5), 650_000.0)
 }
 
 #[test]

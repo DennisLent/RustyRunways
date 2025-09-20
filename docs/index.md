@@ -23,7 +23,7 @@ This documentation provides a high‑level overview of the project and links to 
 
 - Python (pip): `pip install rusty-runways` — see Python page for Gym wrappers and extra installs
 - Build: `cargo build --release`
-- CLI: `cargo run -p rusty_runways_cli -- --seed 1 --n 5 --c 1000000`
+- CLI: `cargo run -p rusty_runways_cli -- --seed 1 --n 5 --c 650000`
 - GUI (download): see [Releases](releases.md) for installers (macOS universal, Windows, Linux).
 - GUI (web demo): try it in your browser — no install — see [Play Online](demo.md). Note: save/load and YAML scenarios are only available in Python, Tauri desktop, or native Rust.
 - GUI (from source):
