@@ -4,7 +4,7 @@ title: Custom Worlds (YAML)
 
 # Custom Worlds (YAML)
 
-RustyRunways can load fully custom worlds from a YAML file. This allows you to define airports, fees, initial orders, and gameplay pacing deterministically while still supporting randomly generated content. When airports are generated, they are placed in deterministic clusters so each map starts with local routes for small aircraft and longer hops for bigger planes.
+RustyRunways can load fully custom worlds from a YAML file. This allows you to define airports, fees, initial orders, and gameplay pacing deterministically while still supporting randomly generated content. When airports are generated, they are placed in deterministic clusters so each map starts with local routes for small aircraft and longer hops for bigger planes. You can use YAML files to tweak the economy (restock cadence, order weights, fuel volatility), shape the network layout, or author handcrafted scenarios for testing new mechanics.
 
 ## Schema
 
@@ -52,6 +52,12 @@ Gameplay tuning (defaults shown):
   - `max_weight` (float, default `650.0`): maximum cargo weight (kg) for generated orders.
   - `alpha` (float, default `0.12`): distance multiplier in the value calculation.
   - `beta` (float, default `0.55`): urgency multiplier in the value calculation.
+
+### Common Customisations
+
+The most frequently adjusted knobs are the `gameplay` block and the weight/deadline limits inside `orders`. Increasing `restock_cycle_hours` slows down how quickly new work appears. Lowering `max_weight` keeps starter planes relevant for longer, whereas raising it forces players to invest in larger aircraft earlier. Tightening the fuel `min_price_multiplier` and `max_price_multiplier` narrows price swings, making cash flow more predictable during playtests. For handcrafted cargo chains, disable regeneration (`regenerate: false`) and list explicit `orders` for each airport.
+
+Every change can be tested immediately by pointing the CLI, GUI, or Python environment at your YAML file. Because the schema defaults to the tuned KPIs, omitting a field means “use the balanced value.”
 
 ## Examples
 
@@ -164,16 +170,13 @@ gameplay:
 
 ## Using Configs
 
-- CLI
-  - Start: `cargo run -p rusty_runways_cli -- --config examples/sample_world.yaml`
-  - REPL: `LOAD CONFIG examples/sample_world_no_orders.yaml`
+- **CLI:** Start with `cargo run -p rusty_runways_cli -- --config examples/sample_world.yaml` or, from inside the REPL, load a new scenario with `LOAD CONFIG examples/sample_world_no_orders.yaml`.
 
-- GUI
-  - Main menu → Start From Config → Browse → Preview → Start.
+- **GUI:** From the desktop main menu choose “Start From Config,” pick the YAML file, review the preview, and launch the game.
 
-- Python
-  - `GameEnv(config_path="examples/sample_world.yaml")`
-  - `VectorGameEnv(4, config_path="examples/sample_world.yaml")`
+- **Python:** Pass `config_path` to `GameEnv` or `VectorGameEnv`, e.g. `GameEnv(config_path="examples/sample_world.yaml")` for a single environment or `VectorGameEnv(4, config_path="benchmarks/sanity.yaml")` to spin up multiple copies.
+
+After loading a YAML world you can still use commands or agent actions exactly as in the default game. The YAML simply seeds the initial state and tuning values.
 
 ## Validation & Errors
 

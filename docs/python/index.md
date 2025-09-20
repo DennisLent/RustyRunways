@@ -4,9 +4,9 @@ title: Python Bindings
 
 # Python
 
-Python bindings expose the Rust Core engine to Python for scripting, analysis, and RL/ML workflows. For game rules, see Core.
+The Python bindings expose the Rust core engine for scripting, data analysis, and reinforcement‑learning workflows. They respect the same economic defaults as the game clients: when you build an environment without a YAML override you start with $650 000, a 12‑airport network, weekly restocks, and six‑hour fuel updates. Every CLI command can be issued from Python, so automated agents interact with the simulation just like human players.
 
-As part of the balancing process we routinely let heuristic agents play through procedurally generated worlds so we can observe cash curves, order feasibility, and upgrade cadence in the same way a casual player might experience them. The tooling used for that process lives in the `benchmarks/` directory and is described near the end of this document.
+As part of the balancing process we routinely let heuristic agents play through procedurally generated worlds so we can observe cash curves, order feasibility, and upgrade cadence. The tooling used for that process lives in the `benchmarks/` directory and is referenced near the end of this document.
 
 ## Installation
 
@@ -36,7 +36,7 @@ maturin develop --release
 
 Gymnasium is only required for the Gym wrappers. See the Gym section for details.
 
-## GameEnv (single)
+## GameEnv (single environment)
 
 Constructor
 
@@ -86,7 +86,7 @@ print(obs["airports"][0])
 print(obs["planes"][0])
 ```
 
-## VectorGameEnv (multiple)
+## VectorGameEnv (multiple environments)
 
 Constructor
 
@@ -194,9 +194,33 @@ Dependency note
 
 ## Notes
 
-- Same rules/constraints as the Rust Core engine.
-- Seeds control determinism; vectors default to `base_seed + index` when provided a scalar seed.
-- Parallel stepping releases the GIL and uses Rayon internally.
+- The bindings enforce the same constraints as the Rust engine: planes must be parked to refuel or sell, deadlines continue to expire, and economic defaults mirror the tuned values.
+- Seeds control determinism. When you pass a scalar seed to `VectorGameEnv`, each environment receives `seed + index`, so parallel runs remain reproducible.
+- Parallel stepping releases the GIL and uses Rayon internally, allowing large vector environments to scale efficiently across CPU cores.
+
+## Loading YAML Worlds
+
+All constructors accept `config_path`. The engine reads the YAML, applies defaults for any missing fields, and returns an environment seeded with those parameters. This pattern makes balance testing fast, because you can edit the YAML on disk, call `reset(config_path=...)`, and immediately observe how the new weights, deadlines, or restock cadence influence the simulation.
+
+```python
+from rusty_runways_py import GameEnv
+
+env = GameEnv(config_path="benchmarks/sanity.yaml")
+print(env.cash(), env.seed())
+env.execute("SHOW AIRPORTS WITH ORDERS")
+```
+
+To build YAML files programmatically (for sweeps or automated tests), write them to a temporary path with `yaml.safe_dump`, hand that path to `GameEnv` or `VectorGameEnv`, and delete the file once the run completes. The loader does not keep the file handle open after parsing.
+
+## Sanity Benchmarks and the Heuristic Agent
+
+The `benchmarks/` folder contains a deterministic heuristic agent used during development. Running it regularly helps verify that code or tuning changes keep the starter plane’s feasibility and upgrade timing inside the target window.
+
+1. Edit or create a scenario file (for example `benchmarks/sanity.yaml`).
+2. Execute `python benchmarks/run_benchmarks.py --scenario-config benchmarks/sanity.yaml` to simulate all listed seeds.
+3. Render per-seed charts with `python benchmarks/sanity_report.py`. The script writes feasibility, margin, cash, and route-length plots for early/mid/late phases alongside a JSON summary so you can diff statistics between branches.
+
+These scripts rely solely on the public Python API, so you can copy their helpers into custom analytics pipelines or reinforcement-learning loops.
 
 ## Benchmark Agents
 
