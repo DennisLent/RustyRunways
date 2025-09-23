@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use rusty_runways_core::game::Observation;
 use rusty_runways_core::utils::airplanes::models::AirplaneModel;
 use rusty_runways_core::Game;
+use rusty_runways_core::statistics::DailyStats;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -72,6 +73,13 @@ fn advance(state: State<AppState>, hours: u64) -> Result<Observation, String> {
     let game = guard.as_mut().ok_or("no game running")?;
     game.advance(hours);
     Ok(game.observe())
+}
+
+#[tauri::command]
+fn stats_cmd(state: State<AppState>) -> Result<Vec<DailyStats>, String> {
+    let guard = state.game.lock().map_err(|_| "state poisoned")?;
+    let game = guard.as_ref().ok_or("no game running")?;
+    Ok(game.stats().to_vec())
 }
 
 #[tauri::command]
@@ -391,6 +399,7 @@ fn main() {
             start_from_config_yaml,
             start_from_config_path,
             list_saves,
+            stats_cmd,
         ])
         .setup(|_app| Ok(()))
         .run(tauri::generate_context!())

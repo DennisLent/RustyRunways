@@ -28,6 +28,18 @@ pub fn observe() -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn stats() -> Result<JsValue, JsValue> {
+    #[derive(serde::Serialize)]
+    struct StatsDto {
+        daily: Vec<rusty_runways_core::statistics::DailyStats>,
+    }
+    with_game(|g| {
+        let daily = g.stats().to_vec();
+        Ok(serde_wasm_bindgen::to_value(&StatsDto { daily }).unwrap())
+    })
+}
+
+#[wasm_bindgen]
 pub fn advance(hours: u64) -> Result<JsValue, JsValue> {
     with_game(|g| {
         g.advance(hours);

@@ -24,7 +24,7 @@ import {
   ShoppingCart,
   Users
 } from "lucide-react";
-import { observe, advance as apiAdvance, saveGame as apiSave, listSaves as apiListSaves, loadGame as apiLoadGame } from "@/api/game";
+import { observe, advance as apiAdvance, saveGame as apiSave, listSaves as apiListSaves, loadGame as apiLoadGame, stats as apiStats } from "@/api/game";
 import type { Observation } from "@/api/game";
 
 interface GameScreenProps {
@@ -76,6 +76,7 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
   const [availableSaves, setAvailableSaves] = useState<string[]>([]);
   
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [dailyStats, setDailyStats] = useState<{ day: number; income: number; expenses: number; net_cash: number; fleet_size: number; total_deliveries: number }[]>([]);
 
   async function refresh() {
     const obs = await observe();
@@ -84,6 +85,7 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
     // keep arrays for possible future use
     setAirports(obs.airports);
     setPlanes(obs.planes);
+    try { setDailyStats(await apiStats()); } catch (_) { /* optional */ }
   }
 
   useEffect(() => {
@@ -188,8 +190,8 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
     time: timeStr,
     planes: planes.length,
     activeOrders: airports.reduce((a, b) => a + (b.num_orders || 0), 0),
-    completedDeliveries: 0,
-    totalRevenue: 0
+    completedDeliveries: dailyStats.length ? dailyStats[dailyStats.length - 1].total_deliveries : 0,
+    totalRevenue: dailyStats.reduce((sum, s) => sum + s.income, 0)
   };
 
   // Render different screens based on mode
@@ -402,6 +404,40 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                         <div className="font-semibold">{gameStats.planes}</div>
                       </div>
                     </div>
+
+                    {/* Daily table */}
+                    <div className="mt-2 border-t border-aviation-blue/20 pt-2">
+                      {dailyStats.length === 0 ? (
+                        <div className="text-xs text-muted-foreground">No daily stats yet. Let the simulation run.</div>
+                      ) : (
+                        <div className="max-h-48 overflow-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-muted-foreground">
+                                <th className="text-left">Day</th>
+                                <th className="text-right">Income</th>
+                                <th className="text-right">Expense</th>
+                                <th className="text-right">End Cash</th>
+                                <th className="text-right">Fleet</th>
+                                <th className="text-right">Delivered</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dailyStats.map((s) => (
+                                <tr key={s.day}>
+                                  <td>{s.day}</td>
+                                  <td className="text-right">${s.income.toFixed(0)}</td>
+                                  <td className="text-right">${s.expenses.toFixed(0)}</td>
+                                  <td className="text-right">${s.net_cash.toFixed(0)}</td>
+                                  <td className="text-right">{s.fleet_size}</td>
+                                  <td className="text-right">{s.total_deliveries}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -457,12 +493,14 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                         const status: 'parked' | 'en-route' | 'loading' = p.status.includes('InTransit')
                           ? 'en-route'
                           : (p.status.includes('Loading') ? 'loading' : 'parked');
+                        const roleIcon = p.payload.passenger_capacity > 0 && p.payload.cargo_capacity > 0
+                          ? '🛩️' : (p.payload.passenger_capacity > 0 ? '🧑‍✈️' : '📦');
                         const atAirport = airports.find((a) => !p.status.includes('InTransit') && a.x === p.x && a.y === p.y);
                         const destAirport = p.destination != null ? airports.find((a) => a.id === p.destination) : undefined;
                         const locLabel = atAirport ? String(atAirport.name) : (destAirport ? `→ ${destAirport.name}` : '');
                         return (
                           <div key={p.id} className="border border-aviation-blue/20 rounded-lg p-3 bg-secondary/20">
-                            <div className="font-semibold">{p.model}</div>
+                            <div className="font-semibold">{roleIcon} {p.model}</div>
                             <div className="text-muted-foreground text-xs">
                               {locLabel ? `Location: ${locLabel} • ` : ''}Status: {status.replace('-', ' ')} • Fuel: {fuelPct}%
                             </div>

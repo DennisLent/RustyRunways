@@ -70,6 +70,17 @@ export async function observe(): Promise<Observation> {
   }
 }
 
+export type DailyStats = { day: number; income: number; expenses: number; net_cash: number; fleet_size: number; total_deliveries: number }
+export async function stats(): Promise<DailyStats[]> {
+  if (isTauri()) {
+    return await invoke<DailyStats[]>('stats_cmd')
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    const dto = await wasm.stats()
+    return (dto.daily as DailyStats[])
+  }
+}
+
 export async function advance(hours = 1): Promise<Observation> {
   if (isTauri()) {
     return await invoke<Observation>('advance', { hours })

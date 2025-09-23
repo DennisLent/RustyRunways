@@ -19,7 +19,7 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-latest
-            tauriArgs: '-b deb rpm'
+            tauriArgs: '-b appimage deb rpm'
             artifactSuffix: linux
           - runner: windows-latest
             tauriArgs: ''
@@ -118,7 +118,7 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-latest
-            tauriArgs: '-b deb rpm'
+            tauriArgs: '-b appimage deb rpm'
           - runner: windows-latest
             tauriArgs: ''
           - runner: macos-14

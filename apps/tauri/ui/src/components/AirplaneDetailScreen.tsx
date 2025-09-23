@@ -86,6 +86,18 @@ export const AirplaneDetailScreen = ({
 
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
 
+  const prettyStatus = (raw: string) => {
+    if (!raw) return '';
+    if (raw.includes('InTransit')) return 'In Transit';
+    if (raw.includes('Refueling')) return 'Fueling';
+    if (raw.includes('Maintenance')) return 'Maintenance';
+    if (raw.includes('Loading')) return 'Loading';
+    if (raw.includes('Unloading')) return 'Unloading';
+    if (raw.includes('Broken')) return 'Broken';
+    if (raw.includes('Parked')) return 'Parked';
+    return raw;
+  };
+
   // Keep filteredOrders defined before effects that reference it
   const filteredOrders = availableOrders.filter(order => {
     const maxW = filterWeight ? parseInt(filterWeight, 10) : Infinity;
@@ -264,6 +276,10 @@ export const AirplaneDetailScreen = ({
 
   async function handleDispatch() {
     if (!selectedDestination) return;
+    if (airplane.status.toLowerCase() !== 'parked') {
+      setError('Plane must be parked before departure');
+      return;
+    }
     await apiDepart(parseInt(airplane.id, 10), parseInt(selectedDestination, 10));
     await refresh();
   }
@@ -341,7 +357,7 @@ export const AirplaneDetailScreen = ({
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status</span>
                     <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30">
-                      {airplane.status}
+                      {prettyStatus(airplane.status)}
                     </Badge>
                   </div>
                   
@@ -450,12 +466,15 @@ export const AirplaneDetailScreen = ({
                 <Button 
                   className="w-full" 
                   variant="runway"
-                  disabled={!selectedDestination}
+                  disabled={!selectedDestination || airplane.status.toLowerCase() !== 'parked'}
                   onClick={handleDispatch}
                 >
                   <Send className="w-4 h-4 mr-2" />
                   Dispatch to {selectedDestination}
                 </Button>
+                {airplane.status.toLowerCase() !== 'parked' && (
+                  <div className="text-xs text-red-400">Plane must be Parked to depart. Complete loading/unloading/refueling first.</div>
+                )}
               </CardContent>
             </Card>
           </div>

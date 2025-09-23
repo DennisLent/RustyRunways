@@ -1918,6 +1918,11 @@ impl Game {
     ) -> Result<(), GameError> {
         let (plane_idx, origin_idx) = self.plane_and_airport_idx(plane_id)?;
         let plane = &mut self.airplanes[plane_idx];
+
+        // Guard rail: only depart when parked
+        if !matches!(plane.status, AirplaneStatus::Parked) {
+            return Err(GameError::PlaneNotReady { plane_state: plane.status.clone() });
+        }
         let (dest_airport, dest_coords) = &self
             .map
             .airports
