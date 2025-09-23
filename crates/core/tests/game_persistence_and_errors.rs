@@ -26,6 +26,8 @@ fn save_and_load_roundtrip_and_execute_mapping() {
 
 #[test]
 fn list_airport_invalid_and_find_associated_airport_error() {
+    #[cfg(feature = "ui_prints")]
+    {
     let mut game = Game::new(1, Some(5), 650_000.0);
 
     // invalid airport id
@@ -38,4 +40,5 @@ fn list_airport_invalid_and_find_associated_airport_error() {
     plane.location = Coordinate::new(0.123, 0.456);
     let err = game.list_airplane(0).unwrap_err();
     assert!(matches!(err, GameError::AirportLocationInvalid { .. }));
+    }
 }

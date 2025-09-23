@@ -75,7 +75,7 @@ jobs:
           name: coverage
           path: coverage/**
 
-      - name: Upload Rust coverage to Codecov
+      - name: Upload Rust coverage to Codecov (Cobertura)
         if: ${{ always() }}
         uses: codecov/codecov-action@v4
         with:
@@ -84,6 +84,20 @@ jobs:
           flags: rust
           name: rust-coverage
           fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+
+      - name: Upload Rust coverage to Codecov (LCOV fallback)
+        if: ${{ always() && hashFiles('coverage/rust/lcov.info') != '' }}
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/rust/lcov.info
+          flags: rust
+          name: rust-coverage-lcov
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
 
       - name: Upload Python coverage to Codecov
         if: ${{ always() }}
@@ -94,6 +108,8 @@ jobs:
           flags: python
           name: python-coverage
           fail_ci_if_error: true
+          verbose: true
+          disable_search: true
 
       - name: Upload Frontend coverage to Codecov (if present)
         if: ${{ hashFiles('coverage/frontend/lcov.info') != '' || hashFiles('coverage/frontend/coverage-final.json') != '' }}
@@ -106,3 +122,5 @@ jobs:
           flags: frontend
           name: frontend-coverage
           fail_ci_if_error: true
+          verbose: true
+          disable_search: true

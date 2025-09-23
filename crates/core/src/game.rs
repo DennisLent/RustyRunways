@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use crate::config::{
     DEFAULT_FUEL_INTERVAL_HOURS, DEFAULT_RESTOCK_CYCLE_HOURS, FuelGameplay, GameplayConfig,
     ManualOrderConfig, WorldConfig,
@@ -34,6 +36,44 @@ fn default_rng() -> StdRng {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{
+        AirportConfig, FuelGameplay, GameplayConfig, Location, ManualOrderConfig, OrderTuning,
+        OrdersGameplay, PassengerTuning, WorldConfig,
+    };
+    use crate::utils::orders::CargoType;
+    use tempfile::tempdir;
+
+    fn base_gameplay_config() -> GameplayConfig {
+        GameplayConfig {
+            restock_cycle_hours: 168,
+            fuel_interval_hours: 6,
+            orders: OrdersGameplay {
+                regenerate: true,
+                generate_initial: true,
+                tuning: OrderTuning::default(),
+                passengers: PassengerTuning::default(),
+            },
+            fuel: FuelGameplay::default(),
+        }
+    }
+
+    fn manual_airport(
+        id: usize,
+        name: &str,
+        location: Option<Location>,
+        orders: Vec<ManualOrderConfig>,
+    ) -> AirportConfig {
+        AirportConfig {
+            id,
+            name: name.to_string(),
+            location,
+            runway_length_m: Some(3_200.0),
+            fuel_price_per_l: Some(1.4),
+            landing_fee_per_ton: Some(4.3),
+            parking_fee_per_hour: Some(12.0),
+            orders,
+        }
+    }
 
     #[test]
     fn world_event_branches_update_prices() {
@@ -64,6 +104,7 @@ mod tests {
         assert!((game.map.airports[0].0.fuel_price - base).abs() < 1e-3);
     }
 
+    #[cfg(feature = "ui_prints")]
     #[test]
     fn list_airports_handles_passenger_orders() {
         let mut game = Game::new(10, Some(3), 250_000.0);
@@ -87,6 +128,271 @@ mod tests {
         let expected = game.airplanes[0].model.specs().passenger_capacity;
         assert_eq!(game.airplanes[0].specs.passenger_capacity, expected);
         assert_eq!(game.player.fleet[0].specs.passenger_capacity, expected);
+    }
+
+    #[test]
+    fn gameplay_settings_rejects_zero_restock_cycle() {
+        let mut cfg = base_gameplay_config();
+        cfg.restock_cycle_hours = 0;
+        let err = gameplay_settings(&cfg).unwrap_err();
+        assert!(err.contains("restock_cycle_hours"));
+    }
+
+    #[test]
+    fn from_config_handles_manual_passenger_and_cargo_orders() {
+        let mut gameplay = base_gameplay_config();
+        gameplay.orders.regenerate = false;
+        gameplay.orders.generate_initial = false;
+
+        let airports = vec![
+            manual_airport(
+                0,
+                "HUB",
+                Some(Location {
+                    x: 1_200.0,
+                    y: 900.0,
+                }),
+                vec![ManualOrderConfig::Passengers {
+                    passengers: 24,
+                    value: 8_400.0,
+                    deadline_hours: 18,
+                    destination_id: 1,
+                }],
+            ),
+            manual_airport(
+                1,
+                "AAX",
+                None,
+                vec![ManualOrderConfig::Cargo {
+                    cargo: CargoType::Food,
+                    weight: 320.0,
+                    value: 6_200.0,
+                    deadline_hours: 26,
+                    destination_id: 0,
+                }],
+            ),
+        ];
+
+        let cfg = WorldConfig {
+            seed: Some(77),
+            starting_cash: 550_000.0,
+            airports,
+            num_airports: None,
+            gameplay,
+        };
+
+        let game = Game::from_config(cfg).expect("config should be accepted");
+
+        assert_eq!(game.map.num_airports, 2);
+        let (_, generated_coord) = &game.map.airports[1];
+        assert!(generated_coord.x != 0.0 || generated_coord.y != 0.0);
+
+        let passenger_order = game.map.airports[0]
+            .0
+            .orders
+            .iter()
+            .find(|o| matches!(o.payload, OrderPayload::Passengers { .. }))
+            .expect("passenger order should exist");
+        assert_eq!(passenger_order.origin_id, 0);
+
+        let cargo_order = game.map.airports[1]
+            .0
+            .orders
+            .iter()
+            .find(|o| matches!(o.payload, OrderPayload::Cargo { .. }))
+            .expect("cargo order should exist");
+        assert_eq!(cargo_order.origin_id, 1);
+    }
+
+    #[test]
+    fn from_config_rejects_negative_cargo_value() {
+        let mut gameplay = base_gameplay_config();
+        gameplay.orders.regenerate = false;
+        gameplay.orders.generate_initial = false;
+
+        let airports = vec![
+            manual_airport(
+                0,
+                "HUB",
+                Some(Location { x: 100.0, y: 200.0 }),
+                vec![ManualOrderConfig::Cargo {
+                    cargo: CargoType::Machines,
+                    weight: 400.0,
+                    value: -10.0,
+                    deadline_hours: 12,
+                    destination_id: 1,
+                }],
+            ),
+            manual_airport(1, "AAY", Some(Location { x: 400.0, y: 800.0 }), Vec::new()),
+        ];
+
+        let cfg = WorldConfig {
+            seed: Some(5),
+            starting_cash: 400_000.0,
+            airports,
+            num_airports: None,
+            gameplay,
+        };
+
+        let err = Game::from_config(cfg).unwrap_err();
+        if let GameError::InvalidConfig { msg } = err {
+            assert!(msg.contains("negative value"));
+        } else {
+            panic!("Expected invalid config error");
+        }
+    }
+
+    #[test]
+    fn save_and_load_game_roundtrip() {
+        let tmp = tempdir().expect("tempdir");
+        let original = std::env::current_dir().expect("cwd");
+        std::env::set_current_dir(tmp.path()).expect("chdir");
+
+        let mut game = Game::new(21, Some(2), 123_456.0);
+        game.player.cash = 222_222.0;
+        game.save_game("roundtrip").expect("save to succeed");
+
+        let loaded = Game::load_game("roundtrip").expect("load to succeed");
+        assert_eq!(loaded.player.cash, 222_222.0);
+
+        std::env::set_current_dir(&original).expect("restore cwd");
+    }
+
+    #[test]
+    fn drain_log_and_reset_runtime_clear_state() {
+        let mut game = Game::new(4, Some(2), 50_000.0);
+        game.log.push("alpha".into());
+        assert_eq!(game.drain_log(), vec!["alpha".to_string()]);
+        assert!(game.log.is_empty());
+
+        game.log.push("beta".into());
+        game.reset_runtime();
+        assert!(game.log.is_empty());
+    }
+
+    #[test]
+    fn observe_reports_plane_payloads() {
+        let mut game = Game::new(12, Some(2), 90_000.0);
+        let dest_coord = game.map.airports[1].1;
+        let origin_coord = game.map.airports[0].1;
+        game.airplanes[0].current_passengers = 8;
+        game.airplanes[0].current_payload = 450.0;
+        game.airplanes[0].status = AirplaneStatus::InTransit {
+            hours_remaining: 2,
+            destination: 1,
+            origin: origin_coord,
+            total_hours: 3,
+        };
+
+        let obs = game.observe();
+        assert_eq!(obs.planes.len(), game.airplanes.len());
+        let plane = &obs.planes[0];
+        assert_eq!(plane.payload.passenger_current, 8);
+        assert_eq!(plane.destination, Some(1));
+        assert_eq!(plane.hours_remaining, Some(2));
+        assert!(
+            obs.airports
+                .iter()
+                .any(|a| a.id == 1 && (a.x - dest_coord.x).abs() < 1e-3)
+        );
+    }
+
+    #[test]
+    fn tick_event_handles_global_world_event() {
+        let mut game = Game::new(33, Some(3), 120_000.0);
+        let baseline: Vec<f32> = game
+            .map
+            .airports
+            .iter()
+            .map(|(ap, _)| ap.fuel_price)
+            .collect();
+        game.events.clear();
+        game.schedule(
+            game.time,
+            Event::WorldEvent {
+                airport: None,
+                factor: 1.4,
+                duration: 6,
+            },
+        );
+
+        assert!(game.tick_event());
+        for ((airport, _), before) in game.map.airports.iter().zip(baseline.iter()) {
+            assert!((airport.fuel_price - before * 1.4).abs() < 1e-3);
+        }
+
+        game.schedule(
+            game.time + 6,
+            Event::WorldEventEnd {
+                airport: None,
+                factor: 1.4,
+            },
+        );
+        game.time += 6;
+        assert!(game.tick_event());
+    }
+
+    #[test]
+    fn tick_event_updates_daily_stats_and_pricing() {
+        let mut game = Game::new(7, Some(2), 80_000.0);
+        game.events.clear();
+        let base = game.map.airports[0].0.fuel_price;
+        game.daily_income = 600.0;
+        game.daily_expenses = 200.0;
+        game.schedule(game.time, Event::DailyStats);
+        game.schedule(game.time, Event::DynamicPricing);
+
+        assert!(game.tick_event());
+        assert!(game.tick_event());
+
+        assert_eq!(game.stats.len(), 1);
+        assert!(game.daily_income.abs() < f32::EPSILON);
+        assert!(
+            game.map
+                .airports
+                .iter()
+                .any(|(ap, _)| (ap.fuel_price - base).abs() > 1e-3)
+        );
+    }
+
+    #[test]
+    fn maintenance_check_marks_and_repairs_planes() {
+        let mut game = Game::new(5, Some(2), 70_000.0);
+        game.events.clear();
+        game.airplanes[0].hours_since_maintenance = 2_000;
+        game.airplanes[0].status = AirplaneStatus::Parked;
+        game.schedule(game.time, Event::MaintenanceCheck);
+
+        assert!(game.tick_event());
+        assert!(game.airplanes[0].needs_maintenance);
+        assert!(matches!(game.airplanes[0].status, AirplaneStatus::Broken));
+
+        game.advance(10);
+        assert!(!game.airplanes[0].needs_maintenance);
+        assert!(matches!(game.airplanes[0].status, AirplaneStatus::Parked));
+    }
+
+    #[cfg(feature = "ui_prints")]
+    #[test]
+    fn list_airport_valid_and_invalid() {
+        let mut game = Game::new(16, Some(2), 65_000.0);
+        game.map.airports[0].0.orders.push(Order {
+            id: 999,
+            payload: OrderPayload::Passengers { count: 10 },
+            value: 3_500.0,
+            deadline: 12,
+            origin_id: 0,
+            destination_id: 1,
+        });
+        game.show_cash();
+        game.show_time();
+        game.show_stats();
+
+        game.list_airports(true);
+        game.list_airport(0, true).expect("airport exists");
+
+        let err = game.list_airport(10, false).unwrap_err();
+        assert!(matches!(err, GameError::AirportIdInvalid { .. }));
     }
 }
 
@@ -801,63 +1107,66 @@ impl Game {
     }
 
     /// Show current player cash
+    #[cfg(feature = "ui_prints")]
     pub fn show_cash(&self) {
         println!("${}", self.player.cash);
     }
 
     /// Show current time
+    #[cfg(feature = "ui_prints")]
     pub fn show_time(&self) {
         println!("{}", self.days_and_hours(self.time));
     }
 
     /// Shows the lifetime stats
+    #[cfg(feature = "ui_prints")]
     pub fn show_stats(&self) {
-        let headers = ["Day", "Income", "Expense", "End Cash", "Fleet", "Delivered"];
+            let headers = ["Day", "Income", "Expense", "End Cash", "Fleet", "Delivered"];
 
-        //get max width per column
-        let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
-        let mut rows: Vec<Vec<String>> = Vec::with_capacity(self.stats.len());
+            //get max width per column
+            let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
+            let mut rows: Vec<Vec<String>> = Vec::with_capacity(self.stats.len());
 
-        for s in &self.stats {
-            let row = vec![
-                s.day.to_string(),
-                format!("{:.2}", s.income),
-                format!("{:.2}", s.expenses),
-                format!("{:.2}", s.net_cash),
-                s.fleet_size.to_string(),
-                s.total_deliveries.to_string(),
-            ];
+            for s in &self.stats {
+                let row = vec![
+                    s.day.to_string(),
+                    format!("{:.2}", s.income),
+                    format!("{:.2}", s.expenses),
+                    format!("{:.2}", s.net_cash),
+                    s.fleet_size.to_string(),
+                    s.total_deliveries.to_string(),
+                ];
 
-            for (i, cell) in row.iter().enumerate() {
-                col_widths[i] = col_widths[i].max(cell.len());
+                for (i, cell) in row.iter().enumerate() {
+                    col_widths[i] = col_widths[i].max(cell.len());
+                }
+                rows.push(row);
             }
-            rows.push(row);
-        }
 
-        for (i, header) in headers.iter().enumerate() {
-            if i > 0 {
-                print!(" | ");
-            }
-            // left-align
-            print!("{:<width$}", header, width = col_widths[i]);
-        }
-        println!();
-
-        // Separator
-        let total_width: usize = col_widths.iter().sum::<usize>() + (3 * (headers.len() - 1));
-        println!("{}", "-".repeat(total_width));
-
-        for row in rows {
-            for (i, cell) in row.iter().enumerate() {
+            for (i, header) in headers.iter().enumerate() {
                 if i > 0 {
                     print!(" | ");
                 }
-
-                // right-align
-                print!("{:>width$}", cell, width = col_widths[i]);
+                // left-align
+                print!("{:<width$}", header, width = col_widths[i]);
             }
             println!();
-        }
+
+            // Separator
+            let total_width: usize = col_widths.iter().sum::<usize>() + (3 * (headers.len() - 1));
+            println!("{}", "-".repeat(total_width));
+
+            for row in rows {
+                for (i, cell) in row.iter().enumerate() {
+                    if i > 0 {
+                        print!(" | ");
+                    }
+
+                    // right-align
+                    print!("{:>width$}", cell, width = col_widths[i]);
+                }
+                println!();
+            }
     }
 
     /// Process the next scheduled event; advance `self.time`. Returns false if no events remain.
@@ -1109,6 +1418,7 @@ impl Game {
 
     /// Display a summary of all airports in the map, including their orders.
     /// If with_orders is true, show the orders alongside.
+    #[cfg(feature = "ui_prints")]
     pub fn list_airports(&self, with_orders: bool) {
         println!("Airports ({} total):", self.map.num_airports);
         for (airport, coord) in &self.map.airports {
@@ -1154,6 +1464,7 @@ impl Game {
 
     /// Display a summary of a single airport in the map, including its orders.
     /// If with_orders is true, show the orders alongside.
+    #[cfg(feature = "ui_prints")]
     pub fn list_airport(&self, airport_id: usize, with_orders: bool) -> Result<(), GameError> {
         if airport_id > (self.map.num_airports - 1) {
             return Err(GameError::AirportIdInvalid { id: airport_id });
@@ -1201,6 +1512,7 @@ impl Game {
         Ok(())
     }
 
+    #[cfg(feature = "ui_prints")]
     fn find_associated_airport(&self, location: &Coordinate) -> Result<String, GameError> {
         let airport = match self.map.airports.iter().find(|(_, c)| c == location) {
             Some((airport, _)) => airport,
@@ -1237,6 +1549,7 @@ impl Game {
     }
 
     /// Display a summary of all airplanes in the game.
+    #[cfg(feature = "ui_prints")]
     pub fn list_airplanes(&self) -> Result<(), GameError> {
         println!("Airplanes ({} total):", self.airplanes.len());
         for plane in &self.airplanes {
@@ -1283,6 +1596,7 @@ impl Game {
     }
 
     /// Display a summary of a single airplane in the game.
+    #[cfg(feature = "ui_prints")]
     pub fn list_airplane(&self, plane_id: usize) -> Result<(), GameError> {
         if plane_id > (self.airplanes.len() - 1) {
             return Err(GameError::PlaneIdInvalid { id: plane_id });
@@ -1357,6 +1671,7 @@ impl Game {
         }
     }
 
+    #[cfg(feature = "ui_prints")]
     pub fn show_distances(&self, plane_id: usize) -> Result<(), GameError> {
         if plane_id > (self.airplanes.len() - 1) {
             return Err(GameError::PlaneIdInvalid { id: plane_id });

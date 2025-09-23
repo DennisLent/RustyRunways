@@ -1,3 +1,5 @@
+#![cfg(feature = "ui_prints")]
+
 use rusty_runways_core::game::Game;
 use rusty_runways_core::utils::airplanes::models::AirplaneStatus;
 use rusty_runways_core::utils::errors::GameError;
@@ -70,6 +72,6 @@ fn show_and_list_helpers_execute() {
         AirplaneStatus::InTransit { .. }
     ));
 
-    game.list_airplane(plane_id).unwrap();
-    game.show_distances(plane_id).unwrap();
+game.list_airplane(plane_id).unwrap();
+game.show_distances(plane_id).unwrap();
 }

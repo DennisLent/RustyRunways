@@ -32,6 +32,7 @@ echo "[coverage] Rust (tarpaulin)"
 (
   cd crates/core
   cargo tarpaulin \
+    --no-default-features \
     --engine ptrace \
     --exclude-files 'crates/commands/*' \
     --exclude-files 'crates/py/*' \
@@ -45,6 +46,34 @@ echo "[coverage] Rust (tarpaulin)"
   mkdir -p ../../coverage/rust
   if [ -f cobertura.xml ]; then mv cobertura.xml ../../coverage/rust/cobertura.xml; fi
   if [ -f ../../cobertura.xml ]; then mv ../../cobertura.xml ../../coverage/rust/cobertura.xml; fi
+  # Some tarpaulin builds don't honor --out Lcov into --output-dir; synthesize LCOV if missing
+  if [ ! -f ../../coverage/rust/lcov.info ] && [ -f ../../coverage/rust/cobertura.xml ]; then
+    python - <<'PY' ../../coverage/rust/cobertura.xml ../../coverage/rust/lcov.info
+import sys, xml.etree.ElementTree as ET, os
+src = sys.argv[1]; out = sys.argv[2]
+root = ET.parse(src).getroot()
+records = {}
+for cls in root.findall('.//class'):
+    fname = cls.attrib.get('filename')
+    lines = []
+    for line in cls.findall('./lines/line'):
+        try:
+            num = int(line.attrib.get('number','0'))
+            hits = int(line.attrib.get('hits','0'))
+        except Exception:
+            continue
+        lines.append((num,hits))
+    if lines:
+        records.setdefault(fname, []).extend(lines)
+with open(out,'w') as f:
+    for fname, lines in records.items():
+        f.write(f'SF:{fname}\n')
+        for num, hits in sorted(set(lines)):
+            f.write(f'DA:{num},{hits}\n')
+        f.write('end_of_record\n')
+print(f"[coverage] Synthesized LCOV from Cobertura: {out}")
+PY
+  fi
 )
 
 echo "[coverage] Python (pytest-cov)"

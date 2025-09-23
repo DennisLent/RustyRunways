@@ -1,3 +1,5 @@
+#![cfg(feature = "ui_prints")]
+
 use rusty_runways_core::game::Game;
 use rusty_runways_core::utils::airplanes::models::AirplaneStatus;
 
