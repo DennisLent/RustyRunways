@@ -34,7 +34,7 @@ pub fn stats() -> Result<JsValue, JsValue> {
         daily: Vec<rusty_runways_core::statistics::DailyStats>,
     }
     with_game(|g| {
-        let daily = g.stats().to_vec();
+        let daily = g.stats.to_vec();
         Ok(serde_wasm_bindgen::to_value(&StatsDto { daily }).unwrap())
     })
 }
@@ -198,6 +198,15 @@ pub fn load_order(order: usize, plane: usize) -> Result<(), JsValue> {
 pub fn unload_order(order: usize, plane: usize) -> Result<(), JsValue> {
     with_game(|g| {
         g.unload_order(order, plane)
+            .map_err(|e| e.to_string())
+            .map(|_| ())
+    })
+}
+
+#[wasm_bindgen]
+pub fn unload_orders(order_ids: Vec<usize>, plane: usize) -> Result<(), JsValue> {
+    with_game(|g| {
+        g.unload_orders(order_ids, plane)
             .map_err(|e| e.to_string())
             .map(|_| ())
     })

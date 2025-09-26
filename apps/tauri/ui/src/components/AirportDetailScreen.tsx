@@ -14,9 +14,11 @@ import {
   Filter,
   DollarSign,
   Clock,
-  MapPin
+  MapPin,
+  Play,
+  Pause
 } from "lucide-react";
-import { airportOrders as apiAirportOrders, loadOrder as apiLoad } from "@/api/game";
+import { airportOrders as apiAirportOrders, loadOrder as apiLoad, advance as apiAdvance, planeInfo as apiPlaneInfo, canFly as apiCanFly, unloadOrders as apiUnloadOrders } from "@/api/game";
 
 type PayloadKind = 'cargo' | 'passengers';
 
@@ -61,7 +63,9 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
   >(null);
   const [canFlyCache, setCanFlyCache] = useState<Record<number, boolean>>({});
   const [manifest, setManifest] = useState<Order[]>([]);
+  const [selectedManifest, setSelectedManifest] = useState<Record<string, boolean>>({});
   const [dispatchInfo, setDispatchInfo] = useState<{ ok: boolean; reason?: string } | null>(null);
+  const [timerId, setTimerId] = useState<number | null>(null);
 
   const airportObj = useMemo(() => {
     const idNum = parseInt(airportId, 10);
@@ -137,7 +141,7 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
       // fetch capacity using planeInfo
       try {
         const idNum = parseInt(selectedPlaneId, 10);
-        const info = await (await import('@/api/game')).planeInfo(idNum);
+        const info = await apiPlaneInfo(idNum);
         setPlaneCapacity({
           currentCargo: info.payload_current,
           cargoCapacity: info.payload_capacity,
@@ -159,7 +163,7 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
         const cache: Record<number, boolean> = {};
         for (const d of destSet) {
           try {
-            const ok = await (await import('@/api/game')).canFly(idNum, d);
+            const ok = await apiCanFly(idNum, d);
             cache[d] = ok;
           } catch (_) { void 0 }
         }
@@ -169,6 +173,61 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
     fetchPlaneInfoAndEligibility();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlaneId, orders.length]);
+
+  async function refreshScreen() {
+    const idNum = parseInt(airportId, 10);
+    const list = await apiAirportOrders(idNum);
+    setOrders(list.map(o => ({
+      id: String(o.id),
+      payloadKind: (o.payload_kind || 'cargo') as PayloadKind,
+      cargoType: o.cargo_type || undefined,
+      weight: o.weight ?? undefined,
+      passengerCount: o.passenger_count ?? undefined,
+      destination: String(o.destination_id),
+      deadline: String(o.deadline),
+      value: o.value,
+    })));
+    if (selectedPlaneId) {
+      try {
+        const idNumPlane = parseInt(selectedPlaneId, 10);
+        const info = await apiPlaneInfo(idNumPlane);
+        setPlaneCapacity({
+          currentCargo: info.payload_current,
+          cargoCapacity: info.payload_capacity,
+          currentPassengers: info.passenger_current,
+          passengerCapacity: info.passenger_capacity,
+        });
+        setManifest(info.manifest.map(o => ({
+          id: String(o.id),
+          payloadKind: (o.payload_kind || 'cargo') as PayloadKind,
+          cargoType: o.cargo_type || undefined,
+          weight: o.weight ?? undefined,
+          passengerCount: o.passenger_count ?? undefined,
+          destination: String(o.destination_id),
+          deadline: String(o.deadline),
+          value: o.value,
+        })));
+      } catch (_) { void 0 }
+    }
+  }
+
+  async function handleAdvanceTime() {
+    await apiAdvance(1);
+    await refreshScreen();
+  }
+
+  function handlePlay() {
+    if (timerId) return;
+    const id = window.setInterval(() => { void handleAdvanceTime(); }, 500);
+    setTimerId(id);
+  }
+
+  function handlePause() {
+    if (timerId) {
+      window.clearInterval(timerId);
+      setTimerId(null);
+    }
+  }
 
   const airport = {
     id: airportId,
@@ -265,6 +324,11 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
               <Plane className="w-3 h-3 mr-1" />
               {airport.aircraftCount} Aircraft
             </Badge>
+            <div className="flex items-center gap-2 ml-2">
+              <Button variant="runway" size="sm" onClick={handlePlay}><Play className="w-3 h-3 mr-1" />Auto</Button>
+              <Button variant="control" size="sm" onClick={handlePause}><Pause className="w-3 h-3 mr-1" />Pause</Button>
+              <Button variant="control" size="sm" onClick={handleAdvanceTime}>+1h</Button>
+            </div>
           </div>
         </div>
 
@@ -404,6 +468,32 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
                   >
                     Unload All Payload
                   </Button>
+                  {manifest.length > 0 && (
+                    <Button
+                      variant="warning"
+                      size="sm"
+                      className="ml-2"
+                      onClick={async () => {
+                        const ids = Object.entries(selectedManifest).filter(([, v]) => v).map(([k]) => parseInt(k, 10));
+                        if (ids.length === 0) return;
+                        await apiUnloadOrders(ids, parseInt(selectedPlaneId, 10));
+                        const pinfo = await (await import('@/api/game')).planeInfo(parseInt(selectedPlaneId, 10));
+                        setManifest(pinfo.manifest.map(o => ({
+                          id: String(o.id),
+                          payloadKind: (o.payload_kind || 'cargo') as PayloadKind,
+                          cargoType: o.cargo_type || undefined,
+                          weight: o.weight ?? undefined,
+                          passengerCount: o.passenger_count ?? undefined,
+                          destination: String(o.destination_id),
+                          deadline: String(o.deadline),
+                          value: o.value,
+                        })));
+                        setSelectedManifest({});
+                      }}
+                    >
+                      Unload Selected
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -419,6 +509,7 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
                     {manifest.map(m => (
                       <div key={m.id} className="flex items-center justify-between border border-aviation-blue/20 rounded p-2 bg-secondary/20">
                         <div className="flex items-center gap-3">
+                          <input type="checkbox" className="accent-aviation-amber" checked={!!selectedManifest[m.id]} onChange={(e) => setSelectedManifest(prev => ({ ...prev, [m.id]: e.target.checked }))} />
                           <div className="font-semibold">{m.id}</div>
                           <div className="text-muted-foreground">to {m.destination}</div>
                           <div className="text-muted-foreground">{payloadSummary(m)}</div>
@@ -443,7 +534,7 @@ export const AirportDetailScreen = ({ airportId, onBack, onAirplaneClick, airpor
                             if (airportObj) {
                               const list = await airportOrders(airportObj.id);
                               setOrders(list.map(o => ({
-                                id: String(o.id),
+                                id: String(o.id), 
                                 payloadKind: (o.payload_kind || 'cargo') as PayloadKind,
                                 cargoType: o.cargo_type || undefined,
                                 weight: o.weight ?? undefined,

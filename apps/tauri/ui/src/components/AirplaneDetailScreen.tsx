@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +18,11 @@ import {
   Plus,
   Minus,
   MapPin,
-  CircleDollarSign
+  CircleDollarSign,
+  Play,
+  Pause
 } from "lucide-react";
-import { airportOrders as apiAirportOrders, planeInfo as apiPlaneInfo, departPlane as apiDepart, loadOrder as apiLoad, unloadOrder as apiUnload, refuelPlane as apiRefuel, maintenance as apiMaint, canFly as apiCanFly, reachability as apiReach, sellPlane as apiSell } from "@/api/game";
+import { airportOrders as apiAirportOrders, planeInfo as apiPlaneInfo, departPlane as apiDepart, loadOrder as apiLoad, unloadOrder as apiUnload, unloadAll as apiUnloadAll, unloadOrders as apiUnloadOrders, refuelPlane as apiRefuel, maintenance as apiMaint, canFly as apiCanFly, reachability as apiReach, sellPlane as apiSell, advance as apiAdvance } from "@/api/game";
 
 type PayloadKind = 'cargo' | 'passengers';
 
@@ -85,6 +87,10 @@ export const AirplaneDetailScreen = ({
   });
 
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+  const isParked = airplane.status.toLowerCase().includes('parked');
+  const atAirport = airplane.location !== '';
+  const [selectedLoaded, setSelectedLoaded] = useState<Record<string, boolean>>({});
+  const intervalRef = useRef<number | null>(null);
 
   const prettyStatus = (raw: string) => {
     if (!raw) return '';
@@ -294,6 +300,36 @@ export const AirplaneDetailScreen = ({
     await refresh();
   }
 
+  async function handleUnloadAll() {
+    await apiUnloadAll(parseInt(airplane.id, 10));
+    await refresh();
+  }
+
+  async function handleUnloadSelected() {
+    const ids = Object.entries(selectedLoaded).filter(([, v]) => v).map(([k]) => parseInt(k, 10));
+    if (ids.length === 0) return;
+    await apiUnloadOrders(ids, parseInt(airplane.id, 10));
+    setSelectedLoaded({});
+    await refresh();
+  }
+
+  async function handleAdvanceTime() {
+    await apiAdvance(1);
+    await refresh();
+  }
+
+  const handlePlay = () => {
+    if (intervalRef.current) return;
+    intervalRef.current = window.setInterval(() => { void handleAdvanceTime(); }, 500);
+  };
+
+  const handlePause = () => {
+    if (intervalRef.current) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-control p-4">
       <div className="max-w-7xl mx-auto space-y-4">
@@ -331,6 +367,9 @@ export const AirplaneDetailScreen = ({
               <Fuel className="w-4 h-4 mr-1" />
               Refuel
             </Button>
+            <Button variant="runway" size="sm" onClick={handlePlay}><Play className="w-3 h-3 mr-1" />Auto</Button>
+            <Button variant="control" size="sm" onClick={handlePause}><Pause className="w-3 h-3 mr-1" />Pause</Button>
+            <Button variant="control" size="sm" onClick={handleAdvanceTime}>+1h</Button>
             <Button
               variant="destructive"
               onClick={handleSell}
@@ -490,9 +529,28 @@ export const AirplaneDetailScreen = ({
               <TabsContent value="loaded" className="space-y-4">
                 <Card className="bg-card/80 backdrop-blur-sm border-aviation-blue/20 shadow-panel">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-aviation-blue">Loaded Orders</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-aviation-blue">Loaded Orders</CardTitle>
+                      <Button 
+                        variant="warning" 
+                        size="sm"
+                        onClick={handleUnloadAll}
+                        disabled={airplane.loadedOrders.length === 0 || !isParked || !atAirport}
+                      >
+                        <Minus className="w-3 h-3 mr-1" />
+                        Unload All
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
+                    {airplane.loadedOrders.length > 0 && (
+                      <div className="mb-2 flex gap-2">
+                        <Button variant="warning" size="sm" onClick={handleUnloadSelected} disabled={Object.values(selectedLoaded).every(v => !v) || !isParked || !atAirport}>
+                          <Minus className="w-3 h-3 mr-1" /> Unload Selected
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedLoaded({})}>Clear Selection</Button>
+                      </div>
+                    )}
                     <ScrollArea className="h-96">
                       <div className="space-y-3">
                         {airplane.loadedOrders.map((order) => (
@@ -502,7 +560,10 @@ export const AirplaneDetailScreen = ({
                           >
                             <div className="flex items-center justify-between">
                               <div className="space-y-1">
-                                <div className="font-semibold">{order.id}</div>
+                                <div className="flex items-center gap-2">
+                                  <input type="checkbox" className="accent-aviation-amber" checked={!!selectedLoaded[order.id]} onChange={(e) => setSelectedLoaded(prev => ({ ...prev, [order.id]: e.target.checked }))} />
+                                  <div className="font-semibold">{order.id}</div>
+                                </div>
                                 <div className="text-sm text-muted-foreground">
                                   {payloadSummary(order)}
                                 </div>
@@ -522,6 +583,7 @@ export const AirplaneDetailScreen = ({
                                   variant="warning" 
                                   size="sm"
                                   onClick={() => handleUnload(order.id)}
+                                  disabled={!isParked || !atAirport}
                                 >
                                   <Minus className="w-3 h-3 mr-1" />
                                   Unload

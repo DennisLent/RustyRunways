@@ -153,6 +153,15 @@ export async function unloadAll(plane: number): Promise<void> {
   }
 }
 
+export async function unloadOrders(orderIds: number[], plane: number): Promise<void> {
+  if (isTauri()) {
+    await invoke('unload_orders', { orders: orderIds, plane })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    await wasm.unload_orders(orderIds, plane)
+  }
+}
+
 export type PlaneInfo = {
   id: number
   model: string

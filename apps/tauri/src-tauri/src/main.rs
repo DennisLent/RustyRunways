@@ -79,7 +79,7 @@ fn advance(state: State<AppState>, hours: u64) -> Result<Observation, String> {
 fn stats_cmd(state: State<AppState>) -> Result<Vec<DailyStats>, String> {
     let guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_ref().ok_or("no game running")?;
-    Ok(game.stats().to_vec())
+    Ok(game.stats.clone())
 }
 
 #[tauri::command]
@@ -101,6 +101,13 @@ fn unload_order(state: State<AppState>, order: usize, plane: usize) -> Result<()
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_mut().ok_or("no game running")?;
     game.unload_order(order, plane).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn unload_orders(state: State<AppState>, orders: Vec<usize>, plane: usize) -> Result<(), String> {
+    let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
+    let game = guard.as_mut().ok_or("no game running")?;
+    game.unload_orders(orders, plane).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -386,6 +393,7 @@ fn main() {
             depart_plane,
             load_order,
             unload_order,
+            unload_orders,
             unload_all,
             refuel_plane,
             maintenance,

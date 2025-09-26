@@ -305,11 +305,14 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                   <div className="flex items-center gap-2">
                     <Button variant="runway" size="sm" onClick={handlePlay}>
                       <Play className="w-3 h-3 mr-1" />
-                      Play
+                      Auto
                     </Button>
                     <Button variant="control" size="sm" onClick={handlePause}>
                       <Pause className="w-3 h-3 mr-1" />
                       Pause
+                    </Button>
+                    <Button variant="control" size="sm" onClick={handleAdvanceTime}>
+                      +1h
                     </Button>
                     <Button 
                       variant="control" 

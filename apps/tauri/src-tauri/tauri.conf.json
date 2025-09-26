@@ -4,8 +4,8 @@
   "version": "2.2.1",
   "identifier": "com.rustyrunways.desktop",
   "build": {
-    "beforeDevCommand": "npm run dev -- --host localhost --port 5173 --strictPort",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm --prefix ./ui run dev -- --host localhost --port 5173 --strictPort",
+    "beforeBuildCommand": "npm --prefix ./ui run build",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../ui/dist"
   },
@@ -25,9 +25,8 @@
   "bundle": {
     "active": true,
     "icon": [
-      "icons/icon.icns",
-      "icons/icon.ico",
-      "icons/icon.png"
+      "../ui/public/favicon.ico",
+      "../ui/public/rusty_runways.png"
     ]
   }
 }
