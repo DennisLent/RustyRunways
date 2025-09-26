@@ -3,9 +3,9 @@
 use std::sync::Mutex;
 
 use rusty_runways_core::game::Observation;
+use rusty_runways_core::statistics::DailyStats;
 use rusty_runways_core::utils::airplanes::models::AirplaneModel;
 use rusty_runways_core::Game;
-use rusty_runways_core::statistics::DailyStats;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;

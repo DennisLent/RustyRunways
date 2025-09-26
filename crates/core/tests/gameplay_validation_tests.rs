@@ -1,15 +1,18 @@
+use rusty_runways_core::Game;
 use rusty_runways_core::config::{
     AirportConfig, GameplayConfig, Location, ManualOrderConfig, WorldConfig,
 };
 use rusty_runways_core::utils::orders::cargo::CargoType;
-use rusty_runways_core::Game;
 
 fn base_airports() -> Vec<AirportConfig> {
     vec![
         AirportConfig {
             id: 0,
             name: "HUB".into(),
-            location: Some(Location { x: 1200.0, y: 900.0 }),
+            location: Some(Location {
+                x: 1200.0,
+                y: 900.0,
+            }),
             runway_length_m: Some(3200.0),
             fuel_price_per_l: Some(1.5),
             landing_fee_per_ton: Some(4.5),
@@ -19,7 +22,10 @@ fn base_airports() -> Vec<AirportConfig> {
         AirportConfig {
             id: 1,
             name: "AAX".into(),
-            location: Some(Location { x: 3400.0, y: 2100.0 }),
+            location: Some(Location {
+                x: 3400.0,
+                y: 2100.0,
+            }),
             runway_length_m: Some(2400.0),
             fuel_price_per_l: Some(1.8),
             landing_fee_per_ton: Some(4.0),
@@ -213,4 +219,3 @@ fn manual_order_validation_errors() {
     let err = Game::from_config(cfg).unwrap_err();
     assert!(format!("{}", err).contains("unknown destination"));
 }
-

@@ -58,8 +58,13 @@ else
 fi
 
 # 2) Rust formatting, linting, tests
-echo "[check] Running cargo fmt --all -- --check"
-cargo fmt --all -- --check
+if [[ "$MODE" == "fix" ]]; then
+  echo "[check] Running cargo fmt --all (apply fixes)"
+  cargo fmt --all
+else
+  echo "[check] Running cargo fmt --all -- --check"
+  cargo fmt --all -- --check
+fi
 
 echo "[check] Running cargo clippy --workspace --all-targets (excluding Tauri) -- -D warnings"
 cargo clippy --workspace --all-targets --exclude rusty_runways_tauri -- -D warnings

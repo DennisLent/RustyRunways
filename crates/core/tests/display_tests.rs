@@ -72,6 +72,6 @@ fn show_and_list_helpers_execute() {
         AirplaneStatus::InTransit { .. }
     ));
 
-game.list_airplane(plane_id).unwrap();
-game.show_distances(plane_id).unwrap();
+    game.list_airplane(plane_id).unwrap();
+    game.show_distances(plane_id).unwrap();
 }

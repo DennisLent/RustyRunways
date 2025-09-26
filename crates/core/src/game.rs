@@ -1121,52 +1121,52 @@ impl Game {
     /// Shows the lifetime stats
     #[cfg(feature = "ui_prints")]
     pub fn show_stats(&self) {
-            let headers = ["Day", "Income", "Expense", "End Cash", "Fleet", "Delivered"];
+        let headers = ["Day", "Income", "Expense", "End Cash", "Fleet", "Delivered"];
 
-            //get max width per column
-            let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
-            let mut rows: Vec<Vec<String>> = Vec::with_capacity(self.stats.len());
+        //get max width per column
+        let mut col_widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
+        let mut rows: Vec<Vec<String>> = Vec::with_capacity(self.stats.len());
 
-            for s in &self.stats {
-                let row = vec![
-                    s.day.to_string(),
-                    format!("{:.2}", s.income),
-                    format!("{:.2}", s.expenses),
-                    format!("{:.2}", s.net_cash),
-                    s.fleet_size.to_string(),
-                    s.total_deliveries.to_string(),
-                ];
+        for s in &self.stats {
+            let row = vec![
+                s.day.to_string(),
+                format!("{:.2}", s.income),
+                format!("{:.2}", s.expenses),
+                format!("{:.2}", s.net_cash),
+                s.fleet_size.to_string(),
+                s.total_deliveries.to_string(),
+            ];
 
-                for (i, cell) in row.iter().enumerate() {
-                    col_widths[i] = col_widths[i].max(cell.len());
-                }
-                rows.push(row);
+            for (i, cell) in row.iter().enumerate() {
+                col_widths[i] = col_widths[i].max(cell.len());
             }
+            rows.push(row);
+        }
 
-            for (i, header) in headers.iter().enumerate() {
+        for (i, header) in headers.iter().enumerate() {
+            if i > 0 {
+                print!(" | ");
+            }
+            // left-align
+            print!("{:<width$}", header, width = col_widths[i]);
+        }
+        println!();
+
+        // Separator
+        let total_width: usize = col_widths.iter().sum::<usize>() + (3 * (headers.len() - 1));
+        println!("{}", "-".repeat(total_width));
+
+        for row in rows {
+            for (i, cell) in row.iter().enumerate() {
                 if i > 0 {
                     print!(" | ");
                 }
-                // left-align
-                print!("{:<width$}", header, width = col_widths[i]);
+
+                // right-align
+                print!("{:>width$}", cell, width = col_widths[i]);
             }
             println!();
-
-            // Separator
-            let total_width: usize = col_widths.iter().sum::<usize>() + (3 * (headers.len() - 1));
-            println!("{}", "-".repeat(total_width));
-
-            for row in rows {
-                for (i, cell) in row.iter().enumerate() {
-                    if i > 0 {
-                        print!(" | ");
-                    }
-
-                    // right-align
-                    print!("{:>width$}", cell, width = col_widths[i]);
-                }
-                println!();
-            }
+        }
     }
 
     /// Process the next scheduled event; advance `self.time`. Returns false if no events remain.
@@ -1921,7 +1921,9 @@ impl Game {
 
         // Guard rail: only depart when parked
         if !matches!(plane.status, AirplaneStatus::Parked) {
-            return Err(GameError::PlaneNotReady { plane_state: plane.status.clone() });
+            return Err(GameError::PlaneNotReady {
+                plane_state: plane.status.clone(),
+            });
         }
         let (dest_airport, dest_coords) = &self
             .map
