@@ -3,6 +3,7 @@ use strum_macros::EnumIter;
 
 use crate::{events::GameTime, utils::coordinate::Coordinate};
 
+/// The primary mission role an airplane model is optimized for.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum AirplaneRole {
     #[default]
@@ -11,6 +12,7 @@ pub enum AirplaneRole {
     Mixed,
 }
 
+/// Catalog of available airplane models.
 #[derive(Debug, Clone, Serialize, Deserialize, EnumIter, PartialEq)]
 pub enum AirplaneModel {
     SparrowLight,     // Small prop plane
@@ -25,6 +27,7 @@ pub enum AirplaneModel {
     TrailblazerCombi, // High-capacity combi aircraft
 }
 
+/// Static performance and economic specifications for an airplane model.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AirplaneSpecs {
     /// Max take‑off weight (kg)
@@ -53,6 +56,9 @@ pub struct AirplaneSpecs {
 
 impl AirplaneModel {
     /// Return the full spec bundle for each model, including computed runway requirement.
+    ///
+    /// Returns
+    /// - `AirplaneSpecs`: Structure populated with static and computed properties.
     pub fn specs(&self) -> AirplaneSpecs {
         // base numeric specs
         let (

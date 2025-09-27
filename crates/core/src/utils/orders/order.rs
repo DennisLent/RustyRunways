@@ -471,18 +471,26 @@ impl Order {
         }
     }
 
+    /// Return the cargo weight if this is a cargo order.
+    ///
+    /// Returns
+    /// - `Some(weight_kg)` for cargo orders.
+    /// - `None` for passenger orders.
     pub fn cargo_weight(&self) -> Option<f32> {
         self.payload.weight()
     }
 
+    /// Return the passenger count if this is a passenger order.
     pub fn passenger_count(&self) -> Option<u32> {
         self.payload.passenger_count()
     }
 
+    /// Return the cargo type if this is a cargo order.
     pub fn cargo_type(&self) -> Option<CargoType> {
         self.payload.cargo_type()
     }
 
+    /// Return `true` if this is a passenger order.
     pub fn is_passenger(&self) -> bool {
         matches!(self.payload, OrderPayload::Passengers { .. })
     }

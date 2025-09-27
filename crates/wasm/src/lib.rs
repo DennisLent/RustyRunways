@@ -40,6 +40,30 @@ pub fn stats() -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn player_snapshot() -> Result<JsValue, JsValue> {
+    #[derive(serde::Serialize)]
+    struct PlayerSnapshotDto {
+        cash: f32,
+        fleet_size: usize,
+        orders_delivered: usize,
+        daily_income: f32,
+        daily_expenses: f32,
+        day: u64,
+    }
+    with_game(|g| {
+        let dto = PlayerSnapshotDto {
+            cash: g.player.cash,
+            fleet_size: g.player.fleet_size,
+            orders_delivered: g.player.orders_delivered,
+            daily_income: g.daily_income,
+            daily_expenses: g.daily_expenses,
+            day: g.time / 24,
+        };
+        Ok(serde_wasm_bindgen::to_value(&dto).unwrap())
+    })
+}
+
+#[wasm_bindgen]
 pub fn advance(hours: u64) -> Result<JsValue, JsValue> {
     with_game(|g| {
         g.advance(hours);

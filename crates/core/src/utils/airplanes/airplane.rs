@@ -33,6 +33,14 @@ pub struct Airplane {
 
 impl Airplane {
     /// Create a fresh airplane, parked and fueled up at `home_airport_coordinates`.
+    ///
+    /// Parameters
+    /// - `id`: Unique plane identifier.
+    /// - `model`: Airplane model enum.
+    /// - `home_airport_coordinates`: Initial location.
+    ///
+    /// Returns
+    /// - `Airplane`: New plane in `Parked` status with full fuel.
     pub fn new(id: usize, model: AirplaneModel, home_airport_coordinates: Coordinate) -> Self {
         let specs = model.specs();
         Airplane {
@@ -50,7 +58,7 @@ impl Airplane {
         }
     }
 
-    /// Euclidean distance from current location to `target_coordinates`
+    /// Euclidean distance from current location to `target_coordinates`.
     pub fn distance_to(&self, target_coordinates: &Coordinate) -> f32 {
         let dx = self.location.x - target_coordinates.x;
         let dy = self.location.y - target_coordinates.y;
@@ -62,12 +70,14 @@ impl Airplane {
         self.current_fuel / self.specs.fuel_consumption
     }
 
-    /// Maximum range (km) before refuel
+    /// Maximum range (km) before refuel.
     pub fn max_range(&self) -> f32 {
         self.endurance_hours() * self.specs.cruise_speed
     }
 
-    /// Check if an airplane can reach the airport and if it can land there based on the runway requirement
+    /// Check reachability and landing ability for a target airport.
+    ///
+    /// Returns `Ok(())` if within range and runway length is sufficient.
     pub fn can_fly_to(
         &self,
         airport: &Airport,
@@ -98,7 +108,7 @@ impl Airplane {
         Ok(())
     }
 
-    /// Load an order if it fits; returns Err(order) if too heavy
+    /// Load an order if it fits; returns error if too heavy or incompatible.
     pub fn load_order(&mut self, order: Order) -> Result<(), GameError> {
         self.validate_payload(&order)?;
 
@@ -116,7 +126,7 @@ impl Airplane {
         Ok(())
     }
 
-    /// Unload all cargo, clearing manifest & resetting payload
+    /// Unload all cargo and passengers, clearing the manifest and resetting payload counters.
     pub fn unload_all(&mut self) -> Vec<Order> {
         let delivered = self.manifest.drain(..).collect();
         self.current_payload = 0.0;
@@ -125,7 +135,7 @@ impl Airplane {
         delivered
     }
 
-    /// Unload specific cargo
+    /// Unload a specific order by ID, updating current load counters accordingly.
     pub fn unload_order(&mut self, order_id: usize) -> Result<Order, GameError> {
         if let Some(idx) = self.manifest.iter().position(|order| order.id == order_id) {
             let delivered = self.manifest.remove(idx);
@@ -147,6 +157,7 @@ impl Airplane {
         }
     }
 
+    /// Validate whether an order can be loaded given current load and capacities.
     pub fn validate_payload(&self, order: &Order) -> Result<(), GameError> {
         match &order.payload {
             OrderPayload::Cargo { weight, .. } => {
@@ -208,13 +219,13 @@ impl Airplane {
         Ok(hours_f.ceil() as GameTime)
     }
 
-    /// Refuel to full capacity, switching status to `Refueling`
+    /// Refuel to full capacity, switching status to `Refueling`.
     pub fn refuel(&mut self) {
         self.current_fuel = self.specs.fuel_capacity;
         self.status = AirplaneStatus::Refueling;
     }
 
-    /// Perform maintenance
+    /// Perform maintenance, resetting the maintenance counter and switching to `Maintenance` status.
     pub fn maintenance(&mut self) {
         self.hours_since_maintenance = 0;
         self.status = AirplaneStatus::Maintenance;

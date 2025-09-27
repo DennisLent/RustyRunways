@@ -8,6 +8,9 @@ use crate::utils::{
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
+/// Player/company state and operations.
+///
+/// Tracks cash, fleet, and cumulative deliveries.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Player {
     /// Available cash for purchases and operations
@@ -21,9 +24,17 @@ pub struct Player {
 }
 
 impl Player {
-    /// Create a new player and start them out with the most basic airplane possible.
-    /// We check the shortest distance and filter by price to check which one to give.
-    /// We try to ensure that the starter plane can fly between at least 2 given airports.
+    /// Create a new player with a starter airplane.
+    ///
+    /// The starter airplane is chosen to be affordable and able to operate between at
+    /// least two airports in the generated map.
+    ///
+    /// Parameters
+    /// - `starting_cash`: Initial cash balance.
+    /// - `map`: The world map used to select a reasonable starter location and model.
+    ///
+    /// Returns
+    /// - `Player`: New player with one airplane and initial cash/fleet size set.
     pub fn new(starting_cash: f32, map: &Map) -> Self {
         let (_min_dist, start_idx) = map.min_distance();
         let start_coord = map.airports[start_idx].1;
@@ -78,6 +89,15 @@ impl Player {
     }
 
     /// Purchase an additional plane of the given model at `home_coord`.
+    ///
+    /// Parameters
+    /// - `model_name`: Case-insensitive model (e.g., "FalconJet").
+    /// - `airport`: Mutable reference to the airport where the plane will be based.
+    /// - `home_coord`: Home parking coordinate for the plane.
+    ///
+    /// Returns
+    /// - `Ok(())` on success.
+    /// - `Err(GameError)` on insufficient funds, runway limits, or unknown model.
     pub fn buy_plane(
         &mut self,
         model_name: &String,
@@ -115,6 +135,12 @@ impl Player {
     }
 
     /// Sell a plane by id, returning the removed airplane and cash refund.
+    ///
+    /// Parameters
+    /// - `plane_id`: ID of the plane to sell.
+    ///
+    /// Returns
+    /// - `(Airplane, f32)`: The removed plane and refund amount.
     pub fn sell_plane(&mut self, plane_id: usize) -> Result<(Airplane, f32), GameError> {
         let idx = self
             .fleet
@@ -130,7 +156,9 @@ impl Player {
         Ok((plane, refund))
     }
 
-    /// Records that the player has delivered an order
+    /// Records that the player has delivered an order.
+    ///
+    /// Increments the `orders_delivered` counter by 1.
     pub fn record_delivery(&mut self) {
         self.orders_delivered += 1;
     }

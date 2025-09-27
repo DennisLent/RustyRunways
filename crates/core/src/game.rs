@@ -609,6 +609,22 @@ pub struct PayloadObs {
 
 impl Game {
     /// Initialize a new game with `num_airports`, seeded randomness, and player's starting cash.
+    ///
+    /// Parameters
+    /// - `seed`: Random seed used for deterministic world generation.
+    /// - `num_airports`: Number of airports to generate (use `None` for default).
+    /// - `starting_cash`: Cash balance for the player at the start.
+    ///
+    /// Returns
+    /// - `Game`: A fully initialized simulation ready to run.
+    ///
+    /// Example
+    /// ```
+    /// use rusty_runways_core::Game;
+    /// let mut game = Game::new(123, Some(5), 650_000.0);
+    /// assert_eq!(game.airports().len(), 5);
+    /// game.advance(1);
+    /// ```
     pub fn new(seed: u64, num_airports: Option<usize>, starting_cash: f32) -> Self {
         let mut map = Map::generate_from_seed(seed, num_airports);
         for (airport, _) in map.airports.iter_mut() {
@@ -656,6 +672,27 @@ impl Game {
     }
 
     /// Initialize a game from a configuration (airports explicitly provided).
+    ///
+    /// Parameters
+    /// - `cfg`: A [`WorldConfig`](crate::config::WorldConfig) with airports and gameplay parameters.
+    ///
+    /// Returns
+    /// - `Ok(Game)` if the configuration is valid.
+    /// - `Err(GameError)` if validation fails (e.g. duplicate IDs).
+    ///
+    /// Example
+    /// ```
+    /// use rusty_runways_core::{Game, config::{WorldConfig, GameplayConfig}};
+    /// let cfg = WorldConfig {
+    ///     seed: Some(1),
+    ///     starting_cash: 650_000.0,
+    ///     airports: vec![],
+    ///     num_airports: Some(4),
+    ///     gameplay: GameplayConfig::default(),
+    /// };
+    /// let game = Game::from_config(cfg).unwrap();
+    /// assert_eq!(game.airports().len(), 4);
+    /// ```
     pub fn from_config(cfg: WorldConfig) -> Result<Self, GameError> {
         let seed = cfg.seed.unwrap_or(0);
         let (
@@ -988,17 +1025,45 @@ impl Game {
         Ok(game)
     }
 
-    /// Return the seed used to initialize this game
+    /// Return the seed used to initialize this game.
+    ///
+    /// Returns
+    /// - `u64`: The configured deterministic seed.
+    ///
+    /// Example
+    /// ```
+    /// let game = rusty_runways_core::Game::new(7, Some(3), 1.0);
+    /// assert_eq!(game.seed(), 7);
+    /// ```
     pub fn seed(&self) -> u64 {
         self.seed
     }
 
-    /// Drain the internal log, returning all messages collected so far
+    /// Drain the internal log, returning all messages collected so far.
+    ///
+    /// Returns
+    /// - `Vec<String>`: Log messages since last drain; subsequent calls return empty until new logs appear.
+    ///
+    /// Example
+    /// ```
+    /// let mut game = rusty_runways_core::Game::new(1, Some(3), 0.0);
+    /// let _first = game.drain_log();
+    /// // ... after some actions ...
+    /// let _second = game.drain_log();
+    /// ```
     pub fn drain_log(&mut self) -> Vec<String> {
         std::mem::take(&mut self.log)
     }
 
-    /// Reinitialize runtime-only fields after deserializing
+    /// Reinitialize runtime-only fields after deserializing.
+    ///
+    /// This resets the internal RNG and clears transient logs without touching game state.
+    ///
+    /// Example
+    /// ```
+    /// let mut game = rusty_runways_core::Game::new(1, Some(3), 0.0);
+    /// game.reset_runtime();
+    /// ```
     pub fn reset_runtime(&mut self) {
         self.rng = StdRng::seed_from_u64(self.seed);
         self.log.clear();
@@ -1046,7 +1111,19 @@ impl Game {
         );
     }
 
-    /// Write the entire game state to JSON to save
+    /// Write the entire game state to JSON to save.
+    ///
+    /// Parameters
+    /// - `name`: Logical save name (without extension); stored under `save_games/`.
+    ///
+    /// Returns
+    /// - `io::Result<()>`: Errors if directories/files cannot be created or written.
+    ///
+    /// Example
+    /// ```no_run
+    /// let game = rusty_runways_core::Game::new(1, Some(3), 0.0);
+    /// game.save_game("my-save").unwrap();
+    /// ```
     pub fn save_game(&self, name: &str) -> io::Result<()> {
         let save_dir = Path::new("save_games");
         fs::create_dir_all(save_dir)?;
@@ -1082,7 +1159,19 @@ impl Game {
         }
     }
 
-    /// Load a game from JSON
+    /// Load a game from JSON.
+    ///
+    /// Parameters
+    /// - `name`: Logical save name (without extension) previously used in [`Game::save_game`].
+    ///
+    /// Returns
+    /// - `Ok(Game)`: Loaded game.
+    /// - `Err(io::Error)`: If the file does not exist or has invalid content.
+    ///
+    /// Example
+    /// ```no_run
+    /// let game = rusty_runways_core::Game::load_game("my-save").unwrap();
+    /// ```
     pub fn load_game(name: &str) -> io::Result<Self> {
         let mut path = PathBuf::from("save_games");
         path.push(format!("{}.json", name));
@@ -1102,6 +1191,10 @@ impl Game {
     }
 
     /// Schedule `event` to occur at absolute simulation time `time`.
+    ///
+    /// Parameters
+    /// - `time`: Absolute time (hours).
+    /// - `event`: The event to enqueue.
     fn schedule(&mut self, time: GameTime, event: Event) {
         self.events.push(ScheduledEvent { time, event });
     }
@@ -1391,6 +1484,15 @@ impl Game {
     }
 
     /// Run the simulation until `max_time` or until there are no more events.
+    ///
+    /// Parameters
+    /// - `max_time`: Absolute target time (hours) to fast-forward to.
+    ///
+    /// Example
+    /// ```
+    /// let mut game = rusty_runways_core::Game::new(1, Some(3), 0.0);
+    /// game.run_until(24);
+    /// ```
     pub fn run_until(&mut self, max_time: GameTime) {
         while self.time < max_time && self.tick_event() {}
 
@@ -1400,6 +1502,16 @@ impl Game {
         }
     }
 
+    /// Advance the simulation clock by `hours`, processing due events as you go.
+    ///
+    /// Parameters
+    /// - `hours`: Number of hours to advance.
+    ///
+    /// Example
+    /// ```
+    /// let mut game = rusty_runways_core::Game::new(1, Some(3), 0.0);
+    /// game.advance(6);
+    /// ```
     pub fn advance(&mut self, hours: GameTime) {
         let target = self.time + hours;
 
@@ -1775,10 +1887,15 @@ impl Game {
         Ok(refund)
     }
 
-    /// Load an order if possible.
+    /// Load an order onto a plane if capacity and state allow it.
     ///
-    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
-    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
+    /// Parameters
+    /// - `order_id`: Order at the current airport to load.
+    /// - `plane_id`: Plane ID (must be parked at the airport).
+    ///
+    /// Returns
+    /// - `Ok(())` on success.
+    /// - `Err(GameError)`: If the plane doesn't exist, isn't parked, or capacity constraints fail.
     pub fn load_order(&mut self, order_id: usize, plane_id: usize) -> Result<(), GameError> {
         let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
         let plane = &mut self.airplanes[plane_idx];
@@ -1792,8 +1909,12 @@ impl Game {
 
     /// Unload all orders from the plane.
     ///
-    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
-    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
+    /// Parameters
+    /// - `plane_id`: Plane ID.
+    ///
+    /// Returns
+    /// - `Ok(())` on success.
+    /// - `Err(GameError)`: If the plane doesn't exist or isn't parked at an airport.
     pub fn unload_all(&mut self, plane_id: usize) -> Result<(), GameError> {
         let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
 
@@ -1831,8 +1952,13 @@ impl Game {
 
     /// Unload a list of orders from a plane.
     ///
-    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
-    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
+    /// Parameters
+    /// - `order_id`: A list of order IDs to unload.
+    /// - `plane_id`: Plane ID.
+    ///
+    /// Returns
+    /// - `Ok(())` on success.
+    /// - `Err(GameError)`: If the plane doesn't exist or isn't parked at an airport.
     pub fn unload_orders(
         &mut self,
         order_id: Vec<usize>,
@@ -1872,8 +1998,13 @@ impl Game {
 
     /// Unload a specific order from a plane.
     ///
-    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
-    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
+    /// Parameters
+    /// - `order_id`: Order ID to unload.
+    /// - `plane_id`: Plane ID.
+    ///
+    /// Returns
+    /// - `Ok(())` on success.
+    /// - `Err(GameError)`: If the plane doesn't exist or isn't parked.
     pub fn unload_order(&mut self, order_id: usize, plane_id: usize) -> Result<(), GameError> {
         let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
 
@@ -1908,9 +2039,13 @@ impl Game {
 
     /// Depart a plane to another airport.
     ///
-    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist,
-    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport, or
-    /// [`GameError::AirportIdInvalid`] if the destination airport doesn't exist.
+    /// Parameters
+    /// - `plane_id`: Plane ID to dispatch.
+    /// - `destination_id`: Destination airport ID.
+    ///
+    /// Returns
+    /// - `Ok(())` on success.
+    /// - `Err(GameError)`: Invalid IDs, not parked, insufficient fuel, or runway issues.
     pub fn depart_plane(
         &mut self,
         plane_id: usize,
@@ -1960,8 +2095,12 @@ impl Game {
 
     /// Refuel a plane and charge the player. Only works if the airplane is not in transit.
     ///
-    /// Returns [`GameError::PlaneIdInvalid`] if the plane doesn't exist or
-    /// [`GameError::PlaneNotAtAirport`] if the plane isn't parked at an airport.
+    /// Parameters
+    /// - `plane_id`: Plane to refuel.
+    ///
+    /// Returns
+    /// - `Ok(()))` on success.
+    /// - `Err(GameError)`: If plane is invalid, not parked, or funds are insufficient.
     pub fn refuel_plane(&mut self, plane_id: usize) -> Result<(), GameError> {
         let (plane_idx, airport_idx) = self.plane_and_airport_idx(plane_id)?;
         let plane = &mut self.airplanes[plane_idx];

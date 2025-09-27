@@ -7,6 +7,7 @@ use rand::{Rng, SeedableRng, rngs::StdRng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 use std::f32::consts::TAU;
 
+/// A procedurally generated world map with airports and demand parameters.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Map {
     pub num_airports: usize,
@@ -68,13 +69,26 @@ impl Map {
         coords
     }
 
+    /// Generate clustered coordinates for a given count using the seed.
+    ///
+    /// Parameters
+    /// - `seed`: RNG seed.
+    /// - `count`: Number of coordinates.
+    ///
+    /// Returns
+    /// - `Vec<Coordinate>`: Deterministic pseudo-random coordinates.
     pub fn generate_clustered_coordinates(seed: u64, count: usize) -> Vec<Coordinate> {
         Self::clustered_coordinates(seed, count)
     }
 
-    /// Airports from a random seed.
-    /// Allows you to input a specific amount of airports or not.
-    /// Airports are already stocked with orders.
+    /// Generate airports and orders from a random seed.
+    ///
+    /// Parameters
+    /// - `seed`: RNG seed.
+    /// - `num_airports`: Number of airports (default when `None`).
+    ///
+    /// Returns
+    /// - `Map`: New map with initial orders stocked.
     pub fn generate_from_seed(seed: u64, num_airports: Option<usize>) -> Self {
         let num_airports = num_airports.unwrap_or(12);
 
@@ -99,7 +113,7 @@ impl Map {
         map
     }
 
-    /// Restock the orders in the airport
+    /// Restock all airports with new orders using current demand parameters.
     pub fn restock_airports(&mut self) {
         let airport_infos: Vec<OrderAirportInfo> = self
             .airports
@@ -129,8 +143,7 @@ impl Map {
         self.next_order_id = 0;
     }
 
-    /// Find the minimum distance between two airports.
-    /// Helps us determine the starting airplane for a given map.
+    /// Find the minimum distance between two airports and the index of one endpoint.
     pub fn min_distance(&self) -> (f32, usize) {
         let mut min_distance = f32::INFINITY;
         let mut start_index: usize = 0;
@@ -154,6 +167,15 @@ impl Map {
     }
 
     /// Build a map from explicit airport configs.
+    ///
+    /// Parameters
+    /// - `seed`: RNG seed for future procedures.
+    /// - `airports`: Airport definitions and their coordinates.
+    /// - `demand_params`: Demand generation parameters.
+    /// - `next_order_id`: Starting order counter.
+    ///
+    /// Returns
+    /// - `Map`: Constructed map using provided airports.
     pub fn from_airports(
         seed: u64,
         airports: Vec<(Airport, Coordinate)>,

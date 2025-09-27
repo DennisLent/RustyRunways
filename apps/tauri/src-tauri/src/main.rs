@@ -12,6 +12,16 @@ use std::path::Path;
 use strum::IntoEnumIterator;
 use tauri::State;
 
+#[derive(Serialize)]
+struct PlayerSnapshotDto {
+    cash: f32,
+    fleet_size: usize,
+    orders_delivered: usize,
+    daily_income: f32,
+    daily_expenses: f32,
+    day: u64,
+}
+
 #[derive(Default)]
 struct AppState {
     game: Mutex<Option<Game>>,
@@ -80,6 +90,20 @@ fn stats_cmd(state: State<AppState>) -> Result<Vec<DailyStats>, String> {
     let guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_ref().ok_or("no game running")?;
     Ok(game.stats.clone())
+}
+
+#[tauri::command]
+fn player_snapshot(state: State<AppState>) -> Result<PlayerSnapshotDto, String> {
+    let guard = state.game.lock().map_err(|_| "state poisoned")?;
+    let g = guard.as_ref().ok_or("no game running")?;
+    Ok(PlayerSnapshotDto {
+        cash: g.player.cash,
+        fleet_size: g.player.fleet_size,
+        orders_delivered: g.player.orders_delivered,
+        daily_income: g.daily_income,
+        daily_expenses: g.daily_expenses,
+        day: g.time / 24,
+    })
 }
 
 #[tauri::command]
@@ -408,6 +432,7 @@ fn main() {
             start_from_config_path,
             list_saves,
             stats_cmd,
+            player_snapshot,
         ])
         .setup(|_app| Ok(()))
         .run(tauri::generate_context!())

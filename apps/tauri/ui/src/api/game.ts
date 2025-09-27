@@ -81,6 +81,24 @@ export async function stats(): Promise<DailyStats[]> {
   }
 }
 
+export type PlayerSnapshot = {
+  cash: number
+  fleet_size: number
+  orders_delivered: number
+  daily_income: number
+  daily_expenses: number
+  day: number
+}
+
+export async function playerSnapshot(): Promise<PlayerSnapshot> {
+  if (isTauri()) {
+    return await invoke<PlayerSnapshot>('player_snapshot')
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    return (await wasm.player_snapshot()) as PlayerSnapshot
+  }
+}
+
 export async function advance(hours = 1): Promise<Observation> {
   if (isTauri()) {
     return await invoke<Observation>('advance', { hours })

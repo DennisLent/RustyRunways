@@ -8,6 +8,7 @@ use crate::utils::{
     coordinate::Coordinate,
 };
 
+/// Errors surfaced by the simulation and API operations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GameError {
     OutOfRange {
@@ -73,8 +74,14 @@ pub enum GameError {
 }
 
 impl GameError {
-    /// Find the closest AirplaneModel name to `input` (case‐insensitive),
-    /// returning it if the edit distance <= 3.
+    /// Heuristic helper: suggest an airplane model similar to the given input.
+    ///
+    /// Parameters
+    /// - `input`: User-provided model name (case-insensitive).
+    ///
+    /// Returns
+    /// - `Some(String)` with a suggested model if the edit distance is small.
+    /// - `None` otherwise.
     fn suggest_model(input: &str) -> Option<String> {
         let lower = input.to_lowercase();
         let mut best: Option<(usize, String)> = None;
