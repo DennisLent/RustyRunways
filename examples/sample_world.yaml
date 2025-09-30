@@ -32,3 +32,19 @@ gameplay:
     max_weight: 650.0
     alpha: 0.12
     beta: 0.55
+
+# Optional airplane catalog: replace defaults with a custom combi.
+airplanes:
+  strategy: replace
+  models:
+    - name: WorkshopCombi
+      mtow: 15000.0
+      cruise_speed: 520.0
+      fuel_capacity: 3200.0
+      fuel_consumption: 260.0
+      operating_cost: 950.0
+      payload_capacity: 3200.0
+      passenger_capacity: 24
+      purchase_price: 780000.0
+      min_runway_length: 1200.0
+      role: Mixed

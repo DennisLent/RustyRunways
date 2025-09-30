@@ -51,6 +51,7 @@ fn config_rejects_zero_restock_cycle() {
         airports: Vec::new(),
         num_airports: Some(2),
         gameplay,
+        airplanes: None,
     };
 
     let err = Game::from_config(cfg).unwrap_err();
@@ -98,6 +99,7 @@ fn config_accepts_manual_passenger_orders() {
         airports,
         num_airports: None,
         gameplay,
+        airplanes: None,
     };
 
     let game = Game::from_config(cfg).expect("config should build");

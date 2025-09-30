@@ -69,6 +69,43 @@ model = PPO("MlpPolicy", vec_env, verbose=1)
 model.learn(total_timesteps=10_000)
 ```
 
+## YAML Worlds and Custom Airplanes
+
+All constructors accept a `config_path` pointing to a YAML world. The YAML can optionally define an `airplanes` catalog to replace or extend the built‑in models. Example:
+
+```yaml
+seed: 42
+starting_cash: 650000.0
+airports: [ ... ]
+airplanes:
+  strategy: replace   # or: add (default)
+  models:
+    - name: WorkshopCombi
+      mtow: 15000.0
+      cruise_speed: 520.0
+      fuel_capacity: 3200.0
+      fuel_consumption: 260.0
+      operating_cost: 950.0
+      payload_capacity: 3200.0
+      passenger_capacity: 24
+      purchase_price: 780000.0
+      min_runway_length: 1200.0
+      role: Mixed        # Cargo | Passenger | Mixed
+```
+
+From Python:
+
+```python
+from rusty_runways_py import GameEnv
+
+g = GameEnv(config_path="examples/sample_world.yaml")
+# List the models the current game exposes (custom + built‑ins depending on strategy)
+print(g.models_py())       # Python list of dicts
+print(g.models_json())     # JSON string
+```
+
+Validation ensures all fields are present and role constraints hold (Cargo requires payload_capacity > 0; Passenger requires passenger_capacity > 0; Mixed requires both).
+
 ## Links
 
 - Documentation: https://dennislent.github.io/RustyRunways

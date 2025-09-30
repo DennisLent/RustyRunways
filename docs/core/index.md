@@ -77,6 +77,35 @@ Each model exposes specs via `AirplaneModel::specs()` including:
 - MTOW, cruise speed (km/h), fuel capacity (L), fuel consumption (L/h), operating cost ($/h), cargo payload capacity (kg), passenger capacity (seats), model role (cargo/passenger/mixed), purchase price, and computed minimum runway length (m).
 - Players may sell a parked, empty airplane back to the market for 60% of its purchase price.
 
+### Custom Airplane Catalog (YAML)
+
+Scenarios can replace or extend the built‑in airplane catalog via the world YAML. Add an `airplanes` block at the top level:
+
+```
+airplanes:
+  strategy: replace   # or: add (default)
+  models:
+    - name: WorkshopCombi
+      mtow: 15000.0
+      cruise_speed: 520.0
+      fuel_capacity: 3200.0
+      fuel_consumption: 260.0
+      operating_cost: 950.0
+      payload_capacity: 3200.0
+      passenger_capacity: 24
+      purchase_price: 780000.0
+      min_runway_length: 1200.0
+      role: Mixed        # Cargo | Passenger | Mixed
+```
+
+- strategy=replace uses only the declared models. strategy=add merges them with defaults.
+- All fields are required. Validation enforces positive values and role‑specific capacities:
+  - Cargo requires payload_capacity > 0
+  - Passenger requires passenger_capacity > 0
+  - Mixed requires both > 0
+ 
+Games started from this YAML will list these models in the CLI, Python, and Tauri UI and allow buying them by name.
+
 ## Landing Constraints and Derivation
 
 Minimum runway length is derived from simplified physics based on the airplane’s cruise speed, assumed takeoff speed (~0.65·cruise), acceleration, and deceleration:

@@ -283,7 +283,30 @@ struct ModelDto {
 }
 
 #[tauri::command]
-fn list_models() -> Vec<ModelDto> {
+fn list_models(state: State<AppState>) -> Vec<ModelDto> {
+    // If a game is running, use its catalog; otherwise fall back to built-ins
+    if let Ok(guard) = state.game.lock() {
+        if let Some(game) = guard.as_ref() {
+            return game
+                .available_models()
+                .into_iter()
+                .map(|(name, s)| ModelDto {
+                    name,
+                    mtow: s.mtow,
+                    cruise_speed: s.cruise_speed,
+                    fuel_capacity: s.fuel_capacity,
+                    fuel_consumption: s.fuel_consumption,
+                    operating_cost: s.operating_cost,
+                    payload_capacity: s.payload_capacity,
+                    passenger_capacity: s.passenger_capacity,
+                    purchase_price: s.purchase_price,
+                    min_runway_length: s.min_runway_length,
+                    role: format!("{:?}", s.role),
+                })
+                .collect();
+        }
+    }
+
     AirplaneModel::iter()
         .map(|m| {
             let s = m.specs();

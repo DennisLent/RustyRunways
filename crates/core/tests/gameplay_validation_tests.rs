@@ -42,6 +42,7 @@ fn cfg_with_airports() -> WorldConfig {
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     }
 }
 

@@ -93,6 +93,48 @@ impl GameEnv {
         Ok(())
     }
 
+    fn models_json(&self) -> PyResult<String> {
+        #[derive(serde::Serialize)]
+        struct ModelDto {
+            name: String,
+            mtow: f32,
+            cruise_speed: f32,
+            fuel_capacity: f32,
+            fuel_consumption: f32,
+            operating_cost: f32,
+            payload_capacity: f32,
+            passenger_capacity: u32,
+            purchase_price: f32,
+            min_runway_length: f32,
+            role: String,
+        }
+        let models: Vec<ModelDto> = self
+            .game
+            .available_models()
+            .into_iter()
+            .map(|(name, s)| ModelDto {
+                name,
+                mtow: s.mtow,
+                cruise_speed: s.cruise_speed,
+                fuel_capacity: s.fuel_capacity,
+                fuel_consumption: s.fuel_consumption,
+                operating_cost: s.operating_cost,
+                payload_capacity: s.payload_capacity,
+                passenger_capacity: s.passenger_capacity,
+                purchase_price: s.purchase_price,
+                min_runway_length: s.min_runway_length,
+                role: format!("{:?}", s.role),
+            })
+            .collect();
+        serde_json::to_string(&models).map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    fn models_py(&self, py: Python) -> PyResult<PyObject> {
+        let s = self.models_json()?;
+        let json = py.import("json")?;
+        json.call_method1("loads", (s,)).map(|o| o.into())
+    }
+
     fn time(&self) -> u64 {
         self.game.time
     }

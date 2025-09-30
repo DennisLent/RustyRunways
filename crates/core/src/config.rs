@@ -29,6 +29,12 @@ pub struct WorldConfig {
     /// Optional gameplay tuning parameters
     #[serde(default)]
     pub gameplay: GameplayConfig,
+
+    /// Optional airplane catalog configuration. When provided, controls the
+    /// available airplane models in the world either by replacing the default
+    /// catalog entirely or by adding new models.
+    #[serde(default)]
+    pub airplanes: Option<AirplanesConfig>,
 }
 
 fn default_cash() -> f32 {
@@ -165,6 +171,67 @@ impl From<&PassengerTuning> for PassengerGenerationParams {
             alpha: value.alpha,
             beta: value.beta,
             fare_per_km: value.fare_per_km,
+        }
+    }
+}
+
+// ==========================
+// Airplane catalog config
+// ==========================
+
+/// Strategy for applying user-provided airplane models.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum AirplaneCatalogStrategy {
+    /// Replace the default airplane catalog entirely.
+    Replace,
+    /// Add new models to the default catalog.
+    #[default]
+    Add,
+}
+
+/// User-provided airplane model configuration. All fields are required.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AirplaneModelConfig {
+    /// Unique model name (case-insensitive for matching) — e.g. "MyCargo100".
+    pub name: String,
+    /// Max take‑off weight (kg)
+    pub mtow: f32,
+    /// Cruise speed (km/h)
+    pub cruise_speed: f32,
+    /// Fuel tank capacity (liters)
+    pub fuel_capacity: f32,
+    /// Fuel burn rate (liters per hour)
+    pub fuel_consumption: f32,
+    /// Operating cost ($ per hour)
+    pub operating_cost: f32,
+    /// Cargo payload capacity (kg)
+    pub payload_capacity: f32,
+    /// Passenger capacity (people)
+    pub passenger_capacity: u32,
+    /// Purchase price ($)
+    pub purchase_price: f32,
+    /// Minimum runway length required (meters)
+    pub min_runway_length: f32,
+    /// Primary mission role ("cargo", "passenger", or "mixed")
+    pub role: crate::utils::airplanes::models::AirplaneRole,
+}
+
+/// Optional airplane configuration block.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AirplanesConfig {
+    /// Whether to replace the default catalog or add to it.
+    pub strategy: AirplaneCatalogStrategy,
+    /// List of fully-specified models.
+    pub models: Vec<AirplaneModelConfig>,
+}
+
+impl Default for AirplanesConfig {
+    fn default() -> Self {
+        AirplanesConfig {
+            strategy: AirplaneCatalogStrategy::Add,
+            models: Vec::new(),
         }
     }
 }

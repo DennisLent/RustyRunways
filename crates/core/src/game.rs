@@ -1,14 +1,14 @@
 #![allow(unexpected_cfgs)]
 
 use crate::config::{
-    DEFAULT_FUEL_INTERVAL_HOURS, DEFAULT_RESTOCK_CYCLE_HOURS, FuelGameplay, GameplayConfig,
-    ManualOrderConfig, WorldConfig,
+    AirplaneCatalogStrategy, AirplaneModelConfig, DEFAULT_FUEL_INTERVAL_HOURS,
+    DEFAULT_RESTOCK_CYCLE_HOURS, FuelGameplay, GameplayConfig, ManualOrderConfig, WorldConfig,
 };
 use crate::events::{Event, GameTime, ScheduledEvent};
 use crate::player::Player;
 use crate::statistics::DailyStats;
 use crate::utils::airplanes::airplane::Airplane;
-use crate::utils::airplanes::models::AirplaneStatus;
+use crate::utils::airplanes::models::{AirplaneModel, AirplaneSpecs, AirplaneStatus};
 use crate::utils::airport::Airport;
 use crate::utils::coordinate::Coordinate;
 use crate::utils::errors::GameError;
@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BinaryHeap, HashMap};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
+use strum::IntoEnumIterator;
 
 const REPORT_INTERVAL: u64 = 24;
 const DEFAULT_RESTOCK_CYCLE: u64 = DEFAULT_RESTOCK_CYCLE_HOURS;
@@ -31,6 +32,14 @@ const DEFAULT_FUEL_INTERVAL: u64 = DEFAULT_FUEL_INTERVAL_HOURS;
 
 fn default_rng() -> StdRng {
     StdRng::seed_from_u64(0)
+}
+
+fn default_model_catalog() -> HashMap<String, AirplaneSpecs> {
+    let mut m = HashMap::new();
+    for model in AirplaneModel::iter() {
+        m.insert(format!("{:?}", model), model.specs());
+    }
+    m
 }
 
 #[cfg(test)]
@@ -179,6 +188,7 @@ mod tests {
             airports,
             num_airports: None,
             gameplay,
+            airplanes: None,
         };
 
         let game = Game::from_config(cfg).expect("config should be accepted");
@@ -232,6 +242,7 @@ mod tests {
             airports,
             num_airports: None,
             gameplay,
+            airplanes: None,
         };
 
         let err = Game::from_config(cfg).unwrap_err();
@@ -559,6 +570,12 @@ pub struct Game {
     /// Log of messages generated during play
     #[serde(skip, default)]
     log: Vec<String>,
+    /// Available airplane catalog for purchases and starter selection.
+    #[serde(default = "default_model_catalog")]
+    model_catalog: HashMap<String, AirplaneSpecs>,
+    /// If true, only models in `model_catalog` are allowed (replace mode)
+    #[serde(default)]
+    models_replace: bool,
 }
 
 #[derive(Serialize)]
@@ -656,6 +673,8 @@ impl Game {
             regenerate_orders: true,
             rng: StdRng::seed_from_u64(seed),
             log: Vec::new(),
+            model_catalog: default_model_catalog(),
+            models_replace: false,
         };
 
         for (airport, _) in game.map.airports.iter_mut() {
@@ -689,6 +708,7 @@ impl Game {
     ///     airports: vec![],
     ///     num_airports: Some(4),
     ///     gameplay: GameplayConfig::default(),
+    ///     airplanes: None,
     /// };
     /// let game = Game::from_config(cfg).unwrap();
     /// assert_eq!(game.airports().len(), 4);
@@ -981,7 +1001,30 @@ impl Game {
             generated
         };
 
-        let player = Player::new(cfg.starting_cash, &map);
+        // Build model catalog based on config
+        let mut models_replace = false;
+        let mut catalog = default_model_catalog();
+        if let Some(acfg) = &cfg.airplanes {
+            if !acfg.models.is_empty() {
+                if matches!(acfg.strategy, AirplaneCatalogStrategy::Replace) {
+                    models_replace = true;
+                    catalog.clear();
+                }
+                let mut seen = std::collections::HashSet::new();
+                for m in &acfg.models {
+                    validate_model_config(m)?;
+                    let key = m.name.trim().to_lowercase();
+                    if !seen.insert(key) {
+                        return Err(GameError::InvalidConfig {
+                            msg: format!("duplicate airplane model name '{}'", m.name),
+                        });
+                    }
+                    catalog.insert(m.name.clone(), model_specs_from_config(m));
+                }
+            }
+        }
+
+        let player = Player::new_from_catalog(cfg.starting_cash, &map, &catalog);
         let airplanes = player.fleet.clone();
         let arrival_times = airplanes
             .iter()
@@ -1006,6 +1049,8 @@ impl Game {
             regenerate_orders,
             rng: StdRng::seed_from_u64(seed),
             log: Vec::new(),
+            model_catalog: catalog,
+            models_replace,
         };
 
         for (airport, _) in game.map.airports.iter_mut() {
@@ -1019,8 +1064,6 @@ impl Game {
         game.schedule(game.fuel_interval, Event::DynamicPricing);
         game.schedule_world_event();
         game.schedule(1, Event::MaintenanceCheck);
-
-        game.refresh_airplane_specs();
 
         Ok(game)
     }
@@ -1827,6 +1870,46 @@ impl Game {
         // Borrow airport as mut
         let airport_ref = &mut self.map.airports[airport_id].0;
 
+        // Try catalog (case-insensitive)
+        if let Some((name, specs)) = self
+            .model_catalog
+            .iter()
+            .find(|(n, _)| n.eq_ignore_ascii_case(model))
+            .map(|(n, s)| (n.clone(), *s))
+        {
+            match self
+                .player
+                .buy_plane_with_specs(&name, airport_ref, &home_coord, specs)
+            {
+                Ok(_) => {
+                    let (new_plane_id, buying_price) = {
+                        let plane = self
+                            .player
+                            .fleet
+                            .last()
+                            .expect("player fleet must contain newly purchased plane");
+                        (plane.id, plane.specs.purchase_price)
+                    };
+                    self.daily_expenses += buying_price;
+
+                    self.airplanes = self.player.fleet.clone();
+                    self.player.fleet = self.airplanes.clone();
+                    self.player.fleet_size = self.player.fleet.len();
+                    self.arrival_times.insert(new_plane_id, self.time);
+                    return Ok(());
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        if self.models_replace {
+            return Err(GameError::UnknownModel {
+                input: model.clone(),
+                suggestion: None,
+            });
+        }
+
+        // Fallback to built-in models
         match self.player.buy_plane(model, airport_ref, &home_coord) {
             Ok(_) => {
                 let (new_plane_id, buying_price) = {
@@ -2283,4 +2366,91 @@ impl Game {
     pub fn planes(&self) -> &Vec<Airplane> {
         &self.airplanes
     }
+
+    /// Return the available airplane models for purchases in this game.
+    /// Includes custom models loaded from YAML according to replace/add strategy.
+    pub fn available_models(&self) -> Vec<(String, AirplaneSpecs)> {
+        let mut v: Vec<(String, AirplaneSpecs)> = self
+            .model_catalog
+            .iter()
+            .map(|(name, specs)| (name.clone(), *specs))
+            .collect();
+        v.sort_by(|a, b| a.1.purchase_price.partial_cmp(&b.1.purchase_price).unwrap());
+        v
+    }
+}
+
+fn model_specs_from_config(m: &AirplaneModelConfig) -> AirplaneSpecs {
+    AirplaneSpecs {
+        mtow: m.mtow,
+        cruise_speed: m.cruise_speed,
+        fuel_capacity: m.fuel_capacity,
+        fuel_consumption: m.fuel_consumption,
+        operating_cost: m.operating_cost,
+        payload_capacity: m.payload_capacity,
+        passenger_capacity: m.passenger_capacity,
+        purchase_price: m.purchase_price,
+        min_runway_length: m.min_runway_length,
+        role: m.role,
+    }
+}
+
+fn validate_model_config(m: &AirplaneModelConfig) -> Result<(), GameError> {
+    if m.name.trim().is_empty() {
+        return Err(GameError::InvalidConfig {
+            msg: "airplane model name cannot be empty".into(),
+        });
+    }
+    if m.mtow <= 0.0
+        || m.cruise_speed <= 0.0
+        || m.fuel_capacity <= 0.0
+        || m.fuel_consumption <= 0.0
+        || m.purchase_price <= 0.0
+        || m.min_runway_length <= 0.0
+    {
+        return Err(GameError::InvalidConfig {
+            msg: format!(
+                "airplane '{}' has non-positive required numeric fields",
+                m.name
+            ),
+        });
+    }
+    if m.operating_cost < 0.0 || m.payload_capacity < 0.0 {
+        return Err(GameError::InvalidConfig {
+            msg: format!("airplane '{}' has negative cost or payload", m.name),
+        });
+    }
+    match m.role {
+        crate::utils::airplanes::models::AirplaneRole::Cargo => {
+            if m.payload_capacity <= 0.0 {
+                return Err(GameError::InvalidConfig {
+                    msg: format!(
+                        "airplane '{}' role cargo requires payload_capacity > 0",
+                        m.name
+                    ),
+                });
+            }
+        }
+        crate::utils::airplanes::models::AirplaneRole::Passenger => {
+            if m.passenger_capacity == 0 {
+                return Err(GameError::InvalidConfig {
+                    msg: format!(
+                        "airplane '{}' role passenger requires passenger_capacity > 0",
+                        m.name
+                    ),
+                });
+            }
+        }
+        crate::utils::airplanes::models::AirplaneRole::Mixed => {
+            if m.payload_capacity <= 0.0 || m.passenger_capacity == 0 {
+                return Err(GameError::InvalidConfig {
+                    msg: format!(
+                        "airplane '{}' role mixed requires both passenger_capacity and payload_capacity",
+                        m.name
+                    ),
+                });
+            }
+        }
+    }
+    Ok(())
 }

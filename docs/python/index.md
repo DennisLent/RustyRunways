@@ -77,6 +77,8 @@ Key methods
 - `drain_log() -> list[str]`: Retrieve and clear sim log.
 - `orders_at_plane(plane_id: int) -> list[int]`: Order IDs available at that plane’s airport.
 - `airport_ids() -> list[int]`: All airport IDs in the world.
+- `models_json() -> str`: JSON list of available airplane models (name + specs) for the current game.
+- `models_py(py) -> list[dict]`: Python list version of the above.
 
 Inspecting state
 
@@ -211,6 +213,37 @@ env.execute("SHOW AIRPORTS WITH ORDERS")
 ```
 
 To build YAML files programmatically (for sweeps or automated tests), write them to a temporary path with `yaml.safe_dump`, hand that path to `GameEnv` or `VectorGameEnv`, and delete the file once the run completes. The loader does not keep the file handle open after parsing.
+
+### Custom Airplane Catalog in YAML
+
+World YAML supports a top‑level `airplanes` section that either replaces or extends the built‑in catalog:
+
+```
+airplanes:
+  strategy: add      # or: replace
+  models:
+    - name: WorkshopCombi
+      mtow: 15000.0
+      cruise_speed: 520.0
+      fuel_capacity: 3200.0
+      fuel_consumption: 260.0
+      operating_cost: 950.0
+      payload_capacity: 3200.0
+      passenger_capacity: 24
+      purchase_price: 780000.0
+      min_runway_length: 1200.0
+      role: Mixed        # Cargo | Passenger | Mixed
+```
+
+After loading a YAML with custom airplanes, query the models from Python:
+
+```python
+from rusty_runways_py import GameEnv
+
+g = GameEnv(config_path="examples/sample_world.yaml")
+models = g.models_py()
+print([m["name"] for m in models])
+```
 
 ## Sanity Benchmarks and the Heuristic Agent
 

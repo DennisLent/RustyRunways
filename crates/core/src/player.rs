@@ -1,5 +1,8 @@
 use crate::utils::{
-    airplanes::{airplane::Airplane, models::AirplaneModel},
+    airplanes::{
+        airplane::Airplane,
+        models::{AirplaneModel, AirplaneSpecs},
+    },
     airport::Airport,
     coordinate::Coordinate,
     errors::GameError,
@@ -88,6 +91,60 @@ impl Player {
         }
     }
 
+    /// Create a new player selecting the starter airplane from a provided catalog of specs.
+    ///
+    /// Falls back to the default selection if no catalog candidates qualify.
+    pub fn new_from_catalog(
+        starting_cash: f32,
+        map: &Map,
+        catalog: &std::collections::HashMap<String, AirplaneSpecs>,
+    ) -> Self {
+        let (_min_dist, start_idx) = map.min_distance();
+        let start_coord = map.airports[start_idx].1;
+        let start_runway = map.airports[start_idx].0.runway_length;
+
+        // find all catalog entries that can take off and land elsewhere
+        let mut candidates: Vec<(&str, AirplaneSpecs)> = catalog
+            .iter()
+            .map(|(n, s)| (n.as_str(), *s))
+            .filter(|(_, specs)| {
+                let max_range = specs.fuel_capacity / specs.fuel_consumption * specs.cruise_speed;
+                if start_runway < specs.min_runway_length {
+                    return false;
+                }
+                map.airports.iter().any(|(other_airport, other_coord)| {
+                    if other_airport.id == start_idx {
+                        return false;
+                    }
+                    let dx = other_coord.x - start_coord.x;
+                    let dy = other_coord.y - start_coord.y;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    dist <= max_range && other_airport.runway_length >= specs.min_runway_length
+                })
+            })
+            .collect();
+
+        // pick the cheapest by purchase price
+        candidates.sort_by(|a, b| a.1.purchase_price.partial_cmp(&b.1.purchase_price).unwrap());
+
+        if let Some((_name, specs)) = candidates.first().copied() {
+            let mut plane = Airplane::new(0, AirplaneModel::SparrowLight, start_coord);
+            plane.specs = specs;
+            plane.current_fuel = specs.fuel_capacity;
+            plane.current_payload = 0.0;
+            plane.current_passengers = 0;
+            return Player {
+                cash: starting_cash,
+                fleet_size: 1,
+                fleet: vec![plane],
+                orders_delivered: 0,
+            };
+        }
+
+        // fallback
+        Player::new(starting_cash, map)
+    }
+
     /// Purchase an additional plane of the given model at `home_coord`.
     ///
     /// Parameters
@@ -129,6 +186,38 @@ impl Player {
         let plane_id = self.fleet_size;
         let plane_coord = Coordinate::new(home_coord.x, home_coord.y);
         let plane = Airplane::new(plane_id, model, plane_coord);
+        self.fleet.push(plane);
+        self.fleet_size += 1;
+        Ok(())
+    }
+
+    /// Purchase a plane using explicit specs and a display model name.
+    pub fn buy_plane_with_specs(
+        &mut self,
+        _model_name: &str,
+        airport: &mut Airport,
+        home_coord: &Coordinate,
+        specs: AirplaneSpecs,
+    ) -> Result<(), GameError> {
+        if self.cash < specs.purchase_price {
+            return Err(GameError::InsufficientFunds {
+                have: self.cash,
+                need: specs.purchase_price,
+            });
+        }
+        if specs.min_runway_length > airport.runway_length {
+            return Err(GameError::RunwayTooShort {
+                required: specs.min_runway_length,
+                available: airport.runway_length,
+            });
+        }
+
+        self.cash -= specs.purchase_price;
+        let plane_id = self.fleet_size;
+        let plane_coord = Coordinate::new(home_coord.x, home_coord.y);
+        let mut plane = Airplane::new(plane_id, AirplaneModel::SparrowLight, plane_coord);
+        plane.specs = specs;
+        plane.current_fuel = specs.fuel_capacity;
         self.fleet.push(plane);
         self.fleet_size += 1;
         Ok(())
