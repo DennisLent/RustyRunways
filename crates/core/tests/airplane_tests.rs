@@ -4,7 +4,7 @@ use rusty_runways_core::utils::errors::GameError;
 use rusty_runways_core::utils::{
     airport::Airport,
     coordinate::Coordinate,
-    orders::{CargoType, Order},
+    orders::{CargoType, Order, order::OrderPayload},
 };
 use strum::IntoEnumIterator;
 
@@ -18,11 +18,13 @@ fn sample_airport(runway: f32, x: f32, y: f32) -> (Airport, Coordinate) {
     (ap, Coordinate::new(x, y))
 }
 
-fn make_order(id: usize, weight: f32, value: f32, dest: usize) -> Order {
+fn make_cargo_order(id: usize, weight: f32, value: f32, dest: usize) -> Order {
     Order {
         id,
-        name: CargoType::Electronics,
-        weight,
+        payload: OrderPayload::Cargo {
+            cargo_type: CargoType::Electronics,
+            weight,
+        },
         value,
         deadline: 10,
         origin_id: 0,
@@ -30,11 +32,22 @@ fn make_order(id: usize, weight: f32, value: f32, dest: usize) -> Order {
     }
 }
 
+fn make_passenger_order(id: usize, count: u32, value: f32, dest: usize) -> Order {
+    Order {
+        id,
+        payload: OrderPayload::Passengers { count },
+        value,
+        deadline: 12,
+        origin_id: 0,
+        destination_id: dest,
+    }
+}
+
 #[test]
 fn iter_models() {
-    // By default 8 configs
+    // By default 10 configs
     let variants: Vec<_> = AirplaneModel::iter().collect();
-    assert_eq!(variants.len(), 8);
+    assert_eq!(variants.len(), 10);
     for m in AirplaneModel::iter() {
         assert!(variants.contains(&m));
     }
@@ -43,32 +56,32 @@ fn iter_models() {
 #[test]
 fn spec_table() {
     let sparrow = AirplaneModel::SparrowLight.specs();
-    assert_eq!(sparrow.mtow, 5_000.0);
-    assert_eq!(sparrow.cruise_speed, 250.0);
-    assert_eq!(sparrow.fuel_capacity, 200.0);
-    assert_eq!(sparrow.fuel_consumption, 30.0);
-    assert_eq!(sparrow.operating_cost, 300.0);
-    assert_eq!(sparrow.payload_capacity, 500.0);
-    assert_eq!(sparrow.purchase_price, 200_000.0);
+    assert_eq!(sparrow.mtow, 5_200.0);
+    assert_eq!(sparrow.cruise_speed, 260.0);
+    assert_eq!(sparrow.fuel_capacity, 240.0);
+    assert_eq!(sparrow.fuel_consumption, 35.0);
+    assert_eq!(sparrow.operating_cost, 340.0);
+    assert_eq!(sparrow.payload_capacity, 1_200.0);
+    assert_eq!(sparrow.passenger_capacity, 6);
+    assert_eq!(sparrow.purchase_price, 240_000.0);
 
     let titan = AirplaneModel::TitanHeavy.specs();
-    assert_eq!(titan.mtow, 100_000.0);
-    assert_eq!(titan.cruise_speed, 650.0);
-    assert!(titan.fuel_capacity > 10_000.0);
-    assert!(titan.payload_capacity > 40_000.0);
+    assert_eq!(titan.mtow, 110_000.0);
+    assert_eq!(titan.cruise_speed, 670.0);
+    assert!(titan.fuel_capacity > 20_000.0);
+    assert!(titan.payload_capacity > 50_000.0);
+    assert_eq!(titan.passenger_capacity, 0);
 }
 
 #[test]
 fn runway_length() {
     // For SparrowLight:
-    // approx 407.5 m for takeoff
-    // approx 255 m for landing,
-    // so min length approx 407 m
+    // derived from updated specs (takeoff/landing based on new cruise speed)
     let sparrow = AirplaneModel::SparrowLight.specs();
     let req = sparrow.min_runway_length;
     assert!(
-        approx_eq(req, 407.5),
-        "Expected approx 407.5m, got {:.6}m",
+        approx_eq(req, 440.75616),
+        "Expected approx 440.76m, got {:.6}m",
         req
     );
 
@@ -89,6 +102,7 @@ fn new_plane_fueled_and_empty() {
     assert_eq!(plane.location, home);
     assert!(approx_eq(plane.current_fuel, plane.specs.fuel_capacity));
     assert_eq!(plane.current_payload, 0.0);
+    assert_eq!(plane.current_passengers, 0);
     assert_eq!(plane.manifest.len(), 0);
     assert!(matches!(plane.status, AirplaneStatus::Parked));
 }
@@ -137,17 +151,17 @@ fn load_and_unload() {
     let mut plane = Airplane::new(0, AirplaneModel::Atlas, home);
 
     // order too large
-    let big = make_order(1, plane.specs.payload_capacity + 1.0, 1000.0, 0);
+    let big = make_cargo_order(1, plane.specs.payload_capacity + 1.0, 1000.0, 0);
     assert!(matches!(
         plane.load_order(big.clone()),
         Err(GameError::MaxPayloadReached { .. })
     ));
 
     // order fits
-    let small = make_order(2, plane.specs.payload_capacity - 1.0, 1000.0, 0);
+    let small = make_cargo_order(2, plane.specs.payload_capacity - 1.0, 1000.0, 0);
     plane.load_order(small.clone()).unwrap();
     assert_eq!(plane.manifest.len(), 1);
-    assert_eq!(plane.current_payload, small.weight);
+    assert_eq!(plane.current_payload, small.cargo_weight().unwrap());
     assert!(matches!(plane.status, AirplaneStatus::Loading));
 
     // unload
@@ -155,7 +169,37 @@ fn load_and_unload() {
     assert_eq!(delivered.len(), 1);
     assert_eq!(plane.manifest.len(), 0);
     assert_eq!(plane.current_payload, 0.0);
+    assert_eq!(plane.current_passengers, 0);
     assert!(matches!(plane.status, AirplaneStatus::Unloading));
+}
+
+#[test]
+fn passenger_capacity_enforced() {
+    let home = Coordinate::new(0.0, 0.0);
+    let mut cargo_plane = Airplane::new(0, AirplaneModel::BisonFreighter, home);
+    let pax_order = make_passenger_order(3, 10, 5_000.0, 1);
+    assert!(matches!(
+        cargo_plane.load_order(pax_order.clone()),
+        Err(GameError::PayloadTypeUnsupported { .. })
+    ));
+
+    let mut mixed_plane = Airplane::new(1, AirplaneModel::TrailblazerCombi, home);
+    mixed_plane.load_order(pax_order.clone()).unwrap();
+    assert_eq!(mixed_plane.current_passengers, 10);
+    let delivered = mixed_plane.unload_all();
+    assert_eq!(delivered.len(), 1);
+    assert_eq!(mixed_plane.current_passengers, 0);
+}
+
+#[test]
+fn passenger_overload_rejected() {
+    let home = Coordinate::new(0.0, 0.0);
+    let mut plane = Airplane::new(2, AirplaneModel::FalconJet, home);
+    let too_many = make_passenger_order(4, plane.specs.passenger_capacity + 5, 8_000.0, 1);
+    assert!(matches!(
+        plane.load_order(too_many),
+        Err(GameError::PassengerCapacityReached { .. })
+    ));
 }
 
 #[test]

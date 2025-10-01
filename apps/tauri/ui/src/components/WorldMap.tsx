@@ -216,6 +216,11 @@ export const WorldMap = ({ onAirportClick, onAirplaneClick, airportsData, airpla
 
             {/* Flight/Planned Paths (SVG) */}
             <svg width={WORLD_W} height={WORLD_H} className="absolute inset-0 pointer-events-none">
+              <defs>
+                <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 z" fill="hsl(var(--aviation-amber))" />
+                </marker>
+              </defs>
               {airplanes
                 .filter(plane => plane.status === 'en-route' && plane.destination)
                 .map(plane => {
@@ -229,10 +234,11 @@ export const WorldMap = ({ onAirportClick, onAirplaneClick, airportsData, airpla
                       x2={destAirport.x}
                       y2={destAirport.y}
                       stroke="hsl(var(--aviation-amber))"
-                      strokeWidth={2}
-                      strokeDasharray="5,5"
+                      strokeWidth={3}
+                      strokeDasharray="8,6"
                       vectorEffect="non-scaling-stroke"
-                      opacity={0.6}
+                      opacity={0.8}
+                      markerEnd="url(#arrow)"
                     />
                   );
                 })}

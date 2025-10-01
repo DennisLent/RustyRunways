@@ -17,9 +17,12 @@ fn deliver_and_store_paths_and_world_events() {
     // pick first order the plane can carry and reach
     let mut chosen: Option<(usize, usize)> = None;
     for o in &game.map.airports[origin_idx].0.orders {
+        let Some(weight) = o.cargo_weight() else {
+            continue;
+        };
         let (a, c) = &game.airports()[o.destination_id];
         if game.planes()[plane_id].can_fly_to(a, c).is_ok()
-            && (game.planes()[plane_id].current_payload + o.weight)
+            && (game.planes()[plane_id].current_payload + weight)
                 <= game.planes()[plane_id].specs.payload_capacity
         {
             chosen = Some((o.id, o.destination_id));

@@ -15,6 +15,10 @@ airports:
         value: 2700.0
         deadline_hours: 48
         destination_id: 1
+      - passengers: 36
+        value: 6200.0
+        deadline_hours: 24
+        destination_id: 1
   - id: 1
     name: AAX
     location: { x: 3400.0, y: 2100.0 }
@@ -27,6 +31,10 @@ airports:
         weight: 300.0
         value: 4200.0
         deadline_hours: 36
+        destination_id: 0
+      - passengers: 20
+        value: 4100.0
+        deadline_hours: 18
         destination_id: 0
 
 gameplay:

@@ -4,8 +4,9 @@ use rusty_runways_core::utils::{
         Order,
         cargo::CargoType,
         order::{
-            DEFAULT_MAX_DEADLINE_HOURS, DEFAULT_MAX_WEIGHT, DEFAULT_MIN_WEIGHT, OrderAirportInfo,
-            OrderGenerationParams,
+            DEFAULT_MAX_DEADLINE_HOURS, DEFAULT_MAX_WEIGHT, DEFAULT_MIN_WEIGHT,
+            DEFAULT_PASSENGER_MAX_COUNT, DEFAULT_PASSENGER_MIN_COUNT, OrderAirportInfo,
+            OrderGenerationParams, PassengerGenerationParams,
         },
     },
 };
@@ -76,15 +77,17 @@ fn match_price_ranges() {
 fn new_order_is_deterministic() {
     let airports = sample_airports();
     let params = OrderGenerationParams::default();
-    let o1 = Order::new(42, 7, 0, &airports, &params);
-    let o2 = Order::new(42, 7, 0, &airports, &params);
+    let o1 = Order::new_cargo(42, 7, 0, &airports, &params);
+    let o2 = Order::new_cargo(42, 7, 0, &airports, &params);
     // same seed & order_id => same everything
     assert_eq!(o1.id, o2.id);
-    assert_eq!(o1.name, o2.name);
+    assert_eq!(o1.cargo_type(), o2.cargo_type());
     assert_eq!(o1.origin_id, o2.origin_id);
     assert_eq!(o1.destination_id, o2.destination_id);
     assert_eq!(o1.deadline, o2.deadline);
-    assert!(approx_le(o1.weight, o2.weight, 1e-6) && approx_ge(o1.weight, o2.weight, 1e-6));
+    let w1 = o1.cargo_weight().unwrap();
+    let w2 = o2.cargo_weight().unwrap();
+    assert!(approx_le(w1, w2, 1e-6) && approx_ge(w1, w2, 1e-6));
     assert!(approx_le(o1.value, o2.value, 1e-3) && approx_ge(o1.value, o2.value, 1e-3));
 }
 
@@ -104,7 +107,7 @@ fn cannot_arrive_at_origin() {
     ];
     let origin = 1;
     let params = OrderGenerationParams::default();
-    let order = Order::new(7, 3, origin, &airports, &params);
+    let order = Order::new_cargo(7, 3, origin, &airports, &params);
     assert_ne!(order.destination_id, origin);
     assert!(order.destination_id < airports.len());
 }
@@ -113,9 +116,10 @@ fn cannot_arrive_at_origin() {
 fn weight_respects_runway_class() {
     let airports = sample_airports();
     let params = OrderGenerationParams::default();
-    let order = Order::new(11, 2, 0, &airports, &params);
+    let order = Order::new_cargo(11, 2, 0, &airports, &params);
+    let weight = order.cargo_weight().unwrap();
     assert!(
-        order.weight <= 1_500.0,
+        weight <= 1_500.0,
         "small airports should generate lighter freight"
     );
 }
@@ -128,8 +132,9 @@ fn respects_config_weight_bounds() {
         max_weight: 6_000.0,
         ..OrderGenerationParams::default()
     };
-    let order = Order::new(25, 9, 2, &airports, &params);
-    assert!(order.weight >= 5_000.0 && order.weight <= 6_000.0);
+    let order = Order::new_cargo(25, 9, 2, &airports, &params);
+    let weight = order.cargo_weight().unwrap();
+    assert!((5_000.0..=6_000.0).contains(&weight));
 }
 
 #[test]
@@ -159,8 +164,8 @@ fn deadlines_and_value_scale_with_distance() {
         },
     ];
     let params = OrderGenerationParams::default();
-    let near = Order::new(99, 0, 0, &near_airports, &params);
-    let far = Order::new(99, 0, 0, &far_airports, &params);
+    let near = Order::new_cargo(99, 0, 0, &near_airports, &params);
+    let far = Order::new_cargo(99, 0, 0, &far_airports, &params);
 
     assert!(far.deadline >= near.deadline);
     assert!(far.value >= near.value);
@@ -184,7 +189,7 @@ fn deadlines_clamped_to_config_max() {
         max_deadline_hours: 48,
         ..OrderGenerationParams::default()
     };
-    let order = Order::new(5, 1, 0, &airports, &params);
+    let order = Order::new_cargo(5, 1, 0, &airports, &params);
     assert!(order.deadline <= 48);
     assert!(order.deadline >= 1);
 }
@@ -194,9 +199,38 @@ fn basic_bounds_still_hold() {
     let airports = sample_airports();
     for seed in 0..5 {
         let params = OrderGenerationParams::default();
-        let o = Order::new(seed, seed as usize, 0, &airports, &params);
+        let o = Order::new_cargo(seed, seed as usize, 0, &airports, &params);
         assert!((1..=DEFAULT_MAX_DEADLINE_HOURS).contains(&o.deadline));
-        assert!(o.weight >= DEFAULT_MIN_WEIGHT && o.weight <= DEFAULT_MAX_WEIGHT);
+        let wt = o.cargo_weight().unwrap();
+        assert!((DEFAULT_MIN_WEIGHT..=DEFAULT_MAX_WEIGHT).contains(&wt));
         assert!(o.value >= 0.0);
     }
+}
+
+#[test]
+fn passenger_counts_respect_bounds() {
+    let airports = sample_airports();
+    let params = PassengerGenerationParams {
+        min_count: 30,
+        max_count: 42,
+        ..PassengerGenerationParams::default()
+    };
+    let order = Order::new_passenger(17, 5, 1, &airports, &params);
+    let count = order.passenger_count().unwrap();
+    assert!((30..=42).contains(&count));
+    assert!(order.is_passenger());
+}
+
+#[test]
+fn passenger_deadlines_clamped() {
+    let airports = sample_airports();
+    let params = PassengerGenerationParams {
+        max_deadline_hours: 24,
+        ..PassengerGenerationParams::default()
+    };
+    let order = Order::new_passenger(9, 2, 0, &airports, &params);
+    assert!(order.deadline <= 24);
+    assert!(order.deadline >= 1);
+    let count = order.passenger_count().unwrap();
+    assert!((DEFAULT_PASSENGER_MIN_COUNT..=DEFAULT_PASSENGER_MAX_COUNT).contains(&count));
 }

@@ -8,6 +8,7 @@ use crate::utils::{
     coordinate::Coordinate,
 };
 
+/// Errors surfaced by the simulation and API operations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GameError {
     OutOfRange {
@@ -22,6 +23,15 @@ pub enum GameError {
         current_capacity: f32,
         maximum_capacity: f32,
         added_weight: f32,
+    },
+    PassengerCapacityReached {
+        current_capacity: u32,
+        maximum_capacity: u32,
+        added_passengers: u32,
+    },
+    PayloadTypeUnsupported {
+        plane_model: String,
+        payload: String,
     },
     OrderIdInvalid {
         id: usize,
@@ -64,8 +74,14 @@ pub enum GameError {
 }
 
 impl GameError {
-    /// Find the closest AirplaneModel name to `input` (case‐insensitive),
-    /// returning it if the edit distance <= 3.
+    /// Heuristic helper: suggest an airplane model similar to the given input.
+    ///
+    /// Parameters
+    /// - `input`: User-provided model name (case-insensitive).
+    ///
+    /// Returns
+    /// - `Some(String)` with a suggested model if the edit distance is small.
+    /// - `None` otherwise.
     fn suggest_model(input: &str) -> Option<String> {
         let lower = input.to_lowercase();
         let mut best: Option<(usize, String)> = None;
@@ -111,6 +127,23 @@ impl fmt::Display for GameError {
                     "Cannot load order of weight {:.2}. Airplane capacity: {:.2}. Current Capacity: {:.2}",
                     added_weight, maximum_capacity, current_capacity
                 )
+            }
+            GameError::PassengerCapacityReached {
+                current_capacity,
+                maximum_capacity,
+                added_passengers,
+            } => {
+                write!(
+                    f,
+                    "Cannot board {} passengers. Seats available: {}. Currently occupied: {}",
+                    added_passengers, maximum_capacity, current_capacity
+                )
+            }
+            GameError::PayloadTypeUnsupported {
+                plane_model,
+                payload,
+            } => {
+                write!(f, "Plane {} cannot carry {} payloads", plane_model, payload)
             }
             GameError::OrderIdInvalid { id } => {
                 write!(f, "Order with id {:?} does not exist", id)

@@ -1,11 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RustyRunways",
-  "version": "2.2.1",
+  "version": "3.0.0",
   "identifier": "com.rustyrunways.desktop",
   "build": {
-    "beforeDevCommand": "npm run dev -- --host localhost --port 5173 --strictPort",
-    "beforeBuildCommand": "npm run build",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../ui/dist"
   },
@@ -26,8 +24,7 @@
     "active": true,
     "icon": [
       "icons/icon.icns",
-      "icons/icon.ico",
-      "icons/icon.png"
+      "icons/icon.ico"
     ]
   }
 }

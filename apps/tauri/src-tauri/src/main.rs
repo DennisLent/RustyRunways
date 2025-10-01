@@ -3,6 +3,7 @@
 use std::sync::Mutex;
 
 use rusty_runways_core::game::Observation;
+use rusty_runways_core::statistics::DailyStats;
 use rusty_runways_core::utils::airplanes::models::AirplaneModel;
 use rusty_runways_core::Game;
 use serde::{Deserialize, Serialize};
@@ -10,6 +11,16 @@ use std::fs;
 use std::path::Path;
 use strum::IntoEnumIterator;
 use tauri::State;
+
+#[derive(Serialize)]
+struct PlayerSnapshotDto {
+    cash: f32,
+    fleet_size: usize,
+    orders_delivered: usize,
+    daily_income: f32,
+    daily_expenses: f32,
+    day: u64,
+}
 
 #[derive(Default)]
 struct AppState {
@@ -75,6 +86,27 @@ fn advance(state: State<AppState>, hours: u64) -> Result<Observation, String> {
 }
 
 #[tauri::command]
+fn stats_cmd(state: State<AppState>) -> Result<Vec<DailyStats>, String> {
+    let guard = state.game.lock().map_err(|_| "state poisoned")?;
+    let game = guard.as_ref().ok_or("no game running")?;
+    Ok(game.stats.clone())
+}
+
+#[tauri::command]
+fn player_snapshot(state: State<AppState>) -> Result<PlayerSnapshotDto, String> {
+    let guard = state.game.lock().map_err(|_| "state poisoned")?;
+    let g = guard.as_ref().ok_or("no game running")?;
+    Ok(PlayerSnapshotDto {
+        cash: g.player.cash,
+        fleet_size: g.player.fleet_size,
+        orders_delivered: g.player.orders_delivered,
+        daily_income: g.daily_income,
+        daily_expenses: g.daily_expenses,
+        day: g.time / 24,
+    })
+}
+
+#[tauri::command]
 fn depart_plane(state: State<AppState>, plane: usize, dest: usize) -> Result<(), String> {
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_mut().ok_or("no game running")?;
@@ -93,6 +125,13 @@ fn unload_order(state: State<AppState>, order: usize, plane: usize) -> Result<()
     let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
     let game = guard.as_mut().ok_or("no game running")?;
     game.unload_order(order, plane).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn unload_orders(state: State<AppState>, orders: Vec<usize>, plane: usize) -> Result<(), String> {
+    let mut guard = state.game.lock().map_err(|_| "state poisoned")?;
+    let game = guard.as_mut().ok_or("no game running")?;
+    game.unload_orders(orders, plane).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -129,9 +168,11 @@ struct OrderDto {
     id: usize,
     destination_id: usize,
     value: f32,
-    weight: f32,
     deadline: u64,
-    cargo_type: String,
+    payload_kind: String,
+    cargo_type: Option<String>,
+    weight: Option<f32>,
+    passenger_count: Option<u32>,
 }
 
 #[derive(Serialize)]
@@ -145,6 +186,8 @@ struct PlaneInfoDto {
     fuel_capacity: f32,
     payload_current: f32,
     payload_capacity: f32,
+    passenger_current: u32,
+    passenger_capacity: u32,
     current_airport_id: Option<usize>,
     manifest: Vec<OrderDto>,
 }
@@ -173,9 +216,11 @@ fn plane_info(state: State<AppState>, plane_id: usize) -> Result<PlaneInfoDto, S
             id: o.id,
             destination_id: o.destination_id,
             value: o.value,
-            weight: o.weight,
             deadline: o.deadline,
-            cargo_type: format!("{:?}", o.name),
+            payload_kind: o.payload.kind_label().to_string(),
+            cargo_type: o.cargo_type().map(|c| format!("{:?}", c)),
+            weight: o.cargo_weight(),
+            passenger_count: o.passenger_count(),
         })
         .collect();
 
@@ -189,6 +234,8 @@ fn plane_info(state: State<AppState>, plane_id: usize) -> Result<PlaneInfoDto, S
         fuel_capacity: plane.specs.fuel_capacity,
         payload_current: plane.current_payload,
         payload_capacity: plane.specs.payload_capacity,
+        passenger_current: plane.current_passengers,
+        passenger_capacity: plane.specs.passenger_capacity,
         current_airport_id,
         manifest,
     })
@@ -210,9 +257,11 @@ fn airport_orders(state: State<AppState>, airport_id: usize) -> Result<Vec<Order
             id: o.id,
             destination_id: o.destination_id,
             value: o.value,
-            weight: o.weight,
             deadline: o.deadline,
-            cargo_type: format!("{:?}", o.name),
+            payload_kind: o.payload.kind_label().to_string(),
+            cargo_type: o.cargo_type().map(|c| format!("{:?}", c)),
+            weight: o.cargo_weight(),
+            passenger_count: o.passenger_count(),
         })
         .collect();
     Ok(orders)
@@ -227,12 +276,37 @@ struct ModelDto {
     fuel_consumption: f32,
     operating_cost: f32,
     payload_capacity: f32,
+    passenger_capacity: u32,
     purchase_price: f32,
     min_runway_length: f32,
+    role: String,
 }
 
 #[tauri::command]
-fn list_models() -> Vec<ModelDto> {
+fn list_models(state: State<AppState>) -> Vec<ModelDto> {
+    // If a game is running, use its catalog; otherwise fall back to built-ins
+    if let Ok(guard) = state.game.lock() {
+        if let Some(game) = guard.as_ref() {
+            return game
+                .available_models()
+                .into_iter()
+                .map(|(name, s)| ModelDto {
+                    name,
+                    mtow: s.mtow,
+                    cruise_speed: s.cruise_speed,
+                    fuel_capacity: s.fuel_capacity,
+                    fuel_consumption: s.fuel_consumption,
+                    operating_cost: s.operating_cost,
+                    payload_capacity: s.payload_capacity,
+                    passenger_capacity: s.passenger_capacity,
+                    purchase_price: s.purchase_price,
+                    min_runway_length: s.min_runway_length,
+                    role: format!("{:?}", s.role),
+                })
+                .collect();
+        }
+    }
+
     AirplaneModel::iter()
         .map(|m| {
             let s = m.specs();
@@ -244,8 +318,10 @@ fn list_models() -> Vec<ModelDto> {
                 fuel_consumption: s.fuel_consumption,
                 operating_cost: s.operating_cost,
                 payload_capacity: s.payload_capacity,
+                passenger_capacity: s.passenger_capacity,
                 purchase_price: s.purchase_price,
                 min_runway_length: s.min_runway_length,
+                role: format!("{:?}", s.role),
             }
         })
         .collect()
@@ -364,6 +440,7 @@ fn main() {
             depart_plane,
             load_order,
             unload_order,
+            unload_orders,
             unload_all,
             refuel_plane,
             maintenance,
@@ -377,6 +454,8 @@ fn main() {
             start_from_config_yaml,
             start_from_config_path,
             list_saves,
+            stats_cmd,
+            player_snapshot,
         ])
         .setup(|_app| Ok(()))
         .run(tauri::generate_context!())

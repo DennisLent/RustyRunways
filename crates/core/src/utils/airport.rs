@@ -1,12 +1,9 @@
 use crate::utils::{
     airplanes::airplane::Airplane,
     errors::GameError,
-    orders::{
-        Order,
-        order::{OrderAirportInfo, OrderGenerationParams},
-    },
+    orders::{DemandGenerationParams, Order, order::OrderAirportInfo},
 };
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{Rng, SeedableRng, rngs::StdRng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 
 fn default_base_fuel_price() -> f32 {
@@ -39,7 +36,14 @@ impl Airport {
         String::from_utf8(bytes.to_vec()).unwrap()
     }
 
-    /// Generate an airport using a seed and an id
+    /// Generate an airport using a seed and an id.
+    ///
+    /// Parameters
+    /// - `seed`: RNG seed used for deterministic generation.
+    /// - `id`: Airport identifier to assign.
+    ///
+    /// Returns
+    /// - `Airport`: A randomly configured airport with plausible properties.
     pub fn generate_random(seed: u64, id: usize) -> Self {
         let mut rng = StdRng::seed_from_u64(seed.wrapping_add(id as u64));
 
@@ -82,13 +86,21 @@ impl Airport {
     }
 
     /// Generate orders randomly.
-    /// We assume that larger airports will generate more orders.
+    ///
+    /// Larger airports generate more orders. Passenger orders are created in groups in
+    /// addition to cargo orders.
+    ///
+    /// Parameters
+    /// - `seed`: RNG seed to produce reproducible orders.
+    /// - `airports`: Metadata of all airports to choose valid destinations from.
+    /// - `next_order_id`: Mutable counter; incremented as new orders are created.
+    /// - `params`: Demand and tuning parameters.
     pub fn generate_orders(
         &mut self,
         seed: u64,
         airports: &[OrderAirportInfo],
         next_order_id: &mut usize,
-        params: &OrderGenerationParams,
+        params: &DemandGenerationParams,
     ) {
         let mut rng = StdRng::seed_from_u64(seed.wrapping_add(self.id as u64));
 
@@ -98,6 +110,14 @@ impl Airport {
             1500.0..2500.0 => rng.gen_range(9..=15),
             2500.0..3500.0 => rng.gen_range(15..=24),
             _ => rng.gen_range(25..=40),
+        };
+
+        let passenger_groups: usize = match self.runway_length {
+            245.0..500.0 => rng.gen_range(1..=2),
+            500.0..1500.0 => rng.gen_range(2..=4),
+            1500.0..2500.0 => rng.gen_range(4..=7),
+            2500.0..3500.0 => rng.gen_range(6..=10),
+            _ => rng.gen_range(10..=18),
         };
 
         // Clear all orders within the airport
@@ -110,13 +130,38 @@ impl Airport {
             let order_seed = seed
                 .wrapping_add(self.id as u64)
                 .wrapping_add(order_id as u64);
-            self.orders
-                .push(Order::new(order_seed, order_id, self.id, airports, params));
+            self.orders.push(Order::new_cargo(
+                order_seed,
+                order_id,
+                self.id,
+                airports,
+                &params.cargo,
+            ));
         }
+
+        for _ in 0..passenger_groups {
+            let order_id = *next_order_id;
+            *next_order_id += 1;
+
+            let order_seed = seed
+                .wrapping_add(self.id as u64)
+                .wrapping_add(order_id as u64)
+                .wrapping_add(13);
+            self.orders.push(Order::new_passenger(
+                order_seed,
+                order_id,
+                self.id,
+                airports,
+                &params.passengers,
+            ));
+        }
+
+        self.orders.shuffle(&mut rng);
     }
 
-    /// Check if any orders have expired, if so we remove them.
-    /// Update the deadline hour for each order.
+    /// Update order deadlines and remove expired ones.
+    ///
+    /// Decrements each order's `deadline` by one hour and removes orders with a zero deadline.
     pub fn update_deadline(&mut self) {
         self.orders.retain(|order| order.deadline != 0);
 
@@ -126,22 +171,42 @@ impl Airport {
     }
 
     /// Returns the landing fee for a given airplane.
+    ///
+    /// Parameters
+    /// - `airplane`: The airplane landing at this airport.
+    ///
+    /// Returns
+    /// - `f32`: Fee amount based on the airplane MTOW.
     pub fn landing_fee(&self, airplane: &Airplane) -> f32 {
         self.landing_fee * (airplane.specs.mtow / 1000.0)
     }
 
     /// Returns the fueling fee for a given airplane.
+    ///
+    /// Parameters
+    /// - `airplane`: The airplane to refuel to full.
+    ///
+    /// Returns
+    /// - `f32`: Total cost using current airport fuel price.
     pub fn fueling_fee(&self, airplane: &Airplane) -> f32 {
         self.fuel_price * (airplane.specs.fuel_capacity - airplane.current_fuel)
     }
 
-    /// Increases the fuel used to adjust price dynamically
+    /// Record fuel sold to enable dynamic price adjustments later.
     pub fn fuel_supply(&mut self, airplane: &Airplane) {
         let fuel_bought = airplane.specs.fuel_capacity - airplane.current_fuel;
         self.fuel_sold += fuel_bought;
     }
 
-    /// Load a single order into the airplane
+    /// Load a single order into the airplane.
+    ///
+    /// Parameters
+    /// - `order_id`: The order to load from the airport stock.
+    /// - `airplane`: Target airplane (must be parked).
+    ///
+    /// Returns
+    /// - `Ok(())` on success.
+    /// - `Err(GameError)` if the order is missing or capacity constraints are violated.
     pub fn load_order(
         &mut self,
         order_id: usize,
@@ -150,17 +215,8 @@ impl Airport {
         // find the position of the order in this airport
         if let Some(pos) = self.orders.iter().position(|o| o.id == order_id) {
             let order = self.orders[pos].clone();
+            airplane.validate_payload(&order)?;
 
-            // check payload capacity before removing
-            if airplane.current_payload + order.weight > airplane.specs.payload_capacity {
-                return Err(GameError::MaxPayloadReached {
-                    current_capacity: airplane.current_payload,
-                    maximum_capacity: airplane.specs.payload_capacity,
-                    added_weight: order.weight,
-                });
-            }
-
-            // remove from airport and load into airplane
             let order = self.orders.remove(pos);
             airplane.load_order(order)?;
             Ok(())
@@ -169,7 +225,14 @@ impl Airport {
         }
     }
 
-    /// Load multiple orders into the plane
+    /// Load multiple orders into the airplane.
+    ///
+    /// Parameters
+    /// - `order_ids`: Order IDs to load in sequence.
+    /// - `airplane`: Target airplane.
+    ///
+    /// Returns
+    /// - `Ok(())` if all loads succeed; otherwise the first error encountered.
     pub fn load_orders(
         &mut self,
         order_ids: Vec<usize>,
@@ -188,13 +251,19 @@ impl Airport {
         Ok(())
     }
 
+    /// Ensure `base_fuel_price` is initialized from the current price.
     pub fn ensure_base_fuel_price(&mut self) {
         if self.base_fuel_price <= 0.0 {
             self.base_fuel_price = self.fuel_price;
         }
     }
 
-    /// Internal method that adjusts the fuel price based on supply
+    /// Adjust the fuel price based on recent demand (elastic pricing).
+    ///
+    /// Parameters
+    /// - `elasticity`: Price sensitivity factor.
+    /// - `min_multiplier`: Floor multiplier relative to base price.
+    /// - `max_multiplier`: Cap multiplier relative to base price.
     pub fn adjust_fuel_price(&mut self, elasticity: f32, min_multiplier: f32, max_multiplier: f32) {
         self.ensure_base_fuel_price();
 

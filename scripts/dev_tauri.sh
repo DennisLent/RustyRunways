@@ -96,16 +96,49 @@ else
     exit 1
   fi
 fi
-echo "[tauri-dev] Launching Tauri desktop app..."
-cd "$TAURI_DIR"
+echo "[tauri-dev] Ensuring Tauri icons exist..."
+# Generate platform icons once (needed for Windows/macOS builds; harmless elsewhere)
+ICONS_DIR="$ROOT_DIR/apps/tauri/src-tauri/icons"
+if [ ! -f "$ICONS_DIR/icon.icns" ] || [ ! -f "$ICONS_DIR/icon.ico" ]; then
+  mkdir -p "$ICONS_DIR"
+  if command -v npx >/dev/null 2>&1; then
+    echo "[tauri-dev] Generating icons via @tauri-apps/cli"
+    npx --yes @tauri-apps/cli@2 icon -o "$ICONS_DIR" "$ROOT_DIR/docs/assets/rusty_runways.png" || true
+  else
+    echo "[tauri-dev] npx not found; skipping icon generation"
+  fi
+fi
+
+echo "[tauri-dev] Launching UI dev server (vite) on port $PORT..."
 # Ensure UI deps on first run
 if [ ! -d "$ROOT_DIR/apps/tauri/ui/node_modules" ]; then
   echo "[tauri-dev] Installing UI dependencies (first run)..."
   npm --prefix "$ROOT_DIR/apps/tauri/ui" install --silent
 fi
+
+# Start Vite dev server in background
+"$(command -v npm)" --prefix "$ROOT_DIR/apps/tauri/ui" run dev -- --host localhost --port "$PORT" --strictPort &
+UI_PID=$!
+echo "[tauri-dev] UI dev started (pid=$UI_PID). Waiting for port $PORT..."
+
+# Wait until port is listening (max ~15s)
+for i in {1..60}; do
+  if command -v lsof >/dev/null 2>&1; then
+    if lsof -iTCP:"$PORT" -sTCP:LISTEN -Pn >/dev/null 2>&1; then break; fi
+  else
+    if ss -ltnp 2>/dev/null | grep -q ":$PORT\\>"; then break; fi
+  fi
+  sleep 0.25
+done
+
+echo "[tauri-dev] Launching Tauri desktop shell..."
+cd "$TAURI_DIR"
 if cargo tauri -V >/dev/null 2>&1; then
-  cargo tauri dev
+  cargo tauri dev || true
 else
   echo "[tauri-dev] cargo-tauri not found. Trying npx @tauri-apps/cli@2 dev ..."
-  npx @tauri-apps/cli@2 dev
+  npx @tauri-apps/cli@2 dev || true
 fi
+
+echo "[tauri-dev] Shutting down UI dev (pid=$UI_PID)"
+kill "$UI_PID" >/dev/null 2>&1 || true

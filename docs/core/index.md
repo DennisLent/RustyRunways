@@ -11,7 +11,7 @@ The `rusty_runways_core` crate implements all game rules and the event‑driven 
 - Game state (`Game`): time, player, airplanes, airports, scheduled events, and logs.
 - Airports: name, coordinates, fees, runway length, dynamic fuel price, and outstanding orders.
 - Airplanes: model, specs, location, status, manifest, and operational costs.
-- Orders: cargo type, weight, value, deadline, origin, destination.
+- Orders: either cargo (type, weight) or passenger groups (count), plus value, deadline, origin, destination.
 - Player: cash, fleet, deliveries; can buy planes subject to constraints.
 
 ## Game Rules
@@ -61,19 +61,50 @@ The `rusty_runways_core` crate implements all game rules and the event‑driven 
 
 All models (see `utils::airplanes::models`):
 
-- SparrowLight – small prop
-- FalconJet – light biz jet
-- CometRegional – regional turbofan
-- Atlas – narrow‑body jet
-- TitanHeavy – wide‑body freighter
-- Goliath – super‑heavy lift
-- Zephyr – long‑range twin‑aisle
-- Lightning – supersonic small jet
+- SparrowLight – short-range combi prop
+- FalconJet – light biz jet (passenger)
+- CometRegional – regional turbofan (passenger)
+- Atlas – narrow-body combi
+- TitanHeavy – wide-body freighter (cargo)
+- Goliath – super-heavy freighter (cargo)
+- Zephyr – long-range twin-aisle (passenger)
+- Lightning – supersonic small jet (passenger)
+- BisonFreighter – medium cargo hauler
+- TrailblazerCombi – high-capacity combi aircraft
 
 Each model exposes specs via `AirplaneModel::specs()` including:
 
-- MTOW, cruise speed (km/h), fuel capacity (L), fuel consumption (L/h), operating cost ($/h), payload capacity (kg), purchase price, and computed minimum runway length (m).
+- MTOW, cruise speed (km/h), fuel capacity (L), fuel consumption (L/h), operating cost ($/h), cargo payload capacity (kg), passenger capacity (seats), model role (cargo/passenger/mixed), purchase price, and computed minimum runway length (m).
 - Players may sell a parked, empty airplane back to the market for 60% of its purchase price.
+
+### Custom Airplane Catalog (YAML)
+
+Scenarios can replace or extend the built‑in airplane catalog via the world YAML. Add an `airplanes` block at the top level:
+
+```
+airplanes:
+  strategy: replace   # or: add (default)
+  models:
+    - name: WorkshopCombi
+      mtow: 15000.0
+      cruise_speed: 520.0
+      fuel_capacity: 3200.0
+      fuel_consumption: 260.0
+      operating_cost: 950.0
+      payload_capacity: 3200.0
+      passenger_capacity: 24
+      purchase_price: 780000.0
+      min_runway_length: 1200.0
+      role: Mixed        # Cargo | Passenger | Mixed
+```
+
+- strategy=replace uses only the declared models. strategy=add merges them with defaults.
+- All fields are required. Validation enforces positive values and role‑specific capacities:
+  - Cargo requires payload_capacity > 0
+  - Passenger requires passenger_capacity > 0
+  - Mixed requires both > 0
+ 
+Games started from this YAML will list these models in the CLI, Python, and Tauri UI and allow buying them by name.
 
 ## Landing Constraints and Derivation
 

@@ -24,7 +24,15 @@ import {
   ShoppingCart,
   Users
 } from "lucide-react";
-import { observe, advance as apiAdvance, saveGame as apiSave, listSaves as apiListSaves, loadGame as apiLoadGame } from "@/api/game";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart";
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, LineChart, Line } from "recharts";
+import { observe, advance as apiAdvance, saveGame as apiSave, listSaves as apiListSaves, loadGame as apiLoadGame, stats as apiStats, playerSnapshot as apiPlayerSnapshot } from "@/api/game";
 import type { Observation } from "@/api/game";
 
 interface GameScreenProps {
@@ -76,6 +84,16 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
   const [availableSaves, setAvailableSaves] = useState<string[]>([]);
   
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [dailyStats, setDailyStats] = useState<{ day: number; income: number; expenses: number; net_cash: number; fleet_size: number; total_deliveries: number }[]>([]);
+  type RightTab = 'overview' | 'fleet' | 'airports' | 'stats';
+  const [rightTab, setRightTab] = useState<RightTab>('overview');
+  const onRightTabChange = (v: string) => {
+    if (v === 'overview' || v === 'fleet' || v === 'airports' || v === 'stats') {
+      setRightTab(v);
+    }
+  };
+
+  const [snap, setSnap] = useState<{ cash: number; fleet_size: number; orders_delivered: number; daily_income: number; daily_expenses: number; day: number } | null>(null);
 
   async function refresh() {
     const obs = await observe();
@@ -84,6 +102,10 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
     // keep arrays for possible future use
     setAirports(obs.airports);
     setPlanes(obs.planes);
+    try {
+      setDailyStats(await apiStats());
+      setSnap(await apiPlayerSnapshot());
+    } catch (_) { /* optional */ }
   }
 
   useEffect(() => {
@@ -188,8 +210,9 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
     time: timeStr,
     planes: planes.length,
     activeOrders: airports.reduce((a, b) => a + (b.num_orders || 0), 0),
-    completedDeliveries: 0,
-    totalRevenue: 0
+    completedDeliveries: snap?.orders_delivered ?? (dailyStats.length ? dailyStats[dailyStats.length - 1].total_deliveries : 0),
+    totalRevenue: dailyStats.reduce((sum, s) => sum + s.income, 0) + (snap?.daily_income ?? 0),
+    totalExpenses: dailyStats.reduce((sum, s) => sum + s.expenses, 0) + (snap?.daily_expenses ?? 0),
   };
 
   // Render different screens based on mode
@@ -303,11 +326,14 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                   <div className="flex items-center gap-2">
                     <Button variant="runway" size="sm" onClick={handlePlay}>
                       <Play className="w-3 h-3 mr-1" />
-                      Play
+                      Auto
                     </Button>
                     <Button variant="control" size="sm" onClick={handlePause}>
                       <Pause className="w-3 h-3 mr-1" />
                       Pause
+                    </Button>
+                    <Button variant="control" size="sm" onClick={handleAdvanceTime}>
+                      +1h
                     </Button>
                     <Button 
                       variant="control" 
@@ -367,11 +393,12 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
 
           {/* Side Panel */}
           <div className="col-span-4">
-            <Tabs defaultValue="overview" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3 bg-secondary/50">
+            <Tabs value={rightTab} onValueChange={onRightTabChange} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-4 bg-secondary/50">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="fleet">Fleet</TabsTrigger>
                 <TabsTrigger value="airports">Airports</TabsTrigger>
+                <TabsTrigger value="stats">Stats</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-4">
@@ -384,7 +411,7 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                   <CardContent className="space-y-3 text-sm">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <div className="text-muted-foreground">Revenue</div>
+                        <div className="text-muted-foreground">Revenue (to date)</div>
                         <div className="font-semibold text-aviation-radar">
                           ${gameStats.totalRevenue.toLocaleString()}
                         </div>
@@ -402,6 +429,40 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                         <div className="font-semibold">{gameStats.planes}</div>
                       </div>
                     </div>
+
+                    {/* Daily table (previous complete days) */}
+                    <div className="mt-2 border-t border-aviation-blue/20 pt-2">
+                      {dailyStats.length === 0 ? (
+                        <div className="text-xs text-muted-foreground">No daily stats yet. Let the simulation run.</div>
+                      ) : (
+                        <div className="max-h-48 overflow-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-muted-foreground">
+                                <th className="text-left">Day</th>
+                                <th className="text-right">Income</th>
+                                <th className="text-right">Expense</th>
+                                <th className="text-right">End Cash</th>
+                                <th className="text-right">Fleet</th>
+                                <th className="text-right">Delivered</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dailyStats.map((s) => (
+                                <tr key={s.day}>
+                                  <td>{s.day}</td>
+                                  <td className="text-right">${s.income.toFixed(0)}</td>
+                                  <td className="text-right">${s.expenses.toFixed(0)}</td>
+                                  <td className="text-right">${s.net_cash.toFixed(0)}</td>
+                                  <td className="text-right">{s.fleet_size}</td>
+                                  <td className="text-right">{s.total_deliveries}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -415,7 +476,7 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                       variant="ghost" 
                       size="sm" 
                       className="w-full justify-start h-8"
-                      onClick={() => addLog('info', 'Viewing game statistics')}
+                      onClick={() => setRightTab('stats')}
                     >
                       <BarChart3 className="w-3 h-3 mr-2" />
                       View Statistics
@@ -457,12 +518,14 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                         const status: 'parked' | 'en-route' | 'loading' = p.status.includes('InTransit')
                           ? 'en-route'
                           : (p.status.includes('Loading') ? 'loading' : 'parked');
+                        const roleIcon = p.payload.passenger_capacity > 0 && p.payload.cargo_capacity > 0
+                          ? '🛩️' : (p.payload.passenger_capacity > 0 ? '🧑‍✈️' : '📦');
                         const atAirport = airports.find((a) => !p.status.includes('InTransit') && a.x === p.x && a.y === p.y);
                         const destAirport = p.destination != null ? airports.find((a) => a.id === p.destination) : undefined;
                         const locLabel = atAirport ? String(atAirport.name) : (destAirport ? `→ ${destAirport.name}` : '');
                         return (
                           <div key={p.id} className="border border-aviation-blue/20 rounded-lg p-3 bg-secondary/20">
-                            <div className="font-semibold">{p.model}</div>
+                            <div className="font-semibold">{roleIcon} {p.model}</div>
                             <div className="text-muted-foreground text-xs">
                               {locLabel ? `Location: ${locLabel} • ` : ''}Status: {status.replace('-', ' ')} • Fuel: {fuelPct}%
                             </div>
@@ -533,6 +596,85 @@ export const GameScreen = ({ onMainMenu }: GameScreenProps) => {
                         </div>
                       );
                     })}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="stats" className="space-y-4">
+                <Card className="bg-card/80 backdrop-blur-sm border-aviation-blue/20 shadow-panel">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-aviation-blue text-sm">Player Overview</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div className="text-muted-foreground">Cash</div>
+                      <div className="font-semibold">${cash.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Deliveries (total)</div>
+                      <div className="font-semibold">{dailyStats.length ? dailyStats[dailyStats.length - 1].total_deliveries : 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Income (sum)</div>
+                      <div className="font-semibold text-aviation-radar">${dailyStats.reduce((s, d) => s + d.income, 0).toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Expenses (sum)</div>
+                      <div className="font-semibold text-red-400">${dailyStats.reduce((s, d) => s + d.expenses, 0).toLocaleString()}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card/80 backdrop-blur-sm border-aviation-blue/20 shadow-panel">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-aviation-blue text-sm">Income vs Expenses</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dailyStats.length === 0 ? (
+                      <div className="text-xs text-muted-foreground">No data yet. Let the simulation run.</div>
+                    ) : (
+                      <ChartContainer
+                        config={{
+                          income: { label: 'Income', color: 'hsl(var(--aviation-radar))' },
+                          expenses: { label: 'Expenses', color: 'hsl(var(--aviation-amber))' },
+                        }}
+                        className="h-60"
+                      >
+                        <BarChart data={dailyStats}>
+                          <CartesianGrid vertical={false} strokeDasharray="4 4" />
+                          <XAxis dataKey="day" tickLine={false} axisLine={false} />
+                          <YAxis width={40} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <ChartLegend content={<ChartLegendContent />} />
+                          <Bar dataKey="income" fill="var(--color-income)" radius={3} />
+                          <Bar dataKey="expenses" fill="var(--color-expenses)" radius={3} />
+                        </BarChart>
+                      </ChartContainer>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card/80 backdrop-blur-sm border-aviation-blue/20 shadow-panel">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-aviation-blue text-sm">Net Cash</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dailyStats.length === 0 ? (
+                      <div className="text-xs text-muted-foreground">No data yet. Let the simulation run.</div>
+                    ) : (
+                      <ChartContainer
+                        config={{ net_cash: { label: 'Net Cash', color: 'hsl(var(--aviation-blue))' } }}
+                        className="h-60"
+                      >
+                        <LineChart data={dailyStats}>
+                          <CartesianGrid vertical={false} strokeDasharray="4 4" />
+                          <XAxis dataKey="day" tickLine={false} axisLine={false} />
+                          <YAxis width={40} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Line type="monotone" dataKey="net_cash" stroke="var(--color-net_cash)" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ChartContainer>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

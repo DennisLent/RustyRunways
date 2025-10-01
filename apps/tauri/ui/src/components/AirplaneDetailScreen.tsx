@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,14 +18,20 @@ import {
   Plus,
   Minus,
   MapPin,
-  CircleDollarSign
+  CircleDollarSign,
+  Play,
+  Pause
 } from "lucide-react";
-import { airportOrders as apiAirportOrders, planeInfo as apiPlaneInfo, departPlane as apiDepart, loadOrder as apiLoad, unloadOrder as apiUnload, refuelPlane as apiRefuel, maintenance as apiMaint, canFly as apiCanFly, reachability as apiReach, sellPlane as apiSell } from "@/api/game";
+import { airportOrders as apiAirportOrders, planeInfo as apiPlaneInfo, departPlane as apiDepart, loadOrder as apiLoad, unloadOrder as apiUnload, unloadAll as apiUnloadAll, unloadOrders as apiUnloadOrders, refuelPlane as apiRefuel, maintenance as apiMaint, canFly as apiCanFly, reachability as apiReach, sellPlane as apiSell, advance as apiAdvance } from "@/api/game";
+
+type PayloadKind = 'cargo' | 'passengers';
 
 interface Order {
   id: string;
-  cargoType: string;
-  weight: number;
+  payloadKind: PayloadKind;
+  cargoType?: string;
+  weight?: number;
+  passengerCount?: number;
   destination: string;
   deadline: string;
   value: number;
@@ -74,22 +80,65 @@ export const AirplaneDetailScreen = ({
     maxFuel: 100,
     cargoCapacity: 0,
     currentCargo: 0,
+    passengerCapacity: 0,
+    currentPassengers: 0,
     condition: 100,
-    loadedOrders: [] as { id: string; cargoType: string; weight: number; destination: string; deadline: string; value: number }[],
+    loadedOrders: [] as Order[],
   });
 
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+  const isParked = airplane.status.toLowerCase().includes('parked');
+  const atAirport = airplane.location !== '';
+  const [selectedLoaded, setSelectedLoaded] = useState<Record<string, boolean>>({});
+  const intervalRef = useRef<number | null>(null);
+
+  const prettyStatus = (raw: string) => {
+    if (!raw) return '';
+    if (raw.includes('InTransit')) return 'In Transit';
+    if (raw.includes('Refueling')) return 'Fueling';
+    if (raw.includes('Maintenance')) return 'Maintenance';
+    if (raw.includes('Loading')) return 'Loading';
+    if (raw.includes('Unloading')) return 'Unloading';
+    if (raw.includes('Broken')) return 'Broken';
+    if (raw.includes('Parked')) return 'Parked';
+    return raw;
+  };
 
   // Keep filteredOrders defined before effects that reference it
   const filteredOrders = availableOrders.filter(order => {
     const maxW = filterWeight ? parseInt(filterWeight, 10) : Infinity;
     const minV = filterValue ? parseInt(filterValue, 10) : 0;
+    const weightOk = order.payloadKind === 'cargo'
+      ? (order.weight ?? 0) <= maxW
+      : true;
     return (
       (!filterDestination || order.destination.toLowerCase().includes(filterDestination.toLowerCase())) &&
-      order.weight <= maxW &&
+      weightOk &&
       order.value >= minV
     );
   });
+
+  const payloadSummary = (order: Order) => {
+    if (order.payloadKind === 'cargo') {
+      const weight = order.weight ?? 0;
+      return `${order.cargoType ?? 'Cargo'} • ${weight.toLocaleString()} kg`;
+    }
+    return `Passengers • ${(order.passengerCount ?? 0).toLocaleString()} pax`;
+  };
+
+  const orderCapacityOk = (order: Order) => {
+    if (order.payloadKind === 'cargo') {
+      return airplane.currentCargo + (order.weight ?? 0) <= airplane.cargoCapacity;
+    }
+    return airplane.currentPassengers + (order.passengerCount ?? 0) <= airplane.passengerCapacity;
+  };
+
+  const capacityBadgeLabel = (order: Order) => {
+    if (order.payloadKind === 'cargo') {
+      return orderCapacityOk(order) ? 'Fits cargo' : 'Too heavy';
+    }
+    return orderCapacityOk(order) ? 'Seats available' : 'No seats';
+  };
 
   const availableAirports: Airport[] = airportsData
     ? airportsData.map(a => ({
@@ -124,10 +173,14 @@ export const AirplaneDetailScreen = ({
         maxFuel: 100,
         cargoCapacity: info.payload_capacity,
         currentCargo: info.payload_current,
+        passengerCapacity: info.passenger_capacity,
+        currentPassengers: info.passenger_current,
         loadedOrders: info.manifest.map(o => ({
           id: String(o.id),
-          cargoType: o.cargo_type || "",
-          weight: o.weight,
+          payloadKind: (o.payload_kind || 'cargo') as PayloadKind,
+          cargoType: o.cargo_type || undefined,
+          weight: o.weight ?? undefined,
+          passengerCount: o.passenger_count ?? undefined,
           destination: String(o.destination_id),
           deadline: String(o.deadline),
           value: o.value,
@@ -138,8 +191,10 @@ export const AirplaneDetailScreen = ({
         const orders = await apiAirportOrders(info.current_airport_id);
         setAvailableOrders(orders.map(o => ({
           id: String(o.id),
-          cargoType: o.cargo_type || "",
-          weight: o.weight,
+          payloadKind: (o.payload_kind || 'cargo') as PayloadKind,
+          cargoType: o.cargo_type || undefined,
+          weight: o.weight ?? undefined,
+          passengerCount: o.passenger_count ?? undefined,
           destination: String(o.destination_id),
           deadline: String(o.deadline),
           value: o.value,
@@ -227,6 +282,10 @@ export const AirplaneDetailScreen = ({
 
   async function handleDispatch() {
     if (!selectedDestination) return;
+    if (airplane.status.toLowerCase() !== 'parked') {
+      setError('Plane must be parked before departure');
+      return;
+    }
     await apiDepart(parseInt(airplane.id, 10), parseInt(selectedDestination, 10));
     await refresh();
   }
@@ -240,6 +299,36 @@ export const AirplaneDetailScreen = ({
     await apiLoad(parseInt(orderId, 10), parseInt(airplane.id, 10));
     await refresh();
   }
+
+  async function handleUnloadAll() {
+    await apiUnloadAll(parseInt(airplane.id, 10));
+    await refresh();
+  }
+
+  async function handleUnloadSelected() {
+    const ids = Object.entries(selectedLoaded).filter(([, v]) => v).map(([k]) => parseInt(k, 10));
+    if (ids.length === 0) return;
+    await apiUnloadOrders(ids, parseInt(airplane.id, 10));
+    setSelectedLoaded({});
+    await refresh();
+  }
+
+  async function handleAdvanceTime() {
+    await apiAdvance(1);
+    await refresh();
+  }
+
+  const handlePlay = () => {
+    if (intervalRef.current) return;
+    intervalRef.current = window.setInterval(() => { void handleAdvanceTime(); }, 500);
+  };
+
+  const handlePause = () => {
+    if (intervalRef.current) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-control p-4">
@@ -278,6 +367,9 @@ export const AirplaneDetailScreen = ({
               <Fuel className="w-4 h-4 mr-1" />
               Refuel
             </Button>
+            <Button variant="runway" size="sm" onClick={handlePlay}><Play className="w-3 h-3 mr-1" />Auto</Button>
+            <Button variant="control" size="sm" onClick={handlePause}><Pause className="w-3 h-3 mr-1" />Pause</Button>
+            <Button variant="control" size="sm" onClick={handleAdvanceTime}>+1h</Button>
             <Button
               variant="destructive"
               onClick={handleSell}
@@ -304,7 +396,7 @@ export const AirplaneDetailScreen = ({
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status</span>
                     <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30">
-                      {airplane.status}
+                      {prettyStatus(airplane.status)}
                     </Badge>
                   </div>
                   
@@ -334,6 +426,22 @@ export const AirplaneDetailScreen = ({
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {airplane.currentCargo.toLocaleString()} / {airplane.cargoCapacity.toLocaleString()} kg
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Passengers</span>
+                      <span>{airplane.passengerCapacity > 0 ? Math.round((airplane.currentPassengers / airplane.passengerCapacity) * 100) : 0}%</span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div
+                        className="bg-aviation-radar h-2 rounded-full transition-all"
+                        style={{ width: `${airplane.passengerCapacity > 0 ? (airplane.currentPassengers / airplane.passengerCapacity) * 100 : 0}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {airplane.currentPassengers.toLocaleString()} / {airplane.passengerCapacity.toLocaleString()} pax
                     </div>
                   </div>
 
@@ -397,12 +505,15 @@ export const AirplaneDetailScreen = ({
                 <Button 
                   className="w-full" 
                   variant="runway"
-                  disabled={!selectedDestination}
+                  disabled={!selectedDestination || airplane.status.toLowerCase() !== 'parked'}
                   onClick={handleDispatch}
                 >
                   <Send className="w-4 h-4 mr-2" />
                   Dispatch to {selectedDestination}
                 </Button>
+                {airplane.status.toLowerCase() !== 'parked' && (
+                  <div className="text-xs text-red-400">Plane must be Parked to depart. Complete loading/unloading/refueling first.</div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -411,16 +522,35 @@ export const AirplaneDetailScreen = ({
           <div className="col-span-8">
             <Tabs defaultValue="loaded" className="space-y-4">
               <TabsList className="grid w-full grid-cols-2 bg-secondary/50">
-                <TabsTrigger value="loaded">Loaded Cargo ({airplane.loadedOrders.length})</TabsTrigger>
-                <TabsTrigger value="available">Available Orders ({filteredOrders.length})</TabsTrigger>
+                <TabsTrigger value="loaded">Loaded Payload ({airplane.loadedOrders.length})</TabsTrigger>
+                <TabsTrigger value="available">Available Payload ({filteredOrders.length})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="loaded" className="space-y-4">
                 <Card className="bg-card/80 backdrop-blur-sm border-aviation-blue/20 shadow-panel">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-aviation-blue">Loaded Orders</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-aviation-blue">Loaded Orders</CardTitle>
+                      <Button 
+                        variant="warning" 
+                        size="sm"
+                        onClick={handleUnloadAll}
+                        disabled={airplane.loadedOrders.length === 0 || !isParked || !atAirport}
+                      >
+                        <Minus className="w-3 h-3 mr-1" />
+                        Unload All
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
+                    {airplane.loadedOrders.length > 0 && (
+                      <div className="mb-2 flex gap-2">
+                        <Button variant="warning" size="sm" onClick={handleUnloadSelected} disabled={Object.values(selectedLoaded).every(v => !v) || !isParked || !atAirport}>
+                          <Minus className="w-3 h-3 mr-1" /> Unload Selected
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedLoaded({})}>Clear Selection</Button>
+                      </div>
+                    )}
                     <ScrollArea className="h-96">
                       <div className="space-y-3">
                         {airplane.loadedOrders.map((order) => (
@@ -430,9 +560,12 @@ export const AirplaneDetailScreen = ({
                           >
                             <div className="flex items-center justify-between">
                               <div className="space-y-1">
-                                <div className="font-semibold">{order.id}</div>
+                                <div className="flex items-center gap-2">
+                                  <input type="checkbox" className="accent-aviation-amber" checked={!!selectedLoaded[order.id]} onChange={(e) => setSelectedLoaded(prev => ({ ...prev, [order.id]: e.target.checked }))} />
+                                  <div className="font-semibold">{order.id}</div>
+                                </div>
                                 <div className="text-sm text-muted-foreground">
-                                  {order.cargoType} • {order.weight} kg
+                                  {payloadSummary(order)}
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
                                   <span className="flex items-center gap-1">
@@ -450,6 +583,7 @@ export const AirplaneDetailScreen = ({
                                   variant="warning" 
                                   size="sm"
                                   onClick={() => handleUnload(order.id)}
+                                  disabled={!isParked || !atAirport}
                                 >
                                   <Minus className="w-3 h-3 mr-1" />
                                   Unload
@@ -486,7 +620,7 @@ export const AirplaneDetailScreen = ({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Max Weight (kg)</Label>
+                        <Label>Max Cargo Weight (kg)</Label>
                         <Input
                           type="number"
                           placeholder="Max weight"
@@ -526,7 +660,7 @@ export const AirplaneDetailScreen = ({
                               <div className="space-y-1">
                                 <div className="font-semibold">{order.id}</div>
                                 <div className="text-sm text-muted-foreground">
-                                  {order.cargoType} • {order.weight} kg
+                                  {payloadSummary(order)}
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
                                   <span className="flex items-center gap-1">
@@ -541,8 +675,8 @@ export const AirplaneDetailScreen = ({
                                   ${order.value.toLocaleString()}
                                 </div>
                                 <div className="mb-2">
-                                  <Badge variant="outline" className={(airplane.cargoCapacity - airplane.currentCargo) >= order.weight ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-400'}>
-                                    {(airplane.cargoCapacity - airplane.currentCargo) >= order.weight ? 'Fits payload' : 'Too heavy'}
+                                  <Badge variant="outline" className={orderCapacityOk(order) ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-400'}>
+                                    {capacityBadgeLabel(order)}
                                   </Badge>
                                   <span className="mx-1" />
                                   <Badge variant="outline" className={(canFlyCache[parseInt(order.destination, 10)] ?? false) ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-red-500/20 border-red-500/30 text-red-400'}>
@@ -553,7 +687,7 @@ export const AirplaneDetailScreen = ({
                                   variant="control" 
                                   size="sm"
                                   onClick={() => handleLoad(order.id)}
-                                  disabled={airplane.currentCargo + order.weight > airplane.cargoCapacity}
+                                  disabled={!orderCapacityOk(order)}
                                 >
                                   <Plus className="w-3 h-3 mr-1" />
                                   Load

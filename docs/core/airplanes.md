@@ -8,18 +8,20 @@ RustyRunways features a range of aircraft tuned for different roles and budgets.
 
 ## Available Models and Specs
 
-Each row lists the model’s hard specs from code and the computed minimum runway requirement (meters) derived from simplified physics in the core crate.
+Each row lists the model’s specs as defined in the code and the computed minimum runway requirement (meters) derived from simplified physics in the core crate. The role and passenger capacity columns reflect the new passenger/cargo support: cargo-only aircraft have `0` seats, passenger-only aircraft have non‑zero seats and a smaller or zero payload capacity, and mixed “combi” aircraft support both.
 
-| Model           | MTOW (kg) | Cruise (km/h) | Fuel (L) | Burn (L/h) | Oper. Cost ($/h) | Payload (kg) | Price ($)   | Min Runway (m) |
-|-----------------|-----------:|---------------:|---------:|-----------:|-----------------:|-------------:|------------:|---------------:|
-| SparrowLight    |      5000 |            250 |      200 |         30 |              300 |          500 |     200,000 |            408 |
-| FalconJet       |      8000 |            800 |     2000 |        250 |            1,500 |        1,500 |   1,500,000 |          4,173 |
-| CometRegional   |     20000 |            700 |     5000 |        600 |            3,000 |        5,000 |  10,000,000 |          3,195 |
-| Atlas           |     40000 |            750 |    12000 |      1,500 |            6,000 |       15,000 |  30,000,000 |          3,668 |
-| TitanHeavy      |    100000 |            650 |    20000 |      3,000 |           10,000 |       50,000 |  60,000,000 |          2,753 |
-| Goliath         |    200000 |            550 |    40000 |      6,000 |           20,000 |      100,000 | 120,000,000 |          1,972 |
-| Zephyr          |     50000 |            900 |    25000 |      1,200 |            8,000 |       25,000 |  50,000,000 |          5,281 |
-| Lightning       |     15000 |           1800 |     5000 |      1,000 |           12,000 |        2,000 |  80,000,000 |         21,125 |
+| Model              | Role       | MTOW (kg) | Cruise (km/h) | Fuel (L) | Burn (L/h) | Oper. Cost ($/h) | Payload (kg) | Pax (seats) | Price ($)   | Min Runway (m) |
+|--------------------|------------|-----------:|---------------:|---------:|-----------:|-----------------:|-------------:|------------:|------------:|---------------:|
+| SparrowLight       | Mixed      |      5,200 |            260 |      240 |         35 |              340 |        1,200 |           6 |     240,000 |            441 |
+| FalconJet          | Passenger  |      8,300 |            780 |    2,200 |        260 |            1,600 |          600 |          12 |   1,700,000 |          3,967 |
+| CometRegional      | Passenger  |     24,000 |            720 |    6,000 |        620 |            3,200 |        4,000 |          78 |  12,000,000 |          3,380 |
+| Atlas              | Mixed      |     42,000 |            750 |   12,500 |      1,550 |            6,500 |       18,000 |          68 |  34,000,000 |          3,668 |
+| TitanHeavy         | Cargo      |    110,000 |            670 |   22,000 |      3,200 |           11,000 |       55,000 |           0 |  68,000,000 |          2,927 |
+| Goliath            | Cargo      |    210,000 |            580 |   45,000 |      6,500 |           22,000 |      110,000 |           0 | 130,000,000 |          2,193 |
+| Zephyr             | Passenger  |     82,000 |            900 |   28,000 |      1,450 |            9,000 |        8,000 |         210 |  72,000,000 |          5,281 |
+| Lightning          | Passenger  |     18,500 |          1,800 |    5,400 |      1,100 |           12,000 |        1,500 |          32 |  88,000,000 |         21,125 |
+| BisonFreighter     | Cargo      |     28,000 |            680 |    8,500 |        900 |            4,800 |       20,000 |           0 |  18,000,000 |          3,015 |
+| TrailblazerCombi   | Mixed      |     65,000 |            820 |   18,000 |      1,800 |            7,500 |       25,000 |         120 |  55,000,000 |          4,384 |
 
 Note:
 
@@ -33,6 +35,8 @@ Note:
 - `fuel_capacity`: liters
 - `fuel_consumption`: liters per hour
 - `operating_cost`: $/hour
-- `payload_capacity`: kg
+- `payload_capacity`: kg (cargo)
+- `passenger_capacity`: seats (people)
+- `role`: Cargo / Passenger / Mixed
 - `purchase_price`: $
 - `min_runway_length`: meters, computed from cruise speed with fixed acceleration/deceleration constants

@@ -1,6 +1,9 @@
+#![cfg(feature = "ui_prints")]
+
 use rusty_runways_core::game::Game;
 use rusty_runways_core::utils::airplanes::models::AirplaneStatus;
 use rusty_runways_core::utils::errors::GameError;
+use rusty_runways_core::utils::orders::order::{Order, OrderPayload};
 
 #[test]
 fn show_and_list_helpers_execute() {
@@ -13,6 +16,16 @@ fn show_and_list_helpers_execute() {
     game.list_airports(true);
     game.list_airports(false);
     game.list_airport(0, true).unwrap();
+    // Insert a passenger order to exercise formatting branch
+    game.map.airports[0].0.orders.push(Order {
+        id: 999,
+        payload: OrderPayload::Passengers { count: 12 },
+        value: 7_500.0,
+        deadline: 10,
+        origin_id: 0,
+        destination_id: 1,
+    });
+    game.list_airports(true);
     game.list_airplane(0).unwrap();
     game.list_airplanes().unwrap();
     game.show_distances(0).unwrap();
@@ -33,7 +46,10 @@ fn show_and_list_helpers_execute() {
     let mut candidate: Option<(usize, usize)> = None;
     for _ in 0..5 {
         for order in &game.map.airports[origin_idx].0.orders {
-            if order.weight <= payload_cap {
+            let Some(weight) = order.cargo_weight() else {
+                continue;
+            };
+            if weight <= payload_cap {
                 let (airport, coord) = &game.airports()[order.destination_id];
                 if game.planes()[plane_id].can_fly_to(airport, coord).is_ok() {
                     candidate = Some((order.id, order.destination_id));

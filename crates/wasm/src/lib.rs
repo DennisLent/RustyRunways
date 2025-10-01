@@ -28,6 +28,42 @@ pub fn observe() -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn stats() -> Result<JsValue, JsValue> {
+    #[derive(serde::Serialize)]
+    struct StatsDto {
+        daily: Vec<rusty_runways_core::statistics::DailyStats>,
+    }
+    with_game(|g| {
+        let daily = g.stats.to_vec();
+        Ok(serde_wasm_bindgen::to_value(&StatsDto { daily }).unwrap())
+    })
+}
+
+#[wasm_bindgen]
+pub fn player_snapshot() -> Result<JsValue, JsValue> {
+    #[derive(serde::Serialize)]
+    struct PlayerSnapshotDto {
+        cash: f32,
+        fleet_size: usize,
+        orders_delivered: usize,
+        daily_income: f32,
+        daily_expenses: f32,
+        day: u64,
+    }
+    with_game(|g| {
+        let dto = PlayerSnapshotDto {
+            cash: g.player.cash,
+            fleet_size: g.player.fleet_size,
+            orders_delivered: g.player.orders_delivered,
+            daily_income: g.daily_income,
+            daily_expenses: g.daily_expenses,
+            day: g.time / 24,
+        };
+        Ok(serde_wasm_bindgen::to_value(&dto).unwrap())
+    })
+}
+
+#[wasm_bindgen]
 pub fn advance(hours: u64) -> Result<JsValue, JsValue> {
     with_game(|g| {
         g.advance(hours);
@@ -53,9 +89,11 @@ pub fn plane_info(plane_id: usize) -> Result<JsValue, JsValue> {
             id: usize,
             destination_id: usize,
             value: f32,
-            weight: f32,
             deadline: u64,
-            cargo_type: String,
+            payload_kind: String,
+            cargo_type: Option<String>,
+            weight: Option<f32>,
+            passenger_count: Option<u32>,
         }
         #[derive(serde::Serialize)]
         struct PlaneInfoDto {
@@ -68,6 +106,8 @@ pub fn plane_info(plane_id: usize) -> Result<JsValue, JsValue> {
             fuel_capacity: f32,
             payload_current: f32,
             payload_capacity: f32,
+            passenger_current: u32,
+            passenger_capacity: u32,
             current_airport_id: Option<usize>,
             manifest: Vec<OrderDto>,
         }
@@ -78,9 +118,11 @@ pub fn plane_info(plane_id: usize) -> Result<JsValue, JsValue> {
                 id: o.id,
                 destination_id: o.destination_id,
                 value: o.value,
-                weight: o.weight,
                 deadline: o.deadline,
-                cargo_type: format!("{:?}", o.name),
+                payload_kind: o.payload.kind_label().to_string(),
+                cargo_type: o.cargo_type().map(|c| format!("{:?}", c)),
+                weight: o.cargo_weight(),
+                passenger_count: o.passenger_count(),
             })
             .collect();
         let dto = PlaneInfoDto {
@@ -93,6 +135,8 @@ pub fn plane_info(plane_id: usize) -> Result<JsValue, JsValue> {
             fuel_capacity: plane.specs.fuel_capacity,
             payload_current: plane.current_payload,
             payload_capacity: plane.specs.payload_capacity,
+            passenger_current: plane.current_passengers,
+            passenger_capacity: plane.specs.passenger_capacity,
             current_airport_id,
             manifest,
         };
@@ -113,9 +157,11 @@ pub fn airport_orders(airport_id: usize) -> Result<JsValue, JsValue> {
             id: usize,
             destination_id: usize,
             value: f32,
-            weight: f32,
             deadline: u64,
-            cargo_type: String,
+            payload_kind: String,
+            cargo_type: Option<String>,
+            weight: Option<f32>,
+            passenger_count: Option<u32>,
         }
         let orders: Vec<OrderDto> = airport
             .orders
@@ -124,9 +170,11 @@ pub fn airport_orders(airport_id: usize) -> Result<JsValue, JsValue> {
                 id: o.id,
                 destination_id: o.destination_id,
                 value: o.value,
-                weight: o.weight,
                 deadline: o.deadline,
-                cargo_type: format!("{:?}", o.name),
+                payload_kind: o.payload.kind_label().to_string(),
+                cargo_type: o.cargo_type().map(|c| format!("{:?}", c)),
+                weight: o.cargo_weight(),
+                passenger_count: o.passenger_count(),
             })
             .collect();
         Ok(serde_wasm_bindgen::to_value(&orders).unwrap())
@@ -180,6 +228,15 @@ pub fn unload_order(order: usize, plane: usize) -> Result<(), JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn unload_orders(order_ids: Vec<usize>, plane: usize) -> Result<(), JsValue> {
+    with_game(|g| {
+        g.unload_orders(order_ids, plane)
+            .map_err(|e| e.to_string())
+            .map(|_| ())
+    })
+}
+
+#[wasm_bindgen]
 pub fn unload_all(plane: usize) -> Result<(), JsValue> {
     with_game(|g| g.unload_all(plane).map_err(|e| e.to_string()).map(|_| ()))
 }
@@ -196,8 +253,10 @@ pub fn list_models() -> Result<JsValue, JsValue> {
         fuel_consumption: f32,
         operating_cost: f32,
         payload_capacity: f32,
+        passenger_capacity: u32,
         purchase_price: f32,
         min_runway_length: f32,
+        role: String,
     }
     let models: Vec<ModelDto> = AirplaneModel::iter()
         .map(|m| {
@@ -210,8 +269,10 @@ pub fn list_models() -> Result<JsValue, JsValue> {
                 fuel_consumption: s.fuel_consumption,
                 operating_cost: s.operating_cost,
                 payload_capacity: s.payload_capacity,
+                passenger_capacity: s.passenger_capacity,
                 purchase_price: s.purchase_price,
                 min_runway_length: s.min_runway_length,
+                role: format!("{:?}", s.role),
             }
         })
         .collect();

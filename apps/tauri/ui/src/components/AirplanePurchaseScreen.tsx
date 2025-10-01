@@ -29,6 +29,7 @@ interface Aircraft {
   cruiseSpeed: number;
   fuelEfficiency: number;
   category: 'light' | 'medium' | 'heavy' | 'cargo';
+  role: 'Cargo' | 'Passenger' | 'Mixed';
 }
 
 interface Airport {
@@ -62,13 +63,20 @@ export const AirplanePurchaseScreen = ({ onBack, onPurchase, playerCash, airport
         model: m.name,
         manufacturer: '',
         price: Math.round(m.purchase_price),
-        maxRange: 0,
+        maxRange: Math.round((m.fuel_capacity / Math.max(1, m.fuel_consumption)) * m.cruise_speed),
         cargoCapacity: Math.round(m.payload_capacity),
         fuelCapacity: Math.round(m.fuel_capacity),
-        passengerCapacity: 0,
+        passengerCapacity: m.passenger_capacity,
         cruiseSpeed: Math.round(m.cruise_speed),
         fuelEfficiency: m.fuel_consumption,
-        category: m.payload_capacity > 80000 ? 'cargo' : m.payload_capacity > 20000 ? 'heavy' : m.payload_capacity > 5000 ? 'medium' : 'light',
+        role: m.role as 'Cargo' | 'Passenger' | 'Mixed',
+        category: m.role === 'Cargo'
+          ? 'cargo'
+          : m.payload_capacity > 80000
+            ? 'heavy'
+            : m.payload_capacity > 20000
+              ? 'medium'
+              : 'light',
       })));
     }
     fetch();
@@ -110,6 +118,8 @@ export const AirplanePurchaseScreen = ({ onBack, onPurchase, playerCash, airport
         return '✈️';
     }
   };
+
+  const roleEmoji = (role: Aircraft['role']) => role === 'Cargo' ? '📦' : role === 'Passenger' ? '🧑‍✈️' : '🛩️';
 
   return (
     <div className="min-h-screen bg-gradient-control p-4">
@@ -210,13 +220,13 @@ export const AirplanePurchaseScreen = ({ onBack, onPurchase, playerCash, airport
                         <div className="flex items-start justify-between">
                           <div className="space-y-3 flex-1">
                             <div className="flex items-center gap-3">
-                              <span className="text-2xl">{getCategoryIcon(aircraft.category)}</span>
+                              <span className="text-2xl">{roleEmoji(aircraft.role)}</span>
                               <div>
                                 <div className="font-semibold text-lg">{aircraft.model}</div>
                                 <div className="text-sm text-muted-foreground">{aircraft.manufacturer}</div>
                               </div>
                               <Badge variant="outline" className={getCategoryColor(aircraft.category)}>
-                                {aircraft.category}
+                                {aircraft.role}
                               </Badge>
                               {playerCash < aircraft.price && (
                                 <Badge variant="destructive">
@@ -248,6 +258,11 @@ export const AirplanePurchaseScreen = ({ onBack, onPurchase, playerCash, airport
                                 <Plane className="w-3 h-3 text-muted-foreground" />
                                 <span className="text-muted-foreground">Speed:</span>
                                 <span className="font-medium">{aircraft.cruiseSpeed} km/h</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Plane className="w-3 h-3 text-muted-foreground" />
+                                <span className="text-muted-foreground">Max Range:</span>
+                                <span className="font-medium">{aircraft.maxRange.toLocaleString()} km</span>
                               </div>
                               
                               <div className="flex items-center gap-1">

@@ -43,6 +43,7 @@ fn from_config_generates_orders_when_enabled() {
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     let game = Game::from_config(cfg).expect("should build");
     // both airports should have non-empty orders generally
@@ -58,6 +59,7 @@ fn from_config_no_orders_when_disabled() {
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     cfg.gameplay.orders.generate_initial = false;
     let game = Game::from_config(cfg).expect("should build");
@@ -74,6 +76,7 @@ fn from_config_duplicate_ids_is_error() {
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(
@@ -93,6 +96,7 @@ fn from_config_duplicate_names_is_error() {
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(
@@ -115,6 +119,7 @@ fn from_config_location_bounds_enforced() {
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(format!("{}", err).to_lowercase().contains("out of bounds"));
@@ -130,6 +135,7 @@ fn from_config_positive_values_required() {
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(format!("{}", err).to_lowercase().contains("runway_length"));
@@ -143,6 +149,7 @@ fn from_config_applies_gameplay_tuning() {
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
 
     cfg.gameplay.restock_cycle_hours = 72;
@@ -160,11 +167,11 @@ fn from_config_applies_gameplay_tuning() {
     let game = Game::from_config(cfg).expect("should build");
     assert_eq!(game.restock_cycle, 72);
     assert_eq!(game.fuel_interval, 8);
-    assert_eq!(game.map.order_params.max_deadline_hours, 36);
-    assert!((game.map.order_params.min_weight - 500.0).abs() < f32::EPSILON);
-    assert!((game.map.order_params.max_weight - 750.0).abs() < f32::EPSILON);
-    assert!((game.map.order_params.alpha - 0.3).abs() < f32::EPSILON);
-    assert!((game.map.order_params.beta - 0.6).abs() < f32::EPSILON);
+    assert_eq!(game.map.demand_params.cargo.max_deadline_hours, 36);
+    assert!((game.map.demand_params.cargo.min_weight - 500.0).abs() < f32::EPSILON);
+    assert!((game.map.demand_params.cargo.max_weight - 750.0).abs() < f32::EPSILON);
+    assert!((game.map.demand_params.cargo.alpha - 0.3).abs() < f32::EPSILON);
+    assert!((game.map.demand_params.cargo.beta - 0.6).abs() < f32::EPSILON);
     assert!((game.fuel_settings.elasticity - 0.04).abs() < f32::EPSILON);
     assert!((game.fuel_settings.min_price_multiplier - 0.6).abs() < f32::EPSILON);
     assert!((game.fuel_settings.max_price_multiplier - 1.4).abs() < f32::EPSILON);
@@ -180,6 +187,7 @@ fn from_config_rejects_invalid_gameplay() {
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     cfg.gameplay.orders.tuning.min_weight = 1_000.0;
     cfg.gameplay.orders.tuning.max_weight = 100.0; // invalid
@@ -198,6 +206,7 @@ fn from_config_generated_airports_when_requested() {
         airports: Vec::new(),
         num_airports: Some(4),
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     let game = Game::from_config(cfg).expect("should build");
     assert_eq!(game.map.num_airports, 4);
@@ -211,6 +220,7 @@ fn from_config_requires_num_airports_when_none_provided() {
         airports: Vec::new(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(format!("{}", err).contains("num_airports"));
@@ -224,6 +234,7 @@ fn from_config_rejects_num_airports_with_explicit_airports() {
         airports: base_airports(),
         num_airports: Some(2),
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     let err = Game::from_config(cfg).unwrap_err();
     assert!(format!("{}", err).contains("num_airports"));
@@ -237,6 +248,7 @@ fn from_config_regeneration_disabled_requires_orders() {
         airports: base_airports(),
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     cfg.gameplay.orders.regenerate = false;
     cfg.gameplay.orders.generate_initial = false;
@@ -249,14 +261,14 @@ fn from_config_regeneration_disabled_requires_orders() {
 #[test]
 fn from_config_uses_manual_orders_when_regeneration_disabled() {
     let mut airports = base_airports();
-    airports[0].orders = vec![ManualOrderConfig {
+    airports[0].orders = vec![ManualOrderConfig::Cargo {
         cargo: CargoType::Food,
         weight: 500.0,
         value: 2_500.0,
         deadline_hours: 48,
         destination_id: 1,
     }];
-    airports[1].orders = vec![ManualOrderConfig {
+    airports[1].orders = vec![ManualOrderConfig::Cargo {
         cargo: CargoType::Electronics,
         weight: 300.0,
         value: 4_200.0,
@@ -270,6 +282,7 @@ fn from_config_uses_manual_orders_when_regeneration_disabled() {
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
     cfg.gameplay.orders.regenerate = false;
     cfg.gameplay.orders.generate_initial = false;
@@ -290,6 +303,43 @@ fn from_config_uses_manual_orders_when_regeneration_disabled() {
         .flat_map(|(a, _)| a.orders.iter().map(|o| o.id))
         .collect();
     assert_eq!(ids, vec![0, 1]);
+}
+
+#[test]
+fn from_config_supports_manual_passengers() {
+    let mut airports = base_airports();
+    airports[0].orders = vec![ManualOrderConfig::Passengers {
+        passengers: 18,
+        value: 6_500.0,
+        deadline_hours: 24,
+        destination_id: 1,
+    }];
+    airports[1].orders = vec![ManualOrderConfig::Cargo {
+        cargo: CargoType::Food,
+        weight: 250.0,
+        value: 1_800.0,
+        deadline_hours: 30,
+        destination_id: 0,
+    }];
+
+    let mut cfg = WorldConfig {
+        seed: Some(21),
+        starting_cash: 500_000.0,
+        airports,
+        num_airports: None,
+        gameplay: GameplayConfig::default(),
+        airplanes: None,
+    };
+    cfg.gameplay.orders.regenerate = false;
+    cfg.gameplay.orders.generate_initial = false;
+
+    let game = Game::from_config(cfg).expect("should build");
+    let airport_orders = &game.map.airports[0].0.orders;
+    assert_eq!(airport_orders.len(), 1);
+    let order = &airport_orders[0];
+    assert!(order.is_passenger());
+    assert_eq!(order.passenger_count(), Some(18));
+    assert_eq!(order.value, 6_500.0);
 }
 
 #[test]
@@ -322,6 +372,7 @@ fn from_config_generates_missing_fields_and_locations() {
         airports,
         num_airports: None,
         gameplay: GameplayConfig::default(),
+        airplanes: None,
     };
 
     let game = Game::from_config(cfg).expect("should build");

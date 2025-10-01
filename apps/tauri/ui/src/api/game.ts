@@ -19,7 +19,22 @@ export type Observation = {
   time: number
   cash: number
   airports: { id: number; name: string; x: number; y: number; fuel_price: number; runway_length: number; num_orders: number }[]
-  planes: { id: number; model: string; x: number; y: number; status: string; destination?: number | null; hours_remaining?: number | null; fuel: { current: number; capacity: number }; payload: { current: number; capacity: number } }[]
+  planes: {
+    id: number
+    model: string
+    x: number
+    y: number
+    status: string
+    destination?: number | null
+    hours_remaining?: number | null
+    fuel: { current: number; capacity: number }
+    payload: {
+      cargo_current: number
+      cargo_capacity: number
+      passenger_current: number
+      passenger_capacity: number
+    }
+  }[]
 }
 
 export async function newGame(seed: string | undefined, airportCount: number, startingCash: number): Promise<void> {
@@ -52,6 +67,35 @@ export async function observe(): Promise<Observation> {
   } else {
     const wasm = await import(/* @vite-ignore */ wasmModulePath())
     return (await wasm.observe()) as Observation
+  }
+}
+
+export type DailyStats = { day: number; income: number; expenses: number; net_cash: number; fleet_size: number; total_deliveries: number }
+export async function stats(): Promise<DailyStats[]> {
+  if (isTauri()) {
+    return await invoke<DailyStats[]>('stats_cmd')
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    const dto = await wasm.stats()
+    return (dto.daily as DailyStats[])
+  }
+}
+
+export type PlayerSnapshot = {
+  cash: number
+  fleet_size: number
+  orders_delivered: number
+  daily_income: number
+  daily_expenses: number
+  day: number
+}
+
+export async function playerSnapshot(): Promise<PlayerSnapshot> {
+  if (isTauri()) {
+    return await invoke<PlayerSnapshot>('player_snapshot')
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    return (await wasm.player_snapshot()) as PlayerSnapshot
   }
 }
 
@@ -127,6 +171,15 @@ export async function unloadAll(plane: number): Promise<void> {
   }
 }
 
+export async function unloadOrders(orderIds: number[], plane: number): Promise<void> {
+  if (isTauri()) {
+    await invoke('unload_orders', { orders: orderIds, plane })
+  } else {
+    const wasm = await import(/* @vite-ignore */ wasmModulePath())
+    await wasm.unload_orders(orderIds, plane)
+  }
+}
+
 export type PlaneInfo = {
   id: number
   model: string
@@ -137,6 +190,8 @@ export type PlaneInfo = {
   fuel_capacity: number
   payload_current: number
   payload_capacity: number
+  passenger_current: number
+  passenger_capacity: number
   current_airport_id: number | null
   manifest: OrderDto[]
 }
@@ -145,9 +200,11 @@ export type OrderDto = {
   id: number
   destination_id: number
   value: number
-  weight: number
   deadline: number
-  cargo_type: string
+  payload_kind: string
+  cargo_type?: string
+  weight?: number
+  passenger_count?: number
 }
 
 export async function planeInfo(planeId: number): Promise<PlaneInfo> {
@@ -176,8 +233,10 @@ export type ModelDto = {
   fuel_consumption: number
   operating_cost: number
   payload_capacity: number
+  passenger_capacity: number
   purchase_price: number
   min_runway_length: number
+  role: string
 }
 
 export async function listModels(): Promise<ModelDto[]> {

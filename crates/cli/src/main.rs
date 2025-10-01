@@ -5,7 +5,6 @@ use rusty_runways_commands::Command;
 use rusty_runways_commands::parse_command;
 use rusty_runways_core::Game;
 use rusty_runways_core::config::WorldConfig;
-use rusty_runways_core::utils::airplanes::models::AirplaneModel;
 use rustyline::{ColorMode, CompletionType, Config, Editor};
 use std::error::Error;
 
@@ -52,7 +51,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         match parse_command(&line) {
             Ok(Command::ShowModels) => {
-                // Print airplane models table
+                // Print airplane models table based on current game's catalog
                 println!(
                     "{:<16} {:>8} {:>8} {:>7} {:>8} {:>10} {:>12} {:>12}",
                     "Model", "Cruise", "Fuel", "Burn", "Oper/h", "Payload", "Price", "Runway"
@@ -61,21 +60,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     "{:-<16} {:-<8} {:-<8} {:-<7} {:-<8} {:-<10} {:-<12} {:-<12}",
                     "", "", "", "", "", "", "", ""
                 );
-                let models = [
-                    AirplaneModel::SparrowLight,
-                    AirplaneModel::FalconJet,
-                    AirplaneModel::CometRegional,
-                    AirplaneModel::Atlas,
-                    AirplaneModel::TitanHeavy,
-                    AirplaneModel::Goliath,
-                    AirplaneModel::Zephyr,
-                    AirplaneModel::Lightning,
-                ];
-                for m in models {
-                    let s = m.specs();
+                for (name, s) in game.available_models() {
                     println!(
                         "{:<16} {:>8.0} {:>8.0} {:>7.0} {:>8.0} {:>10.0} {:>12.0} {:>12.0}",
-                        format!("{:?}", m),
+                        name,
                         s.cruise_speed,
                         s.fuel_capacity,
                         s.fuel_consumption,
