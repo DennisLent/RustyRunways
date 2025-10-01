@@ -13,7 +13,12 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      {/*
+        Use a basename so the app works when served from a subpath
+        (e.g. GitHub Pages under /RustyRunways/web-demo/). Vite sets
+        import.meta.env.BASE_URL from the --base flag used in builds.
+      */}
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={<Index />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

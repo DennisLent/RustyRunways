@@ -2404,18 +2404,6 @@
   },
   "regenerate_orders": true,
   "model_catalog": {
-    "BisonFreighter": {
-      "mtow": 28000.0,
-      "cruise_speed": 680.0,
-      "fuel_capacity": 8500.0,
-      "fuel_consumption": 900.0,
-      "operating_cost": 4800.0,
-      "payload_capacity": 20000.0,
-      "passenger_capacity": 0,
-      "purchase_price": 18000000.0,
-      "min_runway_length": 3014.8762,
-      "role": "Cargo"
-    },
     "TrailblazerCombi": {
       "mtow": 65000.0,
       "cruise_speed": 820.0,
@@ -2428,17 +2416,17 @@
       "min_runway_length": 4384.089,
       "role": "Mixed"
     },
-    "Atlas": {
-      "mtow": 42000.0,
-      "cruise_speed": 750.0,
-      "fuel_capacity": 12500.0,
-      "fuel_consumption": 1550.0,
-      "operating_cost": 6500.0,
-      "payload_capacity": 18000.0,
-      "passenger_capacity": 68,
-      "purchase_price": 34000000.0,
-      "min_runway_length": 3667.534,
-      "role": "Mixed"
+    "FalconJet": {
+      "mtow": 8300.0,
+      "cruise_speed": 780.0,
+      "fuel_capacity": 2200.0,
+      "fuel_consumption": 260.0,
+      "operating_cost": 1600.0,
+      "payload_capacity": 600.0,
+      "passenger_capacity": 12,
+      "purchase_price": 1700000.0,
+      "min_runway_length": 3966.8052,
+      "role": "Passenger"
     },
     "Zephyr": {
       "mtow": 82000.0,
@@ -2450,6 +2438,18 @@
       "passenger_capacity": 210,
       "purchase_price": 72000000.0,
       "min_runway_length": 5281.25,
+      "role": "Passenger"
+    },
+    "Lightning": {
+      "mtow": 18500.0,
+      "cruise_speed": 1800.0,
+      "fuel_capacity": 5400.0,
+      "fuel_consumption": 1100.0,
+      "operating_cost": 12000.0,
+      "payload_capacity": 1500.0,
+      "passenger_capacity": 32,
+      "purchase_price": 88000000.0,
+      "min_runway_length": 21125.0,
       "role": "Passenger"
     },
     "SparrowLight": {
@@ -2464,18 +2464,6 @@
       "min_runway_length": 440.75616,
       "role": "Mixed"
     },
-    "Goliath": {
-      "mtow": 210000.0,
-      "cruise_speed": 580.0,
-      "fuel_capacity": 45000.0,
-      "fuel_consumption": 6500.0,
-      "operating_cost": 22000.0,
-      "payload_capacity": 110000.0,
-      "passenger_capacity": 0,
-      "purchase_price": 130000000.0,
-      "min_runway_length": 2193.3486,
-      "role": "Cargo"
-    },
     "TitanHeavy": {
       "mtow": 110000.0,
       "cruise_speed": 670.0,
@@ -2488,17 +2476,29 @@
       "min_runway_length": 2926.8557,
       "role": "Cargo"
     },
-    "Lightning": {
-      "mtow": 18500.0,
-      "cruise_speed": 1800.0,
-      "fuel_capacity": 5400.0,
-      "fuel_consumption": 1100.0,
-      "operating_cost": 12000.0,
-      "payload_capacity": 1500.0,
-      "passenger_capacity": 32,
-      "purchase_price": 88000000.0,
-      "min_runway_length": 21125.0,
-      "role": "Passenger"
+    "Goliath": {
+      "mtow": 210000.0,
+      "cruise_speed": 580.0,
+      "fuel_capacity": 45000.0,
+      "fuel_consumption": 6500.0,
+      "operating_cost": 22000.0,
+      "payload_capacity": 110000.0,
+      "passenger_capacity": 0,
+      "purchase_price": 130000000.0,
+      "min_runway_length": 2193.3486,
+      "role": "Cargo"
+    },
+    "BisonFreighter": {
+      "mtow": 28000.0,
+      "cruise_speed": 680.0,
+      "fuel_capacity": 8500.0,
+      "fuel_consumption": 900.0,
+      "operating_cost": 4800.0,
+      "payload_capacity": 20000.0,
+      "passenger_capacity": 0,
+      "purchase_price": 18000000.0,
+      "min_runway_length": 3014.8762,
+      "role": "Cargo"
     },
     "CometRegional": {
       "mtow": 24000.0,
@@ -2512,17 +2512,17 @@
       "min_runway_length": 3380.0,
       "role": "Passenger"
     },
-    "FalconJet": {
-      "mtow": 8300.0,
-      "cruise_speed": 780.0,
-      "fuel_capacity": 2200.0,
-      "fuel_consumption": 260.0,
-      "operating_cost": 1600.0,
-      "payload_capacity": 600.0,
-      "passenger_capacity": 12,
-      "purchase_price": 1700000.0,
-      "min_runway_length": 3966.8052,
-      "role": "Passenger"
+    "Atlas": {
+      "mtow": 42000.0,
+      "cruise_speed": 750.0,
+      "fuel_capacity": 12500.0,
+      "fuel_consumption": 1550.0,
+      "operating_cost": 6500.0,
+      "payload_capacity": 18000.0,
+      "passenger_capacity": 68,
+      "purchase_price": 34000000.0,
+      "min_runway_length": 3667.534,
+      "role": "Mixed"
     }
   },
   "models_replace": false
