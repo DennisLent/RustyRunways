@@ -96,6 +96,19 @@ else
     exit 1
   fi
 fi
+echo "[tauri-dev] Ensuring Tauri icons exist..."
+# Generate platform icons once (needed for Windows/macOS builds; harmless elsewhere)
+ICONS_DIR="$ROOT_DIR/apps/tauri/src-tauri/icons"
+if [ ! -f "$ICONS_DIR/icon.icns" ] || [ ! -f "$ICONS_DIR/icon.ico" ]; then
+  mkdir -p "$ICONS_DIR"
+  if command -v npx >/dev/null 2>&1; then
+    echo "[tauri-dev] Generating icons via @tauri-apps/cli"
+    npx --yes @tauri-apps/cli@2 icon -o "$ICONS_DIR" "$ROOT_DIR/docs/assets/rusty_runways.png" || true
+  else
+    echo "[tauri-dev] npx not found; skipping icon generation"
+  fi
+fi
+
 echo "[tauri-dev] Launching UI dev server (vite) on port $PORT..."
 # Ensure UI deps on first run
 if [ ! -d "$ROOT_DIR/apps/tauri/ui/node_modules" ]; then

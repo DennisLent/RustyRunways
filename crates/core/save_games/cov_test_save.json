@@ -2404,6 +2404,54 @@
   },
   "regenerate_orders": true,
   "model_catalog": {
+    "BisonFreighter": {
+      "mtow": 28000.0,
+      "cruise_speed": 680.0,
+      "fuel_capacity": 8500.0,
+      "fuel_consumption": 900.0,
+      "operating_cost": 4800.0,
+      "payload_capacity": 20000.0,
+      "passenger_capacity": 0,
+      "purchase_price": 18000000.0,
+      "min_runway_length": 3014.8762,
+      "role": "Cargo"
+    },
+    "TrailblazerCombi": {
+      "mtow": 65000.0,
+      "cruise_speed": 820.0,
+      "fuel_capacity": 18000.0,
+      "fuel_consumption": 1800.0,
+      "operating_cost": 7500.0,
+      "payload_capacity": 25000.0,
+      "passenger_capacity": 120,
+      "purchase_price": 55000000.0,
+      "min_runway_length": 4384.089,
+      "role": "Mixed"
+    },
+    "Atlas": {
+      "mtow": 42000.0,
+      "cruise_speed": 750.0,
+      "fuel_capacity": 12500.0,
+      "fuel_consumption": 1550.0,
+      "operating_cost": 6500.0,
+      "payload_capacity": 18000.0,
+      "passenger_capacity": 68,
+      "purchase_price": 34000000.0,
+      "min_runway_length": 3667.534,
+      "role": "Mixed"
+    },
+    "Zephyr": {
+      "mtow": 82000.0,
+      "cruise_speed": 900.0,
+      "fuel_capacity": 28000.0,
+      "fuel_consumption": 1450.0,
+      "operating_cost": 9000.0,
+      "payload_capacity": 8000.0,
+      "passenger_capacity": 210,
+      "purchase_price": 72000000.0,
+      "min_runway_length": 5281.25,
+      "role": "Passenger"
+    },
     "SparrowLight": {
       "mtow": 5200.0,
       "cruise_speed": 260.0,
@@ -2427,42 +2475,6 @@
       "purchase_price": 130000000.0,
       "min_runway_length": 2193.3486,
       "role": "Cargo"
-    },
-    "Atlas": {
-      "mtow": 42000.0,
-      "cruise_speed": 750.0,
-      "fuel_capacity": 12500.0,
-      "fuel_consumption": 1550.0,
-      "operating_cost": 6500.0,
-      "payload_capacity": 18000.0,
-      "passenger_capacity": 68,
-      "purchase_price": 34000000.0,
-      "min_runway_length": 3667.534,
-      "role": "Mixed"
-    },
-    "FalconJet": {
-      "mtow": 8300.0,
-      "cruise_speed": 780.0,
-      "fuel_capacity": 2200.0,
-      "fuel_consumption": 260.0,
-      "operating_cost": 1600.0,
-      "payload_capacity": 600.0,
-      "passenger_capacity": 12,
-      "purchase_price": 1700000.0,
-      "min_runway_length": 3966.8052,
-      "role": "Passenger"
-    },
-    "Zephyr": {
-      "mtow": 82000.0,
-      "cruise_speed": 900.0,
-      "fuel_capacity": 28000.0,
-      "fuel_consumption": 1450.0,
-      "operating_cost": 9000.0,
-      "payload_capacity": 8000.0,
-      "passenger_capacity": 210,
-      "purchase_price": 72000000.0,
-      "min_runway_length": 5281.25,
-      "role": "Passenger"
     },
     "TitanHeavy": {
       "mtow": 110000.0,
@@ -2488,18 +2500,6 @@
       "min_runway_length": 21125.0,
       "role": "Passenger"
     },
-    "BisonFreighter": {
-      "mtow": 28000.0,
-      "cruise_speed": 680.0,
-      "fuel_capacity": 8500.0,
-      "fuel_consumption": 900.0,
-      "operating_cost": 4800.0,
-      "payload_capacity": 20000.0,
-      "passenger_capacity": 0,
-      "purchase_price": 18000000.0,
-      "min_runway_length": 3014.8762,
-      "role": "Cargo"
-    },
     "CometRegional": {
       "mtow": 24000.0,
       "cruise_speed": 720.0,
@@ -2512,17 +2512,17 @@
       "min_runway_length": 3380.0,
       "role": "Passenger"
     },
-    "TrailblazerCombi": {
-      "mtow": 65000.0,
-      "cruise_speed": 820.0,
-      "fuel_capacity": 18000.0,
-      "fuel_consumption": 1800.0,
-      "operating_cost": 7500.0,
-      "payload_capacity": 25000.0,
-      "passenger_capacity": 120,
-      "purchase_price": 55000000.0,
-      "min_runway_length": 4384.089,
-      "role": "Mixed"
+    "FalconJet": {
+      "mtow": 8300.0,
+      "cruise_speed": 780.0,
+      "fuel_capacity": 2200.0,
+      "fuel_consumption": 260.0,
+      "operating_cost": 1600.0,
+      "payload_capacity": 600.0,
+      "passenger_capacity": 12,
+      "purchase_price": 1700000.0,
+      "min_runway_length": 3966.8052,
+      "role": "Passenger"
     }
   },
   "models_replace": false

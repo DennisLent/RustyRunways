@@ -23,8 +23,8 @@
   "bundle": {
     "active": true,
     "icon": [
-      "../ui/public/favicon.ico",
-      "../ui/public/rusty_runways.png"
+      "icons/icon.icns",
+      "icons/icon.ico"
     ]
   }
 }

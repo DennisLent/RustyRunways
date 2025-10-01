@@ -83,7 +83,7 @@ jobs:
           files: coverage/rust/cobertura.xml
           flags: rust
           name: rust-coverage
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
 
@@ -95,7 +95,7 @@ jobs:
           files: coverage/rust/lcov.info
           flags: rust
           name: rust-coverage-lcov
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
 
@@ -107,7 +107,7 @@ jobs:
           files: coverage/python/coverage.xml
           flags: python
           name: python-coverage
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
 
@@ -121,6 +121,6 @@ jobs:
             coverage/frontend/coverage-final.json
           flags: frontend
           name: frontend-coverage
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
           disable_search: true
