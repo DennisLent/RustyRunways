@@ -3,6 +3,7 @@
 [![codecov](https://codecov.io/github/DennisLent/RustyRunways/graph/badge.svg?token=NVMX1JW002)](https://codecov.io/github/DennisLent/RustyRunways)
 [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://dennislent.github.io/RustyRunways)
 [![PyPI](https://img.shields.io/pypi/v/rusty-runways.svg)](https://pypi.org/project/rusty-runways/)
+[![Socket Badge](https://badge.socket.dev/pypi/package/rusty-runways/3.0.2?artifact_id=tar-gz)](https://badge.socket.dev/pypi/package/rusty-runways/3.0.2?artifact_id=tar-gz)
 
 ![Rusty Runways](docs/assets/rusty_runways.png)
 
