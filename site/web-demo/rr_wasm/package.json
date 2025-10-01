@@ -1,0 +1,15 @@
+{
+  "name": "rusty_runways_wasm",
+  "type": "module",
+  "version": "2.0.4",
+  "files": [
+    "rusty_runways_wasm_bg.wasm",
+    "rusty_runways_wasm.js",
+    "rusty_runways_wasm.d.ts"
+  ],
+  "main": "rusty_runways_wasm.js",
+  "types": "rusty_runways_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

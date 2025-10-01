@@ -23,7 +23,7 @@ These features (save/load and YAML scenarios) are available via:
 <iframe src="web-demo/index.html" style="width:100%; height:800px; border:1px solid var(--md-default-fg-color--lightest);"></iframe>
 
 If the embed doesn't load, open it directly:
-- Web demo: web-demo/index.html
+- [Open the web demo](web-demo/index.html)
 
 ## How it works
 
