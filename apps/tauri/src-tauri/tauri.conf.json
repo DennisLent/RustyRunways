@@ -4,8 +4,6 @@
   "version": "3.0.0",
   "identifier": "com.rustyrunways.desktop",
   "build": {
-    "beforeDevCommand": "npm --prefix ./ui run dev -- --host localhost --port 5173 --strictPort",
-    "beforeBuildCommand": "npm --prefix ./ui run build",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../ui/dist"
   },
